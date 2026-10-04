@@ -1,0 +1,486 @@
+// Esquema de base de datos de SIGSAM.
+// Fuente de verdad del modelo relacional. Ver `docs/DECISIONES.md` (D-03, D-15, D-16)
+// y `docs/baseDeDatos.md` (modelo ER de referencia).
+//
+// Nota: evitar caracteres no ASCII en este archivo; `prisma format` los reescribe
+// de formas que rompen las cajas de comentarios. Usar líneas `// ---` como
+// separadores visuales.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Enums (D-15). Cada enum crea un tipo nativo `CREATE TYPE ... AS ENUM` en Postgres.
+
+enum Rol {
+  ADMIN
+  MEDICO
+  ENFERMERIA
+  PACIENTE
+}
+
+/// Estado de la reserva de un turno (US-012, US-014).
+enum EstadoTurno {
+  RESERVADO
+  CONFIRMADO
+  CANCELADO
+}
+
+/// Estado de publicación de un bloque de disponibilidad (US-008, US-009).
+enum EstadoDisponibilidad {
+  PUBLICADA
+  SUSPENDIDA
+}
+
+/// Resultado de atención de un turno (US-016). Inicia en `SIN_REGISTRAR`.
+enum ResultadoAtencion {
+  SIN_REGISTRAR
+  ATENDIDO
+  AUSENTE
+}
+
+/// Tipo de atención de un turno (US-012, US-023).
+enum TipoTurno {
+  CONSULTA
+  VACUNACION
+}
+
+/// Modalidad de cobertura de un turno (US-028).
+enum ModalidadCobertura {
+  PARTICULAR
+  CON_COBERTURA
+}
+
+/// Tipo de movimiento de inventario de vacunas (US-025, US-026).
+enum TipoMovimiento {
+  COMPRA
+  APLICACION
+  AJUSTE
+}
+
+/// Estado de un cobro manual simulado (US-029).
+enum EstadoPago {
+  APROBADO
+  RECHAZADO
+  CANCELADO
+  ANULADO
+}
+
+/// Tipo de evento de notificación por email (US-031, US-032, US-027).
+enum TipoEventoEmail {
+  CONFIRMACION
+  CANCELACION
+  SUSPENSION
+  RECORDATORIO
+  ALERTA_STOCK
+}
+
+/// Resultado del intento de envío de un email (US-031).
+enum ResultadoIntentoEmail {
+  EXITO
+  FALLIDO
+}
+
+// --- Personas y cuentas ---
+
+/// Datos biográficos comunes a todos los tipos de usuario.
+model Persona {
+  id             BigInt @id @default(autoincrement())
+  nombreCompleto String @map("nombre_completo") @db.VarChar(255)
+
+  usuario  Usuario?
+  paciente Paciente?
+
+  @@map("persona")
+}
+
+/// Cuenta de acceso al sistema. Una `Persona` tiene 0..1 `Usuario`.
+model Usuario {
+  id            BigInt  @id @default(autoincrement())
+  personaId     BigInt  @unique @map("persona_id")
+  email         String  @unique @db.VarChar(255)
+  passwordHash  String  @map("password_hash") @db.Text
+  rol           Rol
+  activo        Boolean @default(true)
+  claveTemporal Boolean @default(true) @map("clave_temporal")
+
+  persona                     Persona            @relation(fields: [personaId], references: [id])
+  sesiones                    Sesion[]
+  medico                      Medico?
+  disponibilidades            Disponibilidad[]   @relation("UsuarioDisponibilidades")
+  disponibilidadesSuspendidas Disponibilidad[]   @relation("UsuarioSuspende")
+  turnosCreados               Turno[]            @relation("UsuarioCreaTurno")
+  turnosCancelados            Turno[]            @relation("UsuarioCancelaTurno")
+  movimientosRegistrados      MovimientoStock[]
+  pagosRegistrados            PagoManual[]
+  comprobantesGenerados       ComprobanteTurno[]
+  eventosComoDestinatario     EventoEmail[]
+  auditorias                  Auditoria[]
+
+  @@map("usuario")
+}
+
+/// Sesión activa. No existe en el ER; agregada por D-05 para soportar
+/// expiración por inactividad y revocación inmediata (US-001 CA4, US-005 CA5).
+model Sesion {
+  id              BigInt    @id @default(autoincrement())
+  usuarioId       BigInt    @map("usuario_id")
+  tokenHash       String    @unique @map("token_hash") @db.VarChar(255)
+  creadaEn        DateTime  @default(now()) @map("creada_en") @db.Timestamptz(6)
+  ultimaActividad DateTime  @default(now()) @map("ultima_actividad") @db.Timestamptz(6)
+  finalizadaEn    DateTime? @map("finalizada_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@map("sesion")
+}
+
+// --- Pacientes y personal ---
+
+model ObraSocial {
+  id     BigInt  @id @default(autoincrement())
+  nombre String  @db.VarChar(255)
+  activa Boolean @default(true)
+
+  pacientes Paciente[]
+  turnos    Turno[]
+
+  @@unique([nombre])
+  @@map("obra_social")
+}
+
+/// Subtipo de `Persona`: el paciente es una persona que recibe atención.
+/// Puede existir sin `Usuario` (US-003: menores de edad sin credenciales).
+model Paciente {
+  personaId       BigInt   @id @map("persona_id")
+  dni             String   @db.VarChar(20)
+  fechaNacimiento DateTime @map("fecha_nacimiento") @db.Date
+  telefono        String   @db.VarChar(30)
+  tutorId         BigInt?  @map("tutor_id")
+  obraSocialId    BigInt?  @map("obra_social_id")
+  plan            String?  @db.VarChar(120)
+  numeroAfiliado  String?  @map("numero_afiliado") @db.VarChar(80)
+
+  persona    Persona     @relation(fields: [personaId], references: [id])
+  tutor      Paciente?   @relation("PacienteTutor", fields: [tutorId], references: [personaId])
+  tutelados  Paciente[]  @relation("PacienteTutor")
+  obraSocial ObraSocial? @relation(fields: [obraSocialId], references: [id])
+  turnos     Turno[]
+
+  @@index([dni])
+  @@index([tutorId])
+  @@index([obraSocialId])
+  @@map("paciente")
+}
+
+model Especialidad {
+  id     BigInt @id @default(autoincrement())
+  nombre String @unique @db.VarChar(120)
+
+  medicos Medico[]
+
+  @@map("especialidad")
+}
+
+/// Subtipo de `Usuario`: un médico (rol = MEDICO).
+model Medico {
+  usuarioId        BigInt  @id @map("usuario_id")
+  especialidadId   BigInt? @map("especialidad_id")
+  duracionTurnoMin Int     @map("duracion_turno_min") @db.SmallInt
+  arancelActual    Decimal @map("arancel_actual") @db.Decimal(10, 2)
+
+  usuario      Usuario       @relation(fields: [usuarioId], references: [id])
+  especialidad Especialidad? @relation(fields: [especialidadId], references: [id])
+  consultas    Consulta[]
+  correcciones Correccion[]
+
+  @@index([especialidadId])
+  @@map("medico")
+}
+
+// --- Disponibilidad y vacunación ---
+
+model Disponibilidad {
+  id               BigInt               @id @default(autoincrement())
+  profesionalId    BigInt               @map("profesional_id")
+  fecha            DateTime             @db.Date
+  horaDesde        DateTime             @map("hora_desde") @db.Time(6)
+  horaHasta        DateTime             @map("hora_hasta") @db.Time(6)
+  estado           EstadoDisponibilidad @default(PUBLICADA)
+  motivoSuspension String?              @map("motivo_suspension") @db.Text
+  suspendidaEn     DateTime?            @map("suspendida_en") @db.Timestamptz(6)
+  suspendidaPor    BigInt?              @map("suspendida_por")
+
+  profesional   Usuario  @relation("UsuarioDisponibilidades", fields: [profesionalId], references: [id])
+  suspendidoPor Usuario? @relation("UsuarioSuspende", fields: [suspendidaPor], references: [id])
+  turnos        Turno[]
+
+  /// Publicar dos veces el mismo bloque no duplica cupos (US-008 CA3).
+  @@unique([profesionalId, fecha, horaDesde, horaHasta])
+  @@index([profesionalId, fecha])
+  @@index([estado])
+  @@map("disponibilidad")
+}
+
+model Vacuna {
+  id            BigInt  @id @default(autoincrement())
+  nombre        String  @unique @db.VarChar(120)
+  descripcion   String? @db.Text
+  activa        Boolean @default(true)
+  umbralMinimo  Int     @map("umbral_minimo")
+  arancelActual Decimal @map("arancel_actual") @db.Decimal(10, 2)
+
+  lotes        LoteVacuna[]
+  turnos       Turno[]
+  eventosEmail EventoEmail[]
+
+  @@map("vacuna")
+}
+
+model LoteVacuna {
+  id               BigInt   @id @default(autoincrement())
+  vacunaId         BigInt   @map("vacuna_id")
+  codigo           String   @unique @db.VarChar(100)
+  fechaVencimiento DateTime @map("fecha_vencimiento") @db.Date
+  utilizable       Boolean  @default(true)
+
+  vacuna           Vacuna            @relation(fields: [vacunaId], references: [id])
+  movimientos      MovimientoStock[]
+  turnosReservados Turno[]
+
+  @@index([vacunaId, utilizable])
+  @@map("lote_vacuna")
+}
+
+// --- Turnos, atención clínica y vacunación aplicada ---
+
+/// Cita o reserva. Por cada cupo del calendario se crea un `Turno`. Un cupo
+/// `CANCELADO` se conserva y un nuevo `Turno` ocupa el mismo
+/// `disponibilidad_id` (por eso la cardinalidad es 1..N).
+model Turno {
+  id                      BigInt             @id @default(autoincrement())
+  pacienteId              BigInt             @map("paciente_id")
+  disponibilidadId        BigInt             @map("disponibilidad_id")
+  creadoPor               BigInt             @map("creado_por")
+  tipo                    TipoTurno
+  vacunaId                BigInt?            @map("vacuna_id")
+  loteReservadoId         BigInt?            @map("lote_reservado_id")
+  hora                    DateTime           @db.Time(6)
+  duracionMin             Int                @map("duracion_min") @db.SmallInt
+  arancel                 Decimal            @db.Decimal(10, 2)
+  modalidad               ModalidadCobertura
+  obraSocialId            BigInt?            @map("obra_social_id")
+  coberturaNombreSnapshot String?            @map("cobertura_nombre_snapshot") @db.VarChar(255)
+  coberturaPlanSnapshot   String?            @map("cobertura_plan_snapshot") @db.VarChar(120)
+  afiliadoSnapshot        String?            @map("afiliado_snapshot") @db.VarChar(120)
+  estado                  EstadoTurno
+  resultado               ResultadoAtencion  @default(SIN_REGISTRAR)
+  esSobreturno            Boolean            @default(false) @map("es_sobreturno")
+  motivoSobreturno        String?            @map("motivo_sobreturno") @db.Text
+  retenidoHasta           DateTime?          @map("retenido_hasta") @db.Timestamptz(6)
+  atendidoEn              DateTime?          @map("atendido_en") @db.Timestamptz(6)
+  canceladoEn             DateTime?          @map("cancelado_en") @db.Timestamptz(6)
+  canceladoPor            BigInt?            @map("cancelado_por")
+  origenCancelacion       String?            @map("origen_cancelacion") @db.VarChar(40)
+  motivoCancelacion       String?            @map("motivo_cancelacion") @db.Text
+  reprogramadoDesdeId     BigInt?            @unique @map("reprogramado_desde_id")
+  creadoEn                DateTime           @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  paciente            Paciente           @relation(fields: [pacienteId], references: [personaId])
+  disponibilidad      Disponibilidad     @relation(fields: [disponibilidadId], references: [id])
+  creadoPorUsuario    Usuario            @relation("UsuarioCreaTurno", fields: [creadoPor], references: [id])
+  canceladoPorUsuario Usuario?           @relation("UsuarioCancelaTurno", fields: [canceladoPor], references: [id])
+  vacuna              Vacuna?            @relation(fields: [vacunaId], references: [id])
+  loteReservado       LoteVacuna?        @relation(fields: [loteReservadoId], references: [id])
+  obraSocial          ObraSocial?        @relation(fields: [obraSocialId], references: [id])
+  reprogramadoDesde   Turno?             @relation("TurnoReprogramado", fields: [reprogramadoDesdeId], references: [id])
+  reprogramaciones    Turno[]            @relation("TurnoReprogramado")
+  consulta            Consulta?
+  pagos               PagoManual[]
+  comprobantes        ComprobanteTurno[]
+  eventosEmail        EventoEmail[]
+  movimientoStock     MovimientoStock?
+
+  @@index([pacienteId, estado])
+  @@index([disponibilidadId, estado])
+  @@index([estado, resultado])
+  @@index([creadoPor])
+  @@index([obraSocialId])
+  @@map("turno")
+}
+
+model Consulta {
+  turnoId       BigInt   @id @map("turno_id")
+  autorId       BigInt   @map("autor_id")
+  diagnostico   String   @db.Text
+  sintomas      String?  @db.Text
+  indicaciones  String?  @db.Text
+  medicacion    String?  @db.Text
+  estudios      String?  @db.Text
+  observaciones String?  @db.Text
+  certificado   String?  @db.Text
+  creadaEn      DateTime @default(now()) @map("creada_en") @db.Timestamptz(6)
+
+  turno        Turno        @relation(fields: [turnoId], references: [id])
+  autor        Medico       @relation(fields: [autorId], references: [usuarioId])
+  correcciones Correccion[]
+  adjuntos     Adjunto[]
+
+  @@index([autorId])
+  @@index([creadaEn])
+  @@map("consulta")
+}
+
+model Correccion {
+  id              BigInt   @id @default(autoincrement())
+  consultaTurnoId BigInt   @map("consulta_turno_id")
+  autorId         BigInt   @map("autor_id")
+  texto           String   @db.Text
+  motivo          String   @db.Text
+  creadaEn        DateTime @default(now()) @map("creada_en") @db.Timestamptz(6)
+
+  consulta Consulta @relation(fields: [consultaTurnoId], references: [turnoId])
+  autor    Medico   @relation(fields: [autorId], references: [usuarioId])
+
+  @@index([consultaTurnoId])
+  @@index([autorId])
+  @@map("correccion")
+}
+
+model Adjunto {
+  id              BigInt   @id @default(autoincrement())
+  consultaTurnoId BigInt   @map("consulta_turno_id")
+  nombre          String   @db.VarChar(255)
+  rutaPrivada     String   @map("ruta_privada") @db.Text
+  mimeType        String   @map("mime_type") @db.VarChar(120)
+  tamanoBytes     BigInt   @map("tamano_bytes")
+  creadoEn        DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  consulta Consulta @relation(fields: [consultaTurnoId], references: [turnoId])
+
+  @@index([consultaTurnoId])
+  @@map("adjunto")
+}
+
+model MovimientoStock {
+  id            BigInt         @id @default(autoincrement())
+  loteId        BigInt         @map("lote_id")
+  turnoId       BigInt?        @unique @map("turno_id")
+  registradoPor BigInt         @map("registrado_por")
+  tipo          TipoMovimiento
+  cantidad      Int
+  motivo        String?        @db.Text
+  creadoEn      DateTime       @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  lote        LoteVacuna @relation(fields: [loteId], references: [id])
+  turno       Turno?     @relation(fields: [turnoId], references: [id])
+  registrador Usuario    @relation(fields: [registradoPor], references: [id])
+
+  @@index([loteId, creadoEn])
+  @@index([registradoPor])
+  @@map("movimiento_stock")
+}
+
+model PagoManual {
+  id              BigInt     @id @default(autoincrement())
+  turnoId         BigInt     @map("turno_id")
+  registradoPor   BigInt     @map("registrado_por")
+  importe         Decimal    @db.Decimal(10, 2)
+  medio           String?    @db.VarChar(40)
+  estado          EstadoPago
+  motivoAnulacion String?    @map("motivo_anulacion") @db.Text
+  registradoEn    DateTime   @default(now()) @map("registrado_en") @db.Timestamptz(6)
+
+  turno       Turno   @relation(fields: [turnoId], references: [id])
+  registrador Usuario @relation(fields: [registradoPor], references: [id])
+
+  @@index([turnoId])
+  @@index([registradoPor])
+  @@index([estado])
+  @@map("pago_manual")
+}
+
+model ComprobanteTurno {
+  id                 BigInt   @id @default(autoincrement())
+  turnoId            BigInt   @map("turno_id")
+  generadoPor        BigInt   @map("generado_por")
+  pacienteSnapshot   String   @map("paciente_snapshot") @db.VarChar(255)
+  prestacionSnapshot String   @map("prestacion_snapshot") @db.VarChar(255)
+  fechaTurnoSnapshot DateTime @map("fecha_turno_snapshot") @db.Date
+  horaTurnoSnapshot  DateTime @map("hora_turno_snapshot") @db.Time(6)
+  estadoSnapshot     String   @map("estado_snapshot") @db.VarChar(40)
+  resultadoSnapshot  String   @map("resultado_snapshot") @db.VarChar(40)
+  archivoPrivado     String?  @map("archivo_privado") @db.Text
+  generadoEn         DateTime @default(now()) @map("generado_en") @db.Timestamptz(6)
+
+  turno     Turno   @relation(fields: [turnoId], references: [id])
+  generador Usuario @relation(fields: [generadoPor], references: [id])
+
+  @@index([turnoId])
+  @@index([generadoPor])
+  @@map("comprobante_turno")
+}
+
+// --- Notificaciones por email y auditoría ---
+
+model EventoEmail {
+  id                   BigInt          @id @default(autoincrement())
+  destinatarioId       BigInt          @map("destinatario_id")
+  turnoId              BigInt?         @map("turno_id")
+  vacunaId             BigInt?         @map("vacuna_id")
+  tipoEvento           TipoEventoEmail @map("tipo_evento")
+  claveEvento          String          @unique @map("clave_evento") @db.VarChar(255)
+  emailDestinoSnapshot String          @map("email_destino_snapshot") @db.VarChar(255)
+  asunto               String          @db.VarChar(255)
+  cuerpo               String          @db.Text
+  programadoEn         DateTime        @map("programado_en") @db.Timestamptz(6)
+  canceladoEn          DateTime?       @map("cancelado_en") @db.Timestamptz(6)
+  creadoEn             DateTime        @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  destinatario Usuario        @relation(fields: [destinatarioId], references: [id])
+  turno        Turno?         @relation(fields: [turnoId], references: [id])
+  vacuna       Vacuna?        @relation(fields: [vacunaId], references: [id])
+  intentos     IntentoEmail[]
+
+  @@index([destinatarioId])
+  @@index([turnoId])
+  @@index([vacunaId])
+  @@index([programadoEn])
+  @@map("evento_email")
+}
+
+model IntentoEmail {
+  id          BigInt                @id @default(autoincrement())
+  eventoId    BigInt                @map("evento_id")
+  numero      Int                   @db.SmallInt
+  resultado   ResultadoIntentoEmail
+  error       String?               @db.Text
+  intentadoEn DateTime              @default(now()) @map("intentado_en") @db.Timestamptz(6)
+
+  evento EventoEmail @relation(fields: [eventoId], references: [id])
+
+  @@index([eventoId])
+  @@map("intento_email")
+}
+
+model Auditoria {
+  id           BigInt   @id @default(autoincrement())
+  actorId      BigInt?  @map("actor_id")
+  accion       String   @db.VarChar(80)
+  entidad      String   @db.VarChar(80)
+  referenciaId BigInt?  @map("referencia_id")
+  detalle      String?  @db.Text
+  creadoEn     DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  actor Usuario? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId, creadoEn])
+  @@index([entidad, referenciaId])
+  @@map("auditoria")
+}

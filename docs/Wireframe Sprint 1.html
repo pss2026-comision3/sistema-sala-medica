@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="Prototipo interactivo de SIGSAM para Sprint 1 (alcance S1).">
+  <title>SIGSAM · Sprint 1 · Prototipo interactivo</title>
+  <style>
+  /* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio.
+     Put this @layer first; product CSS outside the layer always wins. */
+  @layer od-layout {
+    :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+
+    /* containers */
+    .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+    .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+    .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+    .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+    .od-fill    { flex: 1 1 0; min-width: 0; }
+    .od-fixed   { flex: none; }
+    .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+
+    /* stacked information: each piece is its own line — never sibling inline spans */
+    .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+    :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+    .od-tile { display: grid; grid-template-rows: auto 1fr; }
+    :where(.od-tile) > :where(*) { display: block; }
+
+    /* media keeps its intrinsic ratio by default; never a distorted or cropped
+       cover by accident. height:auto lets the ratio win over an <img height="…">
+       attribute. Cropping to a uniform box is an explicit opt-in: set --od-ratio
+       AND add .od-media-cover together (per the core rule, only where a crop is
+       deliberate — tile thumbs, decorative fills — never on full-frame content). */
+    .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+    .od-media-cover { object-fit: cover; }
+
+    /* data text only — authored copy is rewritten to its budget instead */
+    .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+    .od-clamp-2 { -webkit-line-clamp: 2; }
+    .od-clamp-3 { -webkit-line-clamp: 3; }
+    .od-lines-2 { min-height: calc(2 * 1.4em); }
+    .od-nowrap  { white-space: nowrap; }
+    .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+
+    /* screen skeleton (optional): bars take their own space, the middle scrolls */
+    .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+    .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+
+    /* horizontal rail: the next item peeks at the edge */
+    .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+               padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+    .od-rail::-webkit-scrollbar { display: none; }
+    :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+    :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+
+    .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+    .od-touch  { min-width: 44px; min-height: 44px; }
+  }
+  /* /OD-LAYOUT-PRIMITIVES v1 */
+  </style>
+  <style>
+:root{--bg:#f7f9fa;--surface:#fff;--text:#18323a;--muted:#52666d;--border:#d7e2e4;--primary:#145f65;--primary-hover:#0b4a4e;--primary-soft:#eaf3f3;--success:#18724c;--warning:#9a5a00;--error:#b4393a;--info:#286cb2;--dark:#102a31;--shadow:0 8px 28px rgba(24,50,58,.07);--r:10px;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--motion:220ms}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--text);background:var(--bg);font:16px/1.6 system-ui,"Segoe UI",Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:var(--primary)}a:hover{color:var(--primary-hover)}:focus-visible{outline:2px solid var(--primary);outline-offset:3px}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(28px,2.5vw,32px);line-height:1.2;letter-spacing:-.025em}h2{font-size:23px;line-height:1.25;letter-spacing:-.02em}h3{font-size:19px;line-height:1.35}small,.small{font-size:14px}.muted{color:var(--muted)}.maxline{max-width:72ch}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.review-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 24px;background:var(--dark);color:#fff;border-bottom:3px solid #5aa1a0}.review-toolbar strong{font-size:16px;white-space:nowrap}.review-toolbar .tool-group{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.review-toolbar label{font-size:14px;color:#d4e3e4}.review-toolbar select{min-height:40px;background:#fff;color:var(--text);border:1px solid #a8c2c6;border-radius:8px;padding:6px 28px 6px 10px}.review-toolbar button{min-height:40px;padding:6px 12px;border:1px solid #729599;border-radius:8px;background:transparent;color:#fff}.review-toolbar button[aria-pressed=true]{background:#fff;color:var(--dark);border-color:#fff}.review-toolbar button:hover{background:#31535a;color:#fff}.review-toolbar button[aria-pressed=true]:hover{background:#eaf3f3;color:var(--dark)}.review-toolbar .tool-spacer{flex:1}.review-toolbar .tool-note{font-size:13px;color:#d4e3e4}.workspace{display:grid;grid-template-columns:minmax(0,1fr) 304px;min-height:calc(100vh - 70px)}.workspace.product-only{grid-template-columns:minmax(0,1fr)}.workspace.product-only .review-panel{display:none}.workspace> *{min-width:0}.review-panel{background:#eef3f4;border-left:1px solid #b9ced1;padding:24px;position:sticky;top:0;align-self:start;max-height:100vh;overflow-y:auto}.review-panel h2{font-size:21px}.review-panel .review-meta{display:grid;gap:10px;margin:20px 0}.review-panel .review-meta dt{color:var(--muted);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}.review-panel .review-meta dd{margin:0}.review-panel .review-part{border-top:1px solid #cbdcde;padding:12px 0}.review-panel .review-part strong{display:block}.review-panel .variant-list{display:flex;flex-wrap:wrap;gap:7px}.review-panel .variant-list button{background:#fff;border:1px solid #afc5c9;color:var(--text);border-radius:7px;padding:7px 9px;font-size:13px;min-height:38px}.review-panel .variant-list button[aria-pressed=true]{background:var(--primary);color:#fff;border-color:var(--primary)}.review-panel .review-link{display:block;margin-top:18px;font-size:14px}
+.product-shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:calc(100vh - 70px);background:var(--bg)}.product-sidebar{background:var(--surface);border-right:1px solid var(--border);padding:28px 16px;display:flex;flex-direction:column;gap:24px}.brand{display:flex;align-items:center;gap:10px;color:var(--text);font-weight:800;font-size:23px;line-height:1;text-decoration:none;letter-spacing:-.055em;padding:6px 10px}.brand-mark{display:grid;place-items:center;width:32px;height:32px;min-width:32px;background:var(--primary);color:#fff;border-radius:8px;font-size:21px;font-weight:500;line-height:1}.brand:hover{color:var(--text)}.nav-label{padding:0 12px;margin-bottom:9px;color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.product-nav{display:grid;gap:3px}.product-nav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:8px 12px;border-radius:8px;color:var(--muted);text-decoration:none;font-weight:600;line-height:1.3}.product-nav a:hover{background:#f1f6f6;color:var(--primary-hover)}.product-nav a[aria-current=page]{background:var(--primary-soft);color:var(--primary)}.nav-dot{width:6px;height:6px;min-width:6px;border-radius:50%;background:currentColor;opacity:.5}.product-nav a[aria-current=page] .nav-dot{opacity:1}.sidebar-foot{margin-top:auto;padding:14px 10px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}.sidebar-foot strong{display:block;color:var(--text);font-size:15px}.product-main{min-width:0}.product-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:72px;padding:12px 32px;background:var(--surface);border-bottom:1px solid var(--border)}.crumb{font-size:14px;color:var(--muted)}.top-user{display:flex;align-items:center;gap:16px}.top-user .user-name{font-weight:700;font-size:14px}.top-user .user-role{font-size:12px;color:var(--muted);display:block}.product-content{max-width:1200px;margin:0 auto;padding:32px 32px 88px}.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:28px}.page-head p{color:var(--muted);margin:9px 0 0;max-width:68ch}.page-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.eyebrow{font-size:12px;color:var(--primary);font-weight:800;letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:32px 0 16px}.section-head h2,.section-head h3{margin:0}.section-head a{font-size:14px;font-weight:700}.content-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}.span-12{grid-column:span 12}.span-8{grid-column:span 8}.span-7{grid-column:span 7}.span-6{grid-column:span 6}.span-5{grid-column:span 5}.span-4{grid-column:span 4}.span-3{grid-column:span 3}.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;min-width:0}.card.compact{padding:16px}.card h2,.card h3{margin-bottom:12px}.card p:last-child{margin-bottom:0}.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}.card-head h2,.card-head h3{margin:0}.stat-card{min-height:136px}.stat-card .stat-value{display:block;font-size:clamp(27px,3vw,36px);font-weight:800;line-height:1.2;letter-spacing:-.04em;white-space:nowrap}.stat-card .stat-label{display:block;color:var(--muted);margin-top:8px}.hero-panel{background:var(--primary);color:#fff;border-radius:var(--r);padding:32px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:24px}.hero-panel h2{font-size:26px;margin-bottom:8px}.hero-panel p{margin:0;max-width:55ch;color:#e4f3f3}.hero-panel .btn{background:#fff;color:var(--primary);border-color:#fff}.hero-panel .btn:hover{background:#eaf3f3}.divider{border:0;border-top:1px solid var(--border);margin:24px 0}.list{display:grid;gap:12px}.list-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--border)}.list-row:last-child{border-bottom:0}.list-row>div{min-width:0}.list-row strong{display:block}.list-row .meta{display:block;color:var(--muted);font-size:14px}.list-row .row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.flow-steps{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}.flow-steps span{padding:5px 11px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--muted);font-size:13px;font-weight:700}.flow-steps span.active{background:var(--primary-soft);border-color:#bcd9da;color:var(--primary)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 16px;border:1px solid var(--primary);border-radius:8px;background:var(--primary);color:#fff;text-decoration:none;font-weight:700;line-height:1.2;white-space:nowrap;transition:background var(--motion) ease-out,border-color var(--motion) ease-out,transform var(--motion) ease-out}.btn:hover{background:var(--primary-hover);border-color:var(--primary-hover);color:#fff}.btn:active{transform:translateY(1px)}.btn.secondary{background:#fff;color:var(--primary);border-color:#a9c9cb}.btn.secondary:hover{background:var(--primary-soft);color:var(--primary-hover)}.btn.ghost{background:transparent;color:var(--primary);border-color:transparent}.btn.ghost:hover{background:var(--primary-soft);color:var(--primary-hover)}.btn.danger{background:#fff;color:var(--error);border-color:#d7a4a4}.btn.danger:hover{background:#fbeeee;color:#922b2c}.btn.small{min-height:38px;padding:7px 12px;font-size:14px}.btn:disabled{background:#e5ebec;border-color:#d7e2e4;color:#667b80;cursor:not-allowed;transform:none}.link-button{border:0;background:transparent;color:var(--primary);font-weight:700;padding:8px;min-height:44px;text-decoration:underline;text-underline-offset:3px}.link-button:hover{color:var(--primary-hover)}.icon-button{display:grid;place-items:center;min-width:44px;min-height:44px;background:#fff;border:1px solid var(--border);border-radius:8px;color:var(--text)}.icon-button:hover{background:var(--primary-soft)}
+.status{display:inline-flex;align-items:center;gap:7px;width:max-content;max-width:100%;padding:4px 9px;border-radius:999px;background:#f1f4f4;color:var(--text);font-size:13px;font-weight:800;line-height:1.3;white-space:nowrap}.status:before{content:"";display:block;width:7px;height:7px;min-width:7px;background:currentColor;border-radius:50%}.status.success{color:var(--success);background:#e6f4ec}.status.warning{color:var(--warning);background:#fff1d9}.status.error{color:var(--error);background:#faebeb}.status.info{color:var(--info);background:#eaf2fb}.status.neutral{color:var(--muted);background:#edf2f3}.notice{padding:15px 17px;border:1px solid var(--border);border-radius:8px;background:#fff;display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}.notice .notice-symbol{display:grid;place-items:center;width:24px;height:24px;min-width:24px;border-radius:50%;font-size:15px;font-weight:900;background:var(--primary-soft);color:var(--primary)}.notice.info{background:#f0f6fd;border-color:#c7dbf0}.notice.info .notice-symbol{background:#dceafb;color:var(--info)}.notice.success{background:#edf7f1;border-color:#bfddcb}.notice.success .notice-symbol{background:#d5ebde;color:var(--success)}.notice.warning{background:#fff8eb;border-color:#ead4ae}.notice.warning .notice-symbol{background:#fbe9c7;color:var(--warning)}.notice.error{background:#fcf0f0;border-color:#e4bcbc}.notice.error .notice-symbol{background:#f7dede;color:var(--error)}.notice strong{display:block}.notice p{margin:3px 0 0;color:var(--text)}.empty{padding:40px 24px;text-align:center;border:1px dashed #aac2c6;border-radius:var(--r);background:#fff}.empty-symbol{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 14px;border-radius:12px;background:var(--primary-soft);color:var(--primary);font-size:24px;font-weight:700}.empty h3{margin-bottom:6px}.empty p{color:var(--muted);max-width:50ch;margin:0 auto 18px}.skeleton{display:grid;gap:12px}.skeleton span{display:block;height:16px;border-radius:5px;background:linear-gradient(90deg,#e3ebec,#f1f5f5,#e3ebec);background-size:200% 100%;animation:shimmer 1.4s linear infinite}.skeleton span:nth-child(2){width:72%}.skeleton span:nth-child(3){width:87%}@keyframes shimmer{to{background-position-x:-200%}}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.form-grid .full{grid-column:1/-1}.field{display:grid;gap:6px;min-width:0}.field label{font-size:14px;font-weight:800;color:var(--text)}.field .hint{font-size:13px;color:var(--muted)}.field input,.field select,.field textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid #adc2c6;border-radius:8px;background:#fff;color:var(--text)}.field textarea{min-height:110px;resize:vertical}.field input:hover,.field select:hover,.field textarea:hover{border-color:var(--primary)}.field input[aria-invalid=true],.field select[aria-invalid=true],.field textarea[aria-invalid=true]{border-color:var(--error)}.field-error{font-size:13px;color:var(--error);font-weight:700}.form-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:24px}.form-summary{margin-bottom:18px}.checkline{display:flex;align-items:flex-start;gap:10px;min-height:44px}.checkline input{width:20px;height:20px;margin-top:3px;accent-color:var(--primary)}.inline-fields{display:flex;gap:12px;align-items:end;flex-wrap:wrap}.inline-fields .field{flex:1 1 160px}.segmented{display:inline-flex;padding:3px;border:1px solid var(--border);border-radius:9px;background:#eef3f4;gap:2px}.segmented button{border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:7px;min-height:38px;font-size:14px;font-weight:700}.segmented button[aria-pressed=true]{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(24,50,58,.12)}.slot-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.slot-button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:68px;padding:8px;border:1px solid #abc7ca;border-radius:8px;background:#fff;color:var(--primary);font-weight:800}.slot-button span{display:block;font-size:12px;font-weight:600;color:var(--muted)}.slot-button:hover{background:var(--primary-soft);border-color:var(--primary)}.slot-button:disabled{background:#eef2f2;color:#6b7e82;border-color:#d7e2e4;cursor:not-allowed}.slot-button.selected{background:var(--primary);color:#fff}.slot-button.selected span{color:#fff}.calendar-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}.calendar-day{display:grid;gap:3px;min-height:70px;padding:8px;border:1px solid var(--border);border-radius:8px;background:#fff;text-align:left}.calendar-day strong{font-size:14px}.calendar-day span{font-size:12px;color:var(--muted)}.calendar-day.selected{border-color:var(--primary);background:var(--primary-soft)}.calendar-day.disabled{background:#eef2f2;color:#819095}.calendar-day.disabled span{color:#819095}.data-table{width:100%;border-collapse:collapse;table-layout:fixed}.data-table th{text-align:left;color:var(--muted);font-size:13px;letter-spacing:.03em;font-weight:800;padding:11px 12px;border-bottom:1px solid var(--border)}.data-table td{padding:13px 12px;border-bottom:1px solid var(--border);vertical-align:middle;overflow-wrap:anywhere}.data-table tr:last-child td{border-bottom:0}.data-table td strong{display:block}.data-table td small{display:block;color:var(--muted)}.data-table .actions-cell{width:170px}.mobile-records{display:none}.record-card{padding:16px;border:1px solid var(--border);border-radius:8px;background:#fff;margin-bottom:10px}.record-card dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:10px 0}.record-card dt{color:var(--muted);font-size:13px}.record-card dd{margin:0;font-weight:600}.record-card .row-actions{display:flex;flex-wrap:wrap;gap:8px}.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.kv dt{font-size:13px;color:var(--muted);font-weight:700}.kv dd{margin:2px 0 0;font-weight:700}.timeline{display:grid;gap:0}.timeline-item{position:relative;padding:0 0 24px 26px;border-left:2px solid var(--border);margin-left:6px}.timeline-item:last-child{border-left-color:transparent;padding-bottom:0}.timeline-item:before{content:"";position:absolute;top:4px;left:-7px;width:12px;height:12px;border-radius:50%;background:var(--primary)}.timeline-item strong{display:block}.timeline-item time,.timeline-item small{color:var(--muted);font-size:13px}.timeline-item p{margin:5px 0 0}.chart-bars{display:grid;gap:12px}.bar-row{display:grid;grid-template-columns:120px minmax(0,1fr) 45px;align-items:center;gap:12px;font-size:14px}.bar-track{height:12px;border-radius:999px;background:#e6eeee;overflow:hidden}.bar-fill{display:block;height:100%;background:var(--primary);border-radius:999px}.bar-row strong{text-align:right}.split-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.filters .field{flex:1 1 170px}.quick-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.quick-link{display:block;min-height:112px;padding:17px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);text-decoration:none}.quick-link:hover{background:var(--primary-soft);border-color:#a7cbcd;color:var(--text)}.quick-link strong{display:block;font-size:17px}.quick-link span{display:block;color:var(--muted);font-size:14px;margin-top:6px}.increment{position:relative}.increment>.pin{display:none}.workspace.reviewing .increment>.pin{display:grid;place-items:center;position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:var(--info);color:#fff;font-size:12px;font-weight:800;z-index:1;box-shadow:0 2px 8px rgba(24,50,58,.2)}.workspace.reviewing .increment[data-sprint="3"]>.pin{background:var(--warning)}.workspace.reviewing .increment{outline:1px dashed rgba(40,108,178,.35);outline-offset:3px}.workspace.reviewing .increment[data-sprint="3"]{outline-color:rgba(154,90,0,.35)}.wireframe .product-shell{filter:grayscale(1)}.wireframe .card,.wireframe .hero-panel,.wireframe .quick-link,.wireframe .notice,.wireframe .record-card{box-shadow:none;border-style:dashed;background:#fff;color:#243439}.wireframe .hero-panel p{color:#52666d}.wireframe .btn,.wireframe .status,.wireframe .brand-mark{filter:grayscale(1)}.wireframe .product-content:before{content:"Vista estructural · baja fidelidad";display:block;margin-bottom:20px;border:1px dashed #758b8e;padding:8px 12px;color:#52666d;font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase}.overlay{position:fixed;inset:0;background:rgba(10,30,36,.52);z-index:20;display:grid;place-items:center;padding:20px}.dialog{width:min(100%,480px);background:#fff;border-radius:12px;box-shadow:0 20px 65px rgba(0,0,0,.25);padding:28px}.dialog h2{margin-bottom:10px}.dialog .form-actions{justify-content:flex-end}.toast{position:fixed;bottom:24px;right:24px;z-index:30;max-width:min(460px,calc(100vw - 32px));background:var(--dark);color:#fff;border-radius:9px;box-shadow:var(--shadow);padding:13px 17px}.toast strong{display:block}.toast p{margin:0}.variant-banner{margin-bottom:20px}.variant-banner .notice{margin-bottom:0}.variant-banner .variant-action{margin-top:8px}.public-layout{min-height:calc(100vh - 70px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);background:#fff}.public-aside{background:var(--primary);color:#fff;padding:clamp(32px,7vw,80px);display:flex;flex-direction:column;justify-content:space-between}.public-aside .brand{color:#fff;padding:0}.public-aside .brand-mark{background:#fff;color:var(--primary)}.public-aside h1{font-size:clamp(35px,4vw,52px);max-width:12ch;line-height:1.08}.public-aside p{max-width:48ch;color:#e6f5f4}.public-main{padding:clamp(24px,5vw,70px);display:grid;align-content:center}.public-main .public-card{max-width:520px;margin:0 auto;width:100%}.public-main .public-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+@media(max-width:1190px){.workspace{grid-template-columns:minmax(0,1fr) 270px}.product-shell{grid-template-columns:208px minmax(0,1fr)}.product-content{padding:28px 24px 72px}.product-topbar{padding-inline:24px}.review-panel{padding:18px}.slot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:1024px){.workspace{display:block}.review-panel{position:static;max-height:none;border-left:0;border-top:1px solid #b9ced1}.product-shell{grid-template-columns:200px minmax(0,1fr)}.span-3{grid-column:span 6}.span-4{grid-column:span 6}.span-8{grid-column:span 12}.quick-links{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:768px){.review-toolbar{padding:10px 16px;gap:10px}.review-toolbar .tool-spacer,.review-toolbar .tool-note{display:none}.product-shell{display:flex;flex-direction:column}.product-sidebar{padding:12px 16px;gap:10px;border-right:0;border-bottom:1px solid var(--border)}.product-sidebar .brand{font-size:21px}.product-sidebar .brand-mark{width:28px;height:28px;min-width:28px}.product-sidebar .nav-label,.product-sidebar .sidebar-foot{display:none}.product-nav{display:flex;overflow-x:auto;gap:4px;scrollbar-width:none}.product-nav::-webkit-scrollbar{display:none}.product-nav a{flex:none;white-space:nowrap;padding:8px 10px}.product-topbar{min-height:58px;padding:8px 16px}.product-content{padding:24px 16px 64px}.page-head{display:block}.page-actions{justify-content:flex-start;margin-top:16px}.span-7,.span-6,.span-5,.span-4,.span-3{grid-column:span 12}.hero-panel{grid-template-columns:1fr;padding:24px}.slot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.data-table{display:none}.mobile-records{display:block}.bar-row{grid-template-columns:90px minmax(0,1fr) 40px}.public-layout{grid-template-columns:1fr}.public-aside{padding:22px 24px;gap:10px}.public-aside h1{font-size:29px;max-width:none;margin:0}.public-aside p{margin:0}.public-main{padding:24px}}
+@media(max-width:480px){body{font-size:16px}.review-toolbar strong{width:100%}.review-toolbar .tool-group{width:100%}.review-toolbar select{max-width:100%}.top-user .user-name{display:none}.product-content{padding:20px 16px 56px}.card{padding:18px}.page-head{margin-bottom:22px}.page-actions .btn{flex:1 1 auto}.list-row{align-items:flex-start;flex-direction:column;gap:8px}.list-row .row-actions{justify-content:flex-start}.form-grid{grid-template-columns:1fr}.form-grid .full{grid-column:auto}.slot-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.calendar-days{gap:3px}.calendar-day{padding:5px;min-height:62px}.quick-links{grid-template-columns:1fr}.kv{grid-template-columns:1fr}.bar-row{grid-template-columns:74px minmax(0,1fr) 32px;gap:7px;font-size:12px}.review-panel{padding:20px 16px}.toast{bottom:16px;right:16px}.public-aside{padding:20px 16px}.public-main{padding:22px 16px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+.content-grid>.increment{grid-column:span 3;min-width:0}.content-grid>.increment>.card,.quick-links>.increment>.quick-link{height:100%}.quick-links>.increment{min-width:0}
+@media(max-width:1024px){.content-grid>.increment{grid-column:span 6}}
+@media(max-width:768px){.content-grid>.increment{grid-column:span 12}}
+
+.review-toolbar .scope-fixed{display:inline-flex;align-items:center;min-height:40px;padding:6px 12px;border:1px solid #fff;border-radius:8px;background:#fff;color:var(--dark);font-weight:700}
+
+</style>
+  
+</head>
+<body>
+  <div id="reviewToolbar"></div>
+  <div id="workspace"></div>
+  <div id="dialogRoot"></div>
+  <div id="toastRoot"></div>
+  <noscript><main style="max-width:40rem;margin:3rem auto;padding:1rem"><h1>SIGSAM</h1><p>Activá JavaScript para recorrer el prototipo interactivo.</p></main></noscript>
+<script>
+(() => {
+  'use strict';
+  const projectScope = 1;
+
+  const screens = [
+    {id:'SC-01',title:'Acceso al sistema',nav:'Iniciar sesión',role:'publico',sprint:1,us:'001',rf:'RF-07',increments:[['S2','Acceso a avisos internos desde navegación']],variants:['Credenciales incorrectas','Cuenta desactivada','Cargando','Error de red']},
+    {id:'SC-02',title:'Recuperar acceso',nav:'Recuperar acceso',role:'publico',sprint:1,us:'006',rf:'RF-07',increments:[],variants:['Clave temporal','Datos inválidos','Éxito']},
+    {id:'SC-04',title:'Inicio',nav:'Inicio',role:'paciente',sprint:1,us:'013, 014, 023, 030, 031–033',rf:'RF-02, RF-11, RF-15, RF-05, RF-19',increments:[['S2','Cancelación y avisos'],['S3','Vacunación, importes y facturas']],variants:['Sin turnos','Cargando','Error de red']},
+    {id:'SC-05',title:'Buscar un turno médico',nav:'Buscar turno',role:'paciente',sprint:1,us:'011, 009, 028',rf:'RF-02, RF-10, RF-18',increments:[['S2','Jornada suspendida'],['S3','Modalidad de cobertura']],variants:['Sin horarios','Jornada suspendida','Cupo tomado','Error de red']},
+    {id:'SC-06',title:'Confirmar cita médica',nav:'Confirmar cita',role:'paciente',sprint:1,us:'012, 031, 028',rf:'RF-02, RF-19, RF-18',increments:[['S2','Aviso de confirmación'],['S3','Elección particular o con cobertura']],variants:['Retención activa','Retención vencida','Solapamiento','Cupo tomado','Éxito']},
+    {id:'SC-07',title:'Mis turnos',nav:'Mis turnos',role:'paciente',sprint:1,us:'013, 014, 031, 030',rf:'RF-02, RF-11, RF-19, RF-05',increments:[['S2','Cancelación y estado de aviso'],['S3','Acceso a factura simulada']],variants:['Sin turnos','Fuera de plazo','Cancelación exitosa']},
+    {id:'SC-08',title:'Historia clínica',nav:'Mi historia',role:'paciente',sprint:2,us:'020, 025',rf:'RF-04, RF-16',increments:[['S3','Aplicaciones de vacunas en el historial']],variants:['Historia vacía','Sin permiso','Cargando']},
+    {id:'SC-09',title:'Avisos',nav:'Avisos',role:'all',sprint:2,us:'031–033, 027',rf:'RF-19, RF-03',increments:[['S3','Avisos de vacunación y stock según rol']],variants:['Bandeja vacía','Email fallido','Recordatorio programado']},
+    {id:'SC-10',title:'Reservar vacunación',nav:'Vacunación',role:'paciente',sprint:3,us:'023',rf:'RF-15',increments:[],variants:['Sin dosis','Sin personal','Lote vencido','Reserva exitosa']},
+    {id:'SC-11',title:'Mi cobertura',nav:'Cobertura',role:'paciente',sprint:3,us:'028',rf:'RF-18',increments:[],variants:['Sin cobertura','Entidad inactiva','Éxito']},
+    {id:'SC-12',title:'Mis facturas',nav:'Facturas',role:'paciente',sprint:3,us:'030',rf:'RF-05',increments:[],variants:['Sin facturas','Fallo de generación','Factura disponible']},
+    {id:'SC-13',title:'Mi agenda médica',nav:'Agenda',role:'medico',sprint:1,us:'010, 009, 016–017, 038',rf:'RF-01, RF-10, RF-13, RF-04, RF-20',increments:[['S2','Suspensión, resultado y consulta'],['S3','Estadísticas propias y exportación']],variants:['Agenda vacía','Jornada suspendida','Cargando']},
+    {id:'SC-14',title:'Disponibilidad mensual',nav:'Disponibilidad',role:'medico',sprint:1,us:'008–009',rf:'RF-01, RF-10',increments:[['S2','Suspensión ante imprevisto']],variants:['Mes vacío','Dos días incompletos','Publicación exitosa']},
+    {id:'SC-15',title:'Registrar consulta',nav:'Consulta',role:'medico',sprint:2,us:'016–017',rf:'RF-13, RF-04',increments:[],variants:['Sin resultado','Diagnóstico faltante','Consulta guardada','Ausente']},
+    {id:'SC-16',title:'Correcciones y adjuntos',nav:'Correcciones',role:'medico',sprint:2,us:'018–019',rf:'RF-04',increments:[],variants:['Sin consultas','Adjunto inválido','Corrección visible']},
+    {id:'SC-17',title:'Agenda del vacunatorio',nav:'Agenda vacunatorio',role:'enfermeria',sprint:3,us:'022, 024',rf:'RF-14',increments:[],variants:['Sin personal','Agenda vacía','Publicación exitosa']},
+    {id:'SC-18',title:'Vacunas e inventario',nav:'Inventario',role:'enfermeria',sprint:3,us:'021, 026–027',rf:'RF-03',increments:[],variants:['Sin vacunas','Lote vencido','Stock bajo','Movimiento guardado']},
+    {id:'SC-19',title:'Registrar aplicación',nav:'Aplicaciones',role:'enfermeria',sprint:3,us:'016, 025',rf:'RF-13, RF-16',increments:[],variants:['Sin turnos','Sin dosis','Aplicación exitosa']},
+    {id:'SC-20',title:'Alertas y pendientes',nav:'Alertas',role:'enfermeria',sprint:3,us:'024, 027',rf:'RF-14, RF-03',increments:[],variants:['Sin alertas','Pendiente sin registrar','Stock bajo']},
+    {id:'SC-21',title:'Administración',nav:'Inicio',role:'admin',sprint:1,us:'004–005, 015, 034–038',rf:'RF-06, RF-12, RF-20',increments:[['S2','Avisos y turnos asistidos'],['S3','Indicadores y reportes']],variants:['Sin cuentas','Cuenta desactivada','Cargando']},
+    {id:'SC-22',title:'Alta asistida',nav:'Pacientes',role:'admin',sprint:1,us:'002–003, 028',rf:'RF-08, RF-18',increments:[['S3','Datos de cobertura']],variants:['Datos inválidos','Tutor no encontrado','Credenciales temporales','Alta exitosa']},
+    {id:'SC-23',title:'Duración y aranceles',nav:'Parámetros',role:'admin',sprint:1,us:'007, 041, 021',rf:'RF-09, RF-22, RF-03',increments:[['S2','Límite diario de sobreturnos'],['S3','Tarifas de vacunación']],variants:['Datos inválidos','Cambios guardados']},
+    {id:'SC-24',title:'Agenda general',nav:'Turnos asistidos',role:'admin',sprint:2,us:'015, 041, 023',rf:'RF-12, RF-22, RF-15',increments:[['S3','Vacunación asistida']],variants:['Sin turnos','Cupo tomado','Gestión exitosa']},
+    {id:'SC-25',title:'Suspensión y reprogramación',nav:'Reprogramar',role:'admin',sprint:2,us:'009, 014–015',rf:'RF-10, RF-11, RF-12',increments:[],variants:['Sin afectados','Reprogramación fallida','Reprogramación exitosa']},
+    {id:'SC-26',title:'Asignar sobreturno',nav:'Sobreturnos',role:'admin',sprint:2,us:'041',rf:'RF-22',increments:[],variants:['Límite alcanzado','Sobreturno creado']},
+    {id:'SC-27',title:'Obras sociales',nav:'Obras sociales',role:'admin',sprint:3,us:'042',rf:'RF-17',increments:[],variants:['Sin entidades','Entidad inactiva','Cambios guardados']},
+    {id:'SC-28',title:'Cobro presencial',nav:'Cobros',role:'admin',sprint:3,us:'029–030',rf:'RF-05',increments:[],variants:['Cobro rechazado','Factura disponible','Fallo de generación']},
+    {id:'SC-29',title:'Reportes',nav:'Reportes',role:'admin',sprint:3,us:'034–038',rf:'RF-20',increments:[],variants:['Sin resultados','Exportación fallida','Exportación exitosa']},
+    {id:'SC-30',title:'Bitácora de auditoría',nav:'Auditoría',role:'admin',sprint:3,us:'039',rf:'RF-21',increments:[['S1','Registro de eventos en segundo plano; consulta desde S3']],variants:['Sin resultados','Sin permiso']}
+  ];
+  const byId = Object.fromEntries(screens.map(s => [s.id,s]));
+  const roleNames = {paciente:'Paciente',medico:'Médico',enfermeria:'Enfermería',admin:'Administración',publico:'Público'};
+  const roleHome = {paciente:'SC-04',medico:'SC-13',enfermeria:'SC-17',admin:'SC-21'};
+  const storageKey = 'sigsam-prototipo-sprint-'+projectScope+'-v2';
+  const dateOffset = n => {const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+  const nextWeekday = (day,offset=2) => {let d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+offset);while(d.getDay()!==day)d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)};
+  const id = prefix => prefix+'-'+Math.random().toString(36).slice(2,7).toUpperCase();
+  const seed = () => ({
+    version:1,
+    patients:[{id:'PAC-01',name:'Lucía Fernández',dni:'30123456',email:'lucia@demo.sigsam',birth:'1991-05-12',tutorId:null,coverageId:null},{id:'PAC-02',name:'Mateo Fernández',dni:'59123456',email:'',birth:'2017-08-20',tutorId:'PAC-01',coverageId:null}],
+    staff:[{id:'MED-01',name:'Dra. Valeria Ruiz',role:'medico',specialty:'Clínica médica',email:'medico@demo.sigsam',active:true,temp:false},{id:'ENF-01',name:'Paula Medina',role:'enfermeria',email:'enfermeria@demo.sigsam',active:true,temp:false},{id:'ADM-01',name:'Martina Sosa',role:'admin',email:'admin@demo.sigsam',active:true,temp:false}],
+    settings:{duration:30,fee:18000,vaccineFee:9000,overbookLimit:2},
+    availability:{days:[2,4],published:true,suspended:[],month:null},extraAvailability:{},
+    nursing:{days:[1,3,5],published:false},
+    appointments:[{id:'T-2048',type:'medical',patientId:'PAC-01',doctorId:'MED-01',date:nextWeekday(2,7),time:'10:00',status:'Confirmado',result:'Sin registrar',modality:'Particular',overbook:false},{id:'T-1882',type:'medical',patientId:'PAC-01',doctorId:'MED-01',date:dateOffset(-14),time:'09:30',status:'Confirmado',result:'Atendido',modality:'Particular',overbook:false}],
+    notes:[{id:'HC-1882',appointmentId:'T-1882',patientId:'PAC-01',doctorId:'MED-01',diagnosis:'Control de rutina',observation:'Evolución favorable. Continuar controles habituales.',corrections:[],attachments:[],created:dateOffset(-14)}],
+    vaccines:[{id:'VAC-01',name:'Antigripal',threshold:10,fee:9000}],
+    batches:[{id:'L-401',vaccineId:'VAC-01',quantity:12,expiry:dateOffset(360)}],
+    coverages:[{id:'OS-01',name:'Horizonte',active:true}],
+    charges:[],
+    notices:[{id:'AV-01',for:'PAC-01',title:'Turno confirmado',text:'Tu turno T-2048 con la Dra. Valeria Ruiz está confirmado.',date:dateOffset(0),read:false,email:'Enviado',sprint:2}],
+    audit:[{id:'AU-01',date:dateOffset(0),actor:'Sistema',action:'Disponibilidad publicada',target:'MED-01'},{id:'AU-02',date:dateOffset(0),actor:'Lucía Fernández',action:'Reserva confirmada',target:'T-2048'}]
+  });
+  let data;
+  try{data=JSON.parse(localStorage.getItem(storageKey)||'null');if(!data||data.version!==1)data=seed()}catch{data=seed()}
+  data.extraAvailability ||= {};
+  const ui={scope:projectScope,role:'paciente',activeStaffId:'MED-01',screen:/^#SC-\d{2}$/.test(location.hash)?location.hash.slice(1):'SC-04',review:true,fidelity:'final',variant:'Normal',selectedPatient:'PAC-01',selectedAppointment:'T-2048',selectedSlot:null,holdUntil:0,search:{specialty:'Clínica médica',doctor:'MED-01',date:''},report:'ocupacion',toast:null,modal:null,latestAccount:null,scroll:{},lastActivity:Date.now()};
+  const save=()=>{try{localStorage.setItem(storageKey,JSON.stringify(data))}catch{}};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtDate=d=>{if(!d)return '—';const [y,m,day]=d.split('-');return `${day}/${m}/${y}`};
+  const money=n=>new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',maximumFractionDigits:0}).format(Number(n)||0);
+  const byPatient=x=>data.patients.find(p=>p.id===x);
+  const byStaff=x=>data.staff.find(p=>p.id===x);
+  const currentDoctorId=()=>ui.role==='medico'&&byStaff(ui.activeStaffId)?.role==='medico'?ui.activeStaffId:'MED-01';
+  const availabilityFor=doctorId=>doctorId==='MED-01'?data.availability:(data.extraAvailability[doctorId] ||= {days:[],published:false,suspended:[],month:null});
+  const byVaccine=x=>data.vaccines.find(v=>v.id===x);
+  const byCoverage=x=>data.coverages.find(v=>v.id===x);
+  const patientName=x=>byPatient(x)?.name||'Paciente';
+  const staffName=x=>byStaff(x)?.name||'Profesional';
+  const appointmentName=a=>a.type==='vaccine'?'Vacunación · '+(byVaccine(a.vaccineId)?.name||'Vacuna'):'Consulta · '+staffName(a.doctorId);
+  const relevantPatientIds=()=>data.patients.filter(p=>p.id===ui.selectedPatient||p.tutorId===ui.selectedPatient).map(p=>p.id);
+  const visibleAppointments=()=>data.appointments.filter(a=>relevantPatientIds().includes(a.patientId)).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+  const hoursUntil=a=>(new Date(`${a.date}T${a.time}:00`).getTime()-Date.now())/3600000;
+  const stock=vaccineId=>data.batches.filter(b=>b.vaccineId===vaccineId&&b.expiry>=dateOffset(0)).reduce((n,b)=>n+Number(b.quantity),0);
+  const reserved=vaccineId=>data.appointments.filter(a=>a.type==='vaccine'&&a.vaccineId===vaccineId&&a.status==='Confirmado'&&a.result==='Sin registrar').length;
+  const availableDoses=vaccineId=>stock(vaccineId)-reserved(vaccineId);
+  const addAudit=(actor,action,target)=>data.audit.unshift({id:id('AU'),date:dateOffset(0),actor,action,target});
+  const addNotice=(forId,title,text,email='Enviado',sprint=2)=>data.notices.unshift({id:id('AV'),for:forId,title,text,date:dateOffset(0),read:false,email,sprint});
+  const badge=(label,tone='neutral')=>`<span class="status ${tone}">${esc(label)}</span>`;
+  const statusTone=s=>({'Confirmado':'success','Atendido':'success','Aprobado':'success','Cancelado':'error','Ausente':'warning','Suspendido':'warning','Rechazado':'error','Sin registrar':'neutral','Pendiente':'warning'}[s]||'info');
+  const btn=(action,label,kind='',attrs='')=>`<button type="button" class="btn ${kind}" data-action="${esc(action)}" ${attrs}>${esc(label)}</button>`;
+  const navBtn=(screen,label,kind='secondary')=>`<button type="button" class="btn ${kind}" data-nav="${screen}">${esc(label)}</button>`;
+  const inc=(sprint,label,content)=>ui.scope>=sprint?`<div class="increment" data-sprint="${sprint}" data-part="${esc(label)}"><span class="pin" aria-label="Añadido en Sprint ${sprint}">${sprint}</span>${content}</div>`:'';
+  const note=(tone,title,text)=>`<div class="notice ${tone}" role="status"><span class="notice-symbol" aria-hidden="true">${tone==='error'?'!':tone==='success'?'✓':'i'}</span><div><strong>${esc(title)}</strong><p>${esc(text)}</p></div></div>`;
+  const empty=(title,text,action='',label='')=>`<div class="empty"><div class="empty-symbol" aria-hidden="true">—</div><h3>${esc(title)}</h3><p>${esc(text)}</p>${action?btn(action,label):''}</div>`;
+  const field=(name,label,value='',type='text',required=true,hint='',extra='')=>`<div class="field od-field"><label for="${name}">${esc(label)}${required?' *':''}</label><input id="${name}" name="${name}" type="${type}" value="${esc(value)}" ${required?'required':''} ${extra}>${hint?`<small class="hint">${esc(hint)}</small>`:''}<span class="field-error" id="${name}-error" aria-live="polite"></span></div>`;
+  const select=(name,label,options,value='',required=true)=>`<div class="field od-field"><label for="${name}">${esc(label)}${required?' *':''}</label><select id="${name}" name="${name}" ${required?'required':''}>${options.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(t)}</option>`).join('')}</select><span class="field-error" id="${name}-error" aria-live="polite"></span></div>`;
+  const textarea=(name,label,value='',required=false)=>`<div class="field od-field full"><label for="${name}">${esc(label)}${required?' *':''}</label><textarea id="${name}" name="${name}" ${required?'required':''}>${esc(value)}</textarea><span class="field-error" id="${name}-error" aria-live="polite"></span></div>`;
+  const page=(title,intro,actions,body)=>`<div class="page-head"><div><div class="eyebrow">SIGSAM</div><h1>${esc(title)}</h1><p>${esc(intro)}</p></div>${actions?`<div class="page-actions">${actions}</div>`:''}</div>${body}`;
+  const section=(title,content,action='')=>`<div class="section-head"><h2>${esc(title)}</h2>${action}</div>${content}`;
+  const card=(content,klass='')=>`<section class="card ${klass}">${content}</section>`;
+  const credentialNotice=kind=>ui.latestAccount?.kind===kind?note('success','Credenciales para entregar',`${ui.latestAccount.name} · Usuario: ${ui.latestAccount.email} · Clave temporal: ${ui.latestAccount.password}. El cambio de clave es obligatorio al ingresar.`):'';
+  const stat=(value,label)=>card(`<div class="od-stat stat-card"><strong class="stat-value od-nowrap">${esc(value)}</strong><span class="stat-label">${esc(label)}</span></div>`,'span-3');
+  const form=(name,content,submit,second='')=>`<form data-form="${name}" novalidate><div class="form-grid">${content}</div><div class="form-actions"><button class="btn" type="submit">${esc(submit)}</button>${second}</div></form>`;
+  const variantCopy={
+    'Credenciales incorrectas':['No pudimos iniciar sesión','Revisá el correo y la contraseña e intentá otra vez.'],
+    'Cuenta desactivada':['Cuenta desactivada','Contactá a Administración para recuperar el acceso.'],
+    'Cargando':['Cargando información','El contenido conserva su espacio mientras se completa la operación.'],
+    'Error de red':['No se pudo conectar','Volvé a intentarlo; los datos que ingresaste se conservan.'],
+    'Clave temporal':['Cambio de clave obligatorio','Ingresá la contraseña temporal y definí una nueva antes de continuar.'],
+    'Credenciales temporales':['Credenciales para entregar','Administración entrega el usuario y la clave temporal al adulto. Debe cambiarla al ingresar.'],
+    'Datos inválidos':['Hay datos por corregir','Revisá los campos marcados y enviá el formulario nuevamente.'],
+    'Email ya usado':['El correo ya está registrado','Iniciá sesión o solicitá recuperación asistida.'],
+    'Éxito':['Operación completada','El cambio ya figura en las pantallas relacionadas.'],
+    'Sin turnos':['Todavía no hay turnos','Buscá un horario disponible para crear el primero.'],
+    'Sin horarios':['No hay horarios para esos filtros','Probá otra fecha o profesional.'],
+    'Jornada suspendida':['Jornada suspendida','Ese día no admite nuevas reservas; elegí otra fecha.'],
+    'Cupo tomado':['El cupo ya fue tomado','Elegí otro horario libre.'],
+    'Retención activa':['Horario retenido por cinco minutos','Confirmá antes de que venza el tiempo indicado.'],
+    'Retención vencida':['La retención venció','Volvé a elegir un horario para iniciar otra retención.'],
+    'Solapamiento':['Ya tenés un turno a esa hora','Elegí un horario que no se superponga.'],
+    'Fuera de plazo':['No se puede cancelar desde el portal','Faltan menos de 24 horas; contactá a la sala.'],
+    'Cancelación exitosa':['Turno cancelado','El horario quedó disponible y se registró un aviso.'],
+    'Historia vacía':['Aún no hay atenciones registradas','Las consultas completadas aparecerán aquí.'],
+    'Sin permiso':['Acceso restringido','Ingresá con una cuenta autorizada o volvé a tu inicio.'],
+    'Bandeja vacía':['No hay avisos','Las confirmaciones y cambios aparecerán aquí.'],
+    'Email fallido':['El correo no salió','El aviso interno sigue disponible y el turno conserva su estado.'],
+    'Recordatorio programado':['Recordatorio programado','El aviso se enviará 24 horas antes del turno.'],
+    'Sin dosis':['No hay dosis disponibles','Elegí otra vacuna o consultá más tarde.'],
+    'Sin personal':['No hay personal disponible','Elegí otra fecha para la aplicación.'],
+    'Lote vencido':['El lote está vencido','Registrá un lote vigente antes de ofrecer dosis.'],
+    'Reserva exitosa':['Reserva confirmada','El cupo y la dosis quedaron comprometidos.'],
+    'Sin cobertura':['No hay cobertura registrada','Podés agregar una obra social activa o continuar como particular.'],
+    'Entidad inactiva':['Entidad inactiva','Seleccioná una cobertura activa del catálogo.'],
+    'Sin facturas':['Todavía no hay facturas','Aparecerán luego de un cobro presencial aprobado.'],
+    'Fallo de generación':['No se pudo generar el archivo','El registro sigue disponible; intentá descargarlo de nuevo.'],
+    'Factura disponible':['Factura disponible','Podés descargar el comprobante de demostración.'],
+    'Agenda vacía':['La agenda está vacía','Publicá disponibilidad o cambiá de fecha.'],
+    'Mes vacío':['Sin disponibilidad publicada','Seleccioná dos días semanales y publicá el mes.'],
+    'Dos días incompletos':['Falta un día semanal','Seleccioná al menos dos días antes de publicar.'],
+    'Publicación exitosa':['Disponibilidad publicada','Los nuevos cupos ya se ofrecen en la búsqueda.'],
+    'Sin resultado':['Resultado pendiente','Registrá la atención o marcá la ausencia explícitamente.'],
+    'Diagnóstico faltante':['Falta el diagnóstico','Es obligatorio para guardar una consulta atendida.'],
+    'Consulta guardada':['Consulta registrada','El resultado ahora es Atendido y la nota aparece en el historial.'],
+    'Ausente':['Ausencia registrada','El turno conserva la reserva y muestra Ausente como resultado asistencial.'],
+    'Sin consultas':['No hay consultas propias','Solo podés corregir notas que registraste.'],
+    'Adjunto inválido':['Archivo no admitido','Usá PDF, JPG o PNG de hasta 10 MB.'],
+    'Corrección visible':['Corrección añadida','La nota original permanece y se ve el motivo, autor y fecha.'],
+    'Sin vacunas':['No hay vacunas en catálogo','Creá la primera vacuna y cargá un lote.'],
+    'Stock bajo':['Stock bajo el umbral','Revisá lotes y registrá una entrada si corresponde.'],
+    'Movimiento guardado':['Movimiento registrado','El inventario y la bitácora se actualizaron.'],
+    'Aplicación exitosa':['Aplicación registrada','Se descontó el lote y se actualizó el historial.'],
+    'Sin alertas':['No hay alertas','Los umbrales y pendientes se mostrarán aquí.'],
+    'Pendiente sin registrar':['Aplicación pendiente','Abrí el turno de vacunación para registrar dosis o ausencia.'],
+    'Sin cuentas':['No hay cuentas de personal','Creá una cuenta para comenzar.'],
+    'Tutor no encontrado':['Tutor no encontrado','Registrá primero a la persona adulta responsable.'],
+    'Alta exitosa':['Paciente registrado','La ficha ya está disponible para la gestión de turnos.'],
+    'Cambios guardados':['Cambios guardados','El parámetro actualizado se usa en las próximas operaciones.'],
+    'Gestión exitosa':['Turno gestionado','El cambio ya aparece en las agendas relacionadas.'],
+    'Sin afectados':['No hay turnos afectados','Elegí otra jornada o creá una reserva de ejemplo.'],
+    'Reprogramación fallida':['No se pudo reprogramar','Elegí un cupo libre y repetí la operación.'],
+    'Reprogramación exitosa':['Turno reprogramado','La nueva fecha figura en todas las vistas y se emitió un aviso.'],
+    'Límite alcanzado':['Límite diario alcanzado','No es posible crear otro sobreturno para este profesional y día.'],
+    'Sobreturno creado':['Sobreturno creado','La cita excepcional se identifica en la agenda.'],
+    'Sin entidades':['No hay entidades','Agregá una obra social al catálogo.'],
+    'Cobro rechazado':['Cobro rechazado','No se genera factura; podés registrar otro intento presencial.'],
+    'Sin resultados':['No hay resultados para los filtros','Probá otro período o criterio de búsqueda.'],
+    'Exportación fallida':['La exportación falló','Conservá los filtros e intentá nuevamente.'],
+    'Exportación exitosa':['Archivo preparado','La descarga de demostración se inicia en el navegador.']
+  };
+
+  const userName=()=>ui.role==='paciente'?patientName(ui.selectedPatient):ui.role==='publico'?'Invitado':byStaff(ui.activeStaffId)?.role===ui.role?byStaff(ui.activeStaffId).name:data.staff.find(s=>s.role===ui.role&&s.active)?.name||roleNames[ui.role];
+  const navScreens=()=>screens.filter(s=>s.sprint<=ui.scope&&(s.role===ui.role||s.role==='all'));
+  const toolbar=()=>`<div class="review-toolbar" aria-label="Herramientas de revisión, fuera de la interfaz del producto">
+    <strong>SIGSAM · Sprint ${projectScope} · revisión de diseño</strong>
+    <div class="tool-group" role="group" aria-label="Alcance de este proyecto">
+      <label>Alcance</label><span class="scope-fixed">${projectScope===1?'S1':projectScope===2?'S1 + S2':'S1 + S2 + S3'}</span>
+    </div>
+    <div class="tool-group"><label for="review-role">Rol</label><select id="review-role" data-review-role>${Object.entries(roleNames).filter(([v])=>v!=='enfermeria'||projectScope===3).map(([v,t])=>`<option value="${v}" ${ui.role===v?'selected':''}>${esc(t)}</option>`).join('')}</select></div>
+    <div class="tool-group"><button type="button" data-action="toggle-review" aria-pressed="${ui.review}">${ui.review?'Ocultar revisión':'Mostrar revisión'}</button><button type="button" data-action="toggle-fidelity" aria-pressed="${ui.fidelity==='wireframe'}">${ui.fidelity==='wireframe'?'Ver diseño final':'Ver estructura'}</button></div>
+    <span class="tool-spacer"></span><button type="button" data-action="reset-demo">Restablecer demo</button>
+  </div>`;
+  const reviewPanel=meta=>`<aside class="review-panel" aria-label="Ficha de revisión de pantalla">
+    <div class="eyebrow">Ficha de pantalla</div><h2>${esc(meta.id)} · ${esc(meta.title)}</h2><p class="muted">Esta ficha y los pines numerados se ocultan al elegir «Ocultar revisión».</p>
+    <dl class="review-meta"><div><dt>Primera aparición</dt><dd><strong>Sprint ${meta.sprint}</strong></dd></div><div><dt>Historias</dt><dd>US-SIG-${esc(meta.us)}</dd></div><div><dt>Requerimientos</dt><dd>${esc(meta.rf)}</dd></div><div><dt>Rol</dt><dd>${esc(roleNames[meta.role]||'Todos los roles')}</dd></div></dl>
+    <h3>Partes de la pantalla</h3><div class="review-part"><strong>S${meta.sprint} · Base</strong><span>Contenido y acción principal de ${esc(meta.title.toLowerCase())}.</span></div>
+    ${meta.increments.map(([s,t])=>`<div class="review-part"><strong>${esc(s)} · Incremento</strong><span>${esc(t)}</span></div>`).join('')||'<p class="small muted">No se añaden partes en sprints posteriores.</p>'}
+    <h3>Estados a revisar</h3><div class="variant-list"><button type="button" data-variant="Normal" aria-pressed="${ui.variant==='Normal'}">Normal</button>${meta.variants.map(v=>`<button type="button" data-variant="${esc(v)}" aria-pressed="${ui.variant===v}">${esc(v)}</button>`).join('')}</div>
+    <h3 style="margin-top:24px">Criterio de aceptación</h3><p class="small">La acción principal debe completar el flujo, actualizar los datos compartidos y mostrar una respuesta clara. Las funciones de sprints futuros no deben aparecer en el alcance seleccionado.</p>
+    <h3>Mapa de pantallas</h3><div class="variant-list">${screens.filter(s=>s.sprint<=ui.scope).map(s=>`<button type="button" data-nav="${s.id}" aria-pressed="${ui.screen===s.id}" title="${esc(s.title)}">${s.id}</button>`).join('')}</div>
+    <h3 style="margin-top:24px">Accesos de demostración</h3><p class="small">Paciente: lucia@demo.sigsam · Médico: medico@demo.sigsam · Enfermería: enfermeria@demo.sigsam · Administración: admin@demo.sigsam. Clave inicial: <b>demo1234</b>.</p>
+    <p class="small muted">La guía de traspaso está incluida en el proyecto de Open Design.</p>
+  </aside>`;
+  const navLink=s=>`<a href="#${s.id}" data-nav="${s.id}" ${ui.screen===s.id?'aria-current="page"':''}><span class="nav-dot" aria-hidden="true"></span>${esc(s.nav)}</a>`;
+  const productShell=(meta,content)=>`<div class="product-shell">
+    <aside class="product-sidebar" aria-label="Navegación principal"><a class="brand" href="#${roleHome[ui.role]}" data-nav="${roleHome[ui.role]}"><span class="brand-mark" aria-hidden="true">+</span>SIGSAM</a>
+      <div><div class="nav-label">${esc(roleNames[ui.role])}</div><nav class="product-nav">${navScreens().map(navLink).join('')}</nav></div>
+      <div class="sidebar-foot"><strong>${esc(userName())}</strong>Datos de demostración · Argentina</div>
+    </aside>
+    <div class="product-main"><header class="product-topbar"><div class="crumb">${esc(roleNames[ui.role])} / ${esc(meta.title)}</div><div class="top-user"><div><span class="user-name">${esc(userName())}</span><span class="user-role">${esc(roleNames[ui.role])}</span></div>${btn('signout','Cerrar sesión','ghost small')}</div></header><main id="product-content" class="product-content" tabindex="-1">${content}</main></div>
+  </div>`;
+  const publicShell=content=>`<div class="public-layout"><aside class="public-aside"><a class="brand" href="#SC-01" data-nav="SC-01"><span class="brand-mark" aria-hidden="true">+</span>SIGSAM</a><div><h1>Tu salud, con tiempo para vos.</h1><p>Organizá tus turnos médicos desde un espacio claro y seguro.</p></div><small>Prototipo de la sala médica · Datos ficticios</small></aside><main class="public-main"><div class="public-card">${content}</div></main></div>`;
+  const fallbackPage=(kind)=>page(kind==='missing'?'Página no encontrada':kind==='future'?'Aún no disponible':'Acceso restringido',kind==='missing'?'La dirección solicitada no existe.':kind==='future'?'Esta pantalla se incorpora en un sprint posterior.':'Tu rol no tiene permiso para abrir esta pantalla.',navBtn(roleHome[ui.role]||'SC-01','Volver al inicio'),empty(kind==='missing'?'No encontramos esta pantalla':kind==='future'?'Función futura':'Sin permiso',kind==='missing'?'Usá la navegación para continuar.':kind==='future'?'Cambiá el alcance en la revisión para verla.':'Ingresá con una cuenta autorizada para continuar.'));
+  const variantBody=meta=>{
+    const [title,description]=variantCopy[ui.variant]||[ui.variant,'Esta variante muestra la respuesta prevista para el flujo.'];
+    const tone=/incorrect|inválid|fall|vencid|tomado|solap|rechaz|permiso|desactivad|fuera/i.test(ui.variant)?'error':/sin |vacía|vacío|límite|suspendid|bajo|pendiente/i.test(ui.variant)?'warning':'success';
+    const body=ui.variant==='Cargando'?card(`<div class="skeleton" aria-label="Cargando"><span></span><span></span><span></span></div>`):empty(title,description,'variant-normal','Volver al caso normal');
+    return page(meta.title,'Variante de revisión del flujo.',navBtn(meta.id,'Ver caso normal','secondary'),`<div class="variant-banner">${note(tone,title,description)}</div>${body}`);
+  };
+  const render=()=>{
+    const root=document.getElementById('workspace');
+    const top=document.getElementById('reviewToolbar');
+    const meta=byId[ui.screen];
+    top.innerHTML=toolbar();
+    let content='';
+    if(!meta)content=productShell({title:'Página no encontrada'},fallbackPage('missing'));
+    else if(meta.sprint>ui.scope)content=productShell(meta,fallbackPage('future'));
+    else if(meta.role!=='publico'&&meta.role!=='all'&&meta.role!==ui.role)content=productShell(meta,fallbackPage('denied'));
+    else if(meta.role==='publico')content=publicShell(ui.variant==='Normal'?screenContent(meta.id):variantBody(meta));
+    else content=productShell(meta,ui.variant==='Normal'?screenContent(meta.id):variantBody(meta));
+    root.className=`workspace ${ui.review?'reviewing':'product-only'} ${ui.fidelity==='wireframe'?'wireframe':''}`;
+    root.innerHTML=content+(ui.review&&meta?reviewPanel(meta):'');
+    renderModal();renderToast();
+  };
+  const renderModal=()=>{
+    const root=document.getElementById('dialogRoot');
+    if(!ui.modal){root.innerHTML='';return}
+    root.innerHTML=`<div class="overlay" role="presentation"><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><h2 id="dialog-title">${esc(ui.modal.title)}</h2><p>${esc(ui.modal.message)}</p><div class="form-actions"><button type="button" class="btn secondary" data-action="close-modal">Volver</button><button type="button" class="btn ${ui.modal.danger?'danger':''}" data-action="confirm-modal">${esc(ui.modal.label||'Confirmar')}</button></div></div></div>`;
+    root.querySelector('.dialog button')?.focus();
+  };
+  let toastTimer;
+  const renderToast=()=>{
+    const root=document.getElementById('toastRoot');
+    root.innerHTML=ui.toast?`<div class="toast" role="status"><strong>${esc(ui.toast.title)}</strong><p>${esc(ui.toast.text)}</p></div>`:'';
+    if(ui.toast){clearTimeout(toastTimer);toastTimer=setTimeout(()=>{ui.toast=null;root.innerHTML=''},4500)}
+  };
+  const flash=(title,text)=>{ui.toast={title,text};renderToast()};
+  const go=(screen,push=true)=>{
+    ui.scroll[ui.screen]=window.scrollY;
+    ui.screen=screen;ui.variant='Normal';
+    if(push)history.pushState({screen},'',`#${screen}`);
+    render();window.scrollTo(0,ui.scroll[screen]||0);
+    document.getElementById('product-content')?.focus({preventScroll:true});
+  };
+  const currentPatient=()=>byPatient(ui.selectedPatient)||data.patients[0];
+  const dateOptions=(days=21)=>Array.from({length:days},(_,i)=>dateOffset(i+1));
+  const possibleMedicalDates=(doctorId='MED-01')=>dateOptions(60).filter(d=>{const a=availabilityFor(doctorId);return a.days.includes(new Date(`${d}T12:00`).getDay())&&(!a.month||d.startsWith(a.month))});
+  const possibleVaccineDates=()=>dateOptions(30).filter(d=>data.nursing.days.includes(new Date(`${d}T12:00`).getDay()));
+  const medicalSlots=(day,doctorId='MED-01')=>{
+    const availability=availabilityFor(doctorId);
+    if(!availability.published||!day||day<dateOffset(0)||availability.suspended.includes(day)||(availability.month&&!day.startsWith(availability.month)))return[];
+    if(!availability.days.includes(new Date(`${day}T12:00`).getDay()))return[];
+    return ['09:00','09:30','10:00','10:30','11:00','11:30'].map(time=>({time,busy:data.appointments.some(a=>a.type==='medical'&&a.doctorId===doctorId&&a.date===day&&a.time===time&&a.status==='Confirmado'&&!a.overbook)}));
+  };
+  const vaccineSlots=(day)=>{
+    if(!data.nursing.published||!day||day<dateOffset(0)||!data.nursing.days.includes(new Date(`${day}T12:00`).getDay()))return[];
+    return ['09:00','09:15','09:30','09:45','10:00','10:15'].map(time=>({time,busy:data.appointments.some(a=>a.type==='vaccine'&&a.date===day&&a.time===time&&a.status==='Confirmado')}));
+  };
+  const optionPatients=()=>data.patients.map(p=>[p.id,p.name]);
+  const optionAppointments=(type='medical')=>data.appointments.filter(a=>a.type===type&&a.status==='Confirmado').map(a=>[a.id,`${a.id} · ${patientName(a.patientId)} · ${fmtDate(a.date)} ${a.time}`]);
+  const recordList=(items,renderItem)=>items.length?`<div class="list">${items.map(renderItem).join('')}</div>`:empty('Sin registros','Todavía no hay información para esta sección.');
+
+  const publicPage=(title,intro,body)=>`<div class="eyebrow">Acceso a SIGSAM</div><h1>${esc(title)}</h1><p class="muted maxline">${esc(intro)}</p>${body}`;
+  const accessScreen=()=>publicPage('Bienvenido a SIGSAM','Ingresá con tu cuenta para gestionar turnos y consultar información autorizada.',
+    form('login',field('login-email','Correo electrónico','', 'email')+field('login-password','Contraseña','','password'),'Ingresar')+
+    `<div class="public-links"><button type="button" class="link-button" data-nav="SC-02">Recuperar acceso</button></div>`+
+    note('info','Alta presencial','Las cuentas de pacientes las crea Administración. Si todavía no tenés acceso, acercate al mostrador.'));
+  const recoveryScreen=()=>publicPage('Recuperar acceso','La recuperación de contraseñas se realiza con ayuda presencial de Administración.',
+    note('info','Recuperación asistida','Administración verifica tu identidad y te entrega una clave temporal. El cambio es obligatorio al volver a ingresar.')+
+    `<hr class="divider"><h2>Cambiar clave temporal</h2>`+
+    form('temp-password',field('temp-email','Correo electrónico','','email')+field('temp-old','Clave temporal','','password')+field('temp-new','Nueva contraseña','','password',true,'Al menos 8 caracteres.'),'Guardar nueva clave',navBtn('SC-01','Volver a ingresar','secondary')));
+  const patientDashboard=()=>{
+    const appts=visibleAppointments();const future=appts.filter(a=>a.status==='Confirmado'&&hoursUntil(a)>0);
+    const unread=data.notices.filter(n=>n.for===ui.selectedPatient&&!n.read&&n.sprint<=ui.scope).length;
+    const next=future.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))[0];
+    const hero=`<div class="hero-panel span-12"><div><div class="eyebrow" style="color:#d8efef">PRÓXIMO PASO</div><h2>${next?'Tu próxima cita está confirmada':'Organizá tu próxima visita'}</h2><p>${next?`${appointmentName(next)} · ${fmtDate(next.date)} a las ${next.time}`:'Encontrá un profesional y elegí el horario que mejor te quede.'}</p></div>${navBtn(next?'SC-07':'SC-05',next?'Ver mi turno':'Buscar turno')}</div>`;
+    const stats=`<div class="content-grid">${stat(future.length,'Próximos turnos')}${stat(appts.filter(a=>a.result==='Atendido').length,'Atenciones registradas')}${inc(2,'Avisos',stat(unread,'Avisos sin leer'))}${inc(3,'Facturas',stat(data.charges.filter(c=>c.status==='Aprobado'&&relevantPatientIds().includes(c.patientId)).length,'Facturas disponibles'))}</div>`;
+    const nextCard=next?card(`<div class="card-head"><h2>Tu próximo turno</h2>${badge(next.status,statusTone(next.status))}</div><div class="kv"><div><dt>Prestación</dt><dd>${esc(appointmentName(next))}</dd></div><div><dt>Fecha y hora</dt><dd>${fmtDate(next.date)} · ${next.time}</dd></div><div><dt>Paciente</dt><dd>${esc(patientName(next.patientId))}</dd></div><div><dt>Código</dt><dd>${esc(next.id)}</dd></div></div><div class="form-actions">${navBtn('SC-07','Ver detalle','secondary')}${inc(2,'Cancelar turno',btn('cancel-appointment','Cancelar turno','danger small',`data-id="${next.id}"`))}</div>`,'span-7'):empty('Todavía no tenés turnos','Buscá una especialidad y elegí un horario disponible.','go-search','Buscar turno');
+    const links=`<div class="quick-links"><a href="#SC-05" data-nav="SC-05" class="quick-link"><strong>Buscar turno médico</strong><span>Especialidad, profesional y fecha</span></a>${inc(2,'Historia clínica',`<a href="#SC-08" data-nav="SC-08" class="quick-link"><strong>Mi historia clínica</strong><span>Consultas en modo de solo lectura</span></a>`)}${inc(3,'Vacunación',`<a href="#SC-10" data-nav="SC-10" class="quick-link"><strong>Vacunación</strong><span>Horario y dosis disponibles</span></a>`)}</div>`;
+    return page('Hola, '+currentPatient().name.split(' ')[0],'Consultá tus próximos turnos y seguí cada paso de tu atención.',navBtn('SC-05','Reservar turno'),`<div class="content-grid">${hero}</div><div class="section-head"><h2>Resumen</h2></div>${stats}${section('Para continuar',`<div class="content-grid"><div class="span-7">${nextCard}</div><div class="span-5">${card(`<h2>Accesos rápidos</h2>${links}`)}</div></div>`)}${inc(2,'Avisos recientes',section('Avisos recientes',card(data.notices.filter(n=>n.for===ui.selectedPatient).slice(0,2).map(n=>`<div class="list-row"><div><strong>${esc(n.title)}</strong><span class="meta">${esc(n.text)}</span></div>${badge(n.read?'Leído':'Nuevo',n.read?'neutral':'info')}</div>`).join('')||'<p class="muted">No hay avisos nuevos.</p>')+`<div class="form-actions">${navBtn('SC-09','Ver todos','secondary')}</div>`))}${inc(3,'Cobertura y facturas',section('Cobertura y comprobantes',`<div class="quick-links"><a class="quick-link" href="#SC-11" data-nav="SC-11"><strong>Mi cobertura</strong><span>Actualizar afiliación</span></a><a class="quick-link" href="#SC-12" data-nav="SC-12"><strong>Mis facturas</strong><span>Comprobantes de cobro presencial</span></a></div>`))}`);
+  };
+  const searchMedicalScreen=()=>{
+    if(!ui.search.date)ui.search.date=possibleMedicalDates(ui.search.doctor)[0]||dateOffset(1);
+    const availability=availabilityFor(ui.search.doctor);const dates=possibleMedicalDates(ui.search.doctor);const slots=medicalSlots(ui.search.date,ui.search.doctor);
+    const filters=form('search-medical',select('search-specialty','Especialidad',[['Clínica médica','Clínica médica']],ui.search.specialty)+select('search-doctor','Profesional',data.staff.filter(s=>s.role==='medico'&&s.active).map(s=>[s.id,s.name]),ui.search.doctor)+field('search-date','Fecha',ui.search.date,'date'),'Buscar horarios');
+    const dateRail=`<div class="calendar-days">${dates.slice(0,14).map(d=>`<button type="button" class="calendar-day od-cell ${d===ui.search.date?'selected':''}" data-action="choose-medical-date" data-date="${d}"><strong>${fmtDate(d).slice(0,5)}</strong><span>${new Intl.DateTimeFormat('es-AR',{weekday:'short',timeZone:'UTC'}).format(new Date(d+'T12:00:00Z'))}</span><span>${availability.suspended.includes(d)?'Suspendido':'Ver horarios'}</span></button>`).join('')}</div>`;
+    const slotSection=slots.length?`<div class="slot-grid">${slots.map(s=>`<button type="button" class="slot-button" data-action="choose-medical-slot" data-date="${ui.search.date}" data-time="${s.time}" ${s.busy?'disabled':''}><strong>${s.time}</strong><span>${s.busy?'Ocupado':'Disponible'}</span></button>`).join('')}</div>`:empty(availability.suspended.includes(ui.search.date)?'Jornada suspendida':'Sin horarios disponibles',availability.suspended.includes(ui.search.date)?'El profesional no atiende ese día. Elegí otra fecha.':'Probá otra fecha o pedí ayuda en la sala.');
+    return page('Buscar un turno médico','Filtrá por especialidad, profesional y fecha. La reserva se confirma en el siguiente paso.',null,
+      `<div class="flow-steps"><span class="active">1 · Elegir horario</span><span>2 · Confirmar</span></div>${card(`<h2>Encontrá una consulta</h2>${filters}`)}${section('Fechas con atención',card(dateRail))}${section('Horarios del '+fmtDate(ui.search.date),card(slotSection))}${inc(2,'Estado de suspensión',availability.suspended.includes(ui.search.date)?note('warning','Atención suspendida','Los pacientes afectados reciben un aviso y Administración puede reprogramarlos.'): '')}${inc(3,'Modalidad de cobertura',note('info','Modalidad de la prestación','Si tenés cobertura registrada, podrás elegirla al confirmar.'))}`);
+  };
+  const confirmMedicalScreen=()=>{
+    const slot=ui.selectedSlot;if(!slot)return page('Confirmar cita médica','Elegí antes un horario disponible.',navBtn('SC-05','Buscar horarios'),empty('No hay un horario seleccionado','Volvé a la búsqueda y elegí un horario para iniciar la retención.'));
+    const remaining=Math.max(0,Math.ceil((ui.holdUntil-Date.now())/1000));
+    const options=ui.scope>=3&&byCoverage(currentPatient().coverageId)?.active?[['Particular','Particular'],['Con cobertura','Con cobertura · '+byCoverage(currentPatient().coverageId).name]]:[['Particular','Particular']];
+    const summary=card(`<h2>Detalle de la cita</h2><dl class="kv"><div><dt>Profesional</dt><dd>${esc(staffName(slot.doctorId))}</dd></div><div><dt>Especialidad</dt><dd>Clínica médica</dd></div><div><dt>Fecha y hora</dt><dd>${fmtDate(slot.date)} · ${slot.time}</dd></div><div><dt>Duración</dt><dd>${data.settings.duration} min</dd></div>${ui.scope>=3?`<div><dt>Arancel de referencia</dt><dd>${money(data.settings.fee)}</dd></div>`:''}</dl><hr class="divider">${remaining>0?`<div class="notice info" role="status"><span class="notice-symbol" aria-hidden="true">i</span><div><strong>Horario retenido</strong><p>Quedan <b data-hold-clock>${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}</b> minutos para confirmar.</p></div></div>`:note('error','Retención vencida','Volvé a elegir el horario para iniciar una nueva retención.')}`, 'span-7');
+    const fields=select('confirm-patient','Paciente',data.patients.filter(p=>relevantPatientIds().includes(p.id)).map(p=>[p.id,p.name]),ui.selectedPatient)+inc(3,'Modalidad de cobertura',select('confirm-modality','Modalidad',options,'Particular'));
+    const details=card(`<h2>Confirmación</h2>${form('confirm-medical',fields,'Confirmar reserva',navBtn('SC-05','Elegir otro horario','secondary'))}<p class="small muted">La confirmación verifica nuevamente el cupo y evita superposiciones.</p>`,'span-5');
+    return page('Confirmar cita médica','Revisá los datos antes de reservar. El horario permanece retenido por cinco minutos.',null,`<div class="flow-steps"><span>1 · Elegir horario</span><span class="active">2 · Confirmar</span></div><div class="content-grid">${summary}${details}</div>${inc(2,'Avisos de confirmación',note('info','Aviso interno y correo','A partir de Sprint 2, la confirmación crea un aviso interno y simula el envío de correo.'))}`);
+  };
+  const patientAppointmentRow=a=>`<div class="list-row"><div><strong>${esc(appointmentName(a))}</strong><span class="meta">${fmtDate(a.date)} · ${a.time} · ${esc(patientName(a.patientId))} · ${esc(a.id)}</span><div class="od-cluster" style="margin-top:7px">${badge(a.status,statusTone(a.status))}${a.result!=='Sin registrar'?badge(a.result,statusTone(a.result)):''}${a.overbook?badge('Sobreturno','warning'):''}</div></div><div class="row-actions">${ui.scope>=2&&a.status==='Confirmado'&&hoursUntil(a)>0?btn('cancel-appointment','Cancelar','danger small',`data-id="${a.id}"`):''}${ui.scope>=3&&data.charges.some(c=>c.appointmentId===a.id&&c.status==='Aprobado')?btn('download-invoice','Factura','secondary small',`data-id="${a.id}"`):''}</div></div>`;
+  const patientAppointmentsScreen=()=>{
+    const all=visibleAppointments();const future=all.filter(a=>hoursUntil(a)>0&&a.status==='Confirmado').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));const history=all.filter(a=>!future.includes(a));
+    return page('Mis turnos','Consultá el detalle de tus reservas y de las personas menores vinculadas.',navBtn('SC-05','Nuevo turno'),
+      `${section('Próximos',future.length?card(recordList(future,patientAppointmentRow)):empty('No hay turnos próximos','Buscá un horario para reservar una consulta.','go-search','Buscar turno'))}${section('Anteriores y cancelados',history.length?card(recordList(history,patientAppointmentRow)):empty('Sin antecedentes','Tus turnos anteriores aparecerán en esta sección.'))}${inc(2,'Regla de cancelación',note('info','Cancelación en el portal','Podés cancelar hasta 24 horas antes del inicio. Si falta menos tiempo, contactá a la sala.'))}${inc(3,'Facturas',`<div class="form-actions">${navBtn('SC-12','Ver facturas','secondary')}</div>`)}`);
+  };
+  const historyScreen=()=>{
+    const patientIds=relevantPatientIds();const notes=data.notes.filter(n=>patientIds.includes(n.patientId));const vaccines=data.appointments.filter(a=>a.type==='vaccine'&&patientIds.includes(a.patientId)&&a.result==='Atendido');
+    const items=[...notes.map(n=>({date:n.created,html:`<strong>Consulta médica · ${esc(staffName(n.doctorId))}</strong><small>${fmtDate(n.created)} · ${esc(patientName(n.patientId))}</small><p><b>Diagnóstico:</b> ${esc(n.diagnosis)}</p><p>${esc(n.observation)}</p>${n.corrections.map(c=>`<p><b>Corrección ${fmtDate(c.date)}:</b> ${esc(c.text)} · Motivo: ${esc(c.reason)}</p>`).join('')}${n.attachments.length?`<p><b>Adjuntos:</b> ${n.attachments.map(a=>esc(a.name)).join(', ')}</p>`:''}`})),...((ui.scope>=3)?vaccines.map(a=>({date:a.date,html:`<strong>Vacuna aplicada · ${esc(byVaccine(a.vaccineId)?.name)}</strong><small>${fmtDate(a.date)} · ${esc(patientName(a.patientId))}</small><p>Lote: ${esc(a.batchId||'—')} · Profesional: ${esc(staffName(a.nurseId))}</p>`})):[])].sort((a,b)=>b.date.localeCompare(a.date));
+    return page('Historia clínica','Información de tus atenciones y de los menores vinculados. Esta vista es de solo lectura.',null,
+      `${note('info','Solo lectura','Las consultas se corrigen mediante nuevos registros del profesional; el contenido original se conserva.')}${items.length?card(`<div class="timeline">${items.map(x=>`<div class="timeline-item">${x.html}</div>`).join('')}</div>`):empty('Aún no hay historia registrada','Las consultas completadas aparecerán aquí después de la atención.')}${inc(3,'Aplicaciones de vacunas',vaccines.length?note('success','Vacunación registrada',`${vaccines.length} aplicación(es) figuran en tu historial.`):'')}`);
+  };
+  const noticesScreen=()=>{
+    const owner=ui.role==='paciente'?ui.selectedPatient:ui.role==='medico'?currentDoctorId():ui.role==='enfermeria'?'ENF-01':'ADM-01';
+    const items=data.notices.filter(n=>n.for===owner&&n.sprint<=ui.scope);
+    return page('Avisos','Confirmaciones, cambios y recordatorios reunidos en un solo lugar.',btn('read-all','Marcar todo como leído','secondary'),
+      `${items.length?card(recordList(items,n=>`<div class="list-row"><div><div class="od-cluster"><strong>${esc(n.title)}</strong>${badge(n.read?'Leído':'Nuevo',n.read?'neutral':'info')}</div><span class="meta">${fmtDate(n.date)} · Correo: ${esc(n.email)}</span><p>${esc(n.text)}</p></div><div class="row-actions">${!n.read?btn('read-notice','Marcar leído','secondary small',`data-id="${n.id}"`):''}</div></div>`)):empty('No hay avisos','Los cambios de tus turnos y los recordatorios se mostrarán aquí.')}${inc(3,'Avisos de vacunación',ui.role==='enfermeria'?note('info','Stock y agenda','Las alertas por umbral y las aplicaciones pendientes también llegan a esta bandeja.'): '')}`);
+  };
+  const vaccinationScreen=()=>{
+    if(!ui.vaccineDate)ui.vaccineDate=possibleVaccineDates()[0]||dateOffset(1);
+    const vaccines=data.vaccines;const chosen=ui.vaccineId||vaccines[0]?.id;const doses=chosen?availableDoses(chosen):0;const slots=vaccineSlots(ui.vaccineDate);
+    const formFields=select('vac-patient','Paciente',data.patients.filter(p=>relevantPatientIds().includes(p.id)).map(p=>[p.id,p.name]),ui.selectedPatient)+select('vac-vaccine','Vacuna',vaccines.map(v=>[v.id,v.name]),chosen)+select('vac-date','Fecha',possibleVaccineDates().map(d=>[d,fmtDate(d)]),ui.vaccineDate)+select('vac-time','Horario',slots.filter(s=>!s.busy).map(s=>[s.time,s.time]),slots.find(s=>!s.busy)?.time||'',true);
+    return page('Reservar vacunación','La reserva confirma un horario de 15 minutos y compromete una dosis disponible.',null,
+      `<div class="content-grid">${card(`<h2>Elegí turno</h2>${vaccines.length&&data.nursing.published&&doses>0&&slots.some(s=>!s.busy)?form('book-vaccine',formFields,'Confirmar vacunación'):empty(!data.nursing.published?'Sin personal disponible':doses<=0?'Sin dosis disponibles':'Sin horarios libres',!data.nursing.published?'Enfermería aún no publicó la agenda.':doses<=0?'Consultá más tarde o elegí otra vacuna.':'Probá otra fecha.')}`,'span-7')}${card(`<h2>Disponibilidad</h2><dl class="kv"><div><dt>Dosis disponibles</dt><dd>${doses}</dd></div><div><dt>Fecha</dt><dd>${fmtDate(ui.vaccineDate)}</dd></div><div><dt>Personal</dt><dd>${data.nursing.published?'Paula Medina':'Sin agenda publicada'}</dd></div><div><dt>Duración</dt><dd>15 min</dd></div></dl><p class="small muted">La dosis física se descuenta al registrar la aplicación.</p>`,'span-5')}</div>`);
+  };
+  const coverageScreen=()=>{
+    const patient=currentPatient();const selected=byCoverage(patient.coverageId);
+    return page('Mi cobertura','Registrá una entidad activa o continuá como particular.',null,
+      `<div class="content-grid">${card(`<h2>Afiliación</h2>${selected?note(selected.active?'success':'warning',selected.active?'Cobertura registrada':'Entidad inactiva',selected.name):note('info','Sin cobertura registrada','Tus turnos se consideran particulares hasta que agregues una entidad activa.')}${form('save-coverage',select('coverage-patient','Paciente',data.patients.filter(p=>relevantPatientIds().includes(p.id)).map(p=>[p.id,p.name]),patient.id)+select('coverage-id','Obra social',[['','Continuar como particular'],...data.coverages.filter(c=>c.active).map(c=>[c.id,c.name])],patient.coverageId||'',false)+field('coverage-number','Número de afiliado',patient.coverageNumber||'','text',false),'Guardar cobertura')}`,'span-7')}${card(`<h2>Cómo se usa</h2><p>Al reservar una consulta, podrás indicar si la atención es particular o con cobertura. Los importes son de referencia y el cobro, si corresponde, se registra presencialmente.</p>`,'span-5')}</div>`);
+  };
+  const invoicesScreen=()=>{
+    const charges=data.charges.filter(c=>c.status==='Aprobado'&&relevantPatientIds().includes(c.patientId));
+    return page('Mis facturas','Comprobantes de los cobros presenciales registrados por Administración.',null,
+      charges.length?card(recordList(charges,c=>`<div class="list-row"><div><strong>Factura simulada · ${esc(c.id)}</strong><span class="meta">${fmtDate(c.date)} · ${esc(patientName(c.patientId))} · Turno ${esc(c.appointmentId)}</span><p>${money(c.amount)} · ${esc(c.method)}</p></div><div class="row-actions">${badge('Disponible','success')}${btn('download-invoice','Descargar PDF','secondary small',`data-id="${c.appointmentId}"`)}</div></div>`)):empty('Aún no hay facturas','Una factura aparece después de que Administración registra un cobro presencial aprobado.'));
+  };
+
+  const doctorAgendaScreen=()=>{
+    const appts=data.appointments.filter(a=>a.type==='medical'&&a.doctorId===currentDoctorId()&&a.status==='Confirmado').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    const upcoming=appts.filter(a=>hoursUntil(a)>0);const attended=appts.filter(a=>a.result==='Atendido');
+    const rows=appts.length?card(recordList(appts,a=>`<div class="list-row"><div><strong>${esc(patientName(a.patientId))}</strong><span class="meta">${fmtDate(a.date)} · ${a.time} · ${esc(a.id)}</span><div class="od-cluster" style="margin-top:7px">${badge(a.status,statusTone(a.status))}${badge(a.result,statusTone(a.result))}${a.overbook?badge('Sobreturno','warning'):''}</div></div><div class="row-actions">${inc(2,'Registro de consulta',a.result==='Sin registrar'?btn('open-consult','Registrar atención','secondary small',`data-id="${a.id}"`):btn('open-correction','Ver consulta','secondary small',`data-id="${a.id}"`))}${inc(2,'Ausencia explícita',a.result==='Sin registrar'?btn('mark-absent','Marcar ausente','ghost small',`data-id="${a.id}"`):'')}</div></div>`)):empty('La agenda está vacía','Publicá disponibilidad o esperá nuevas reservas.');
+    return page('Mi agenda médica','Consultá tus citas confirmadas y registrá el resultado asistencial cuando corresponda.',navBtn('SC-14','Gestionar disponibilidad'),
+      `<div class="content-grid">${stat(upcoming.length,'Turnos próximos')}${stat(attended.length,'Atenciones registradas')}${inc(2,'Jornadas suspendidas',stat(availabilityFor(currentDoctorId()).suspended.length,'Jornadas suspendidas'))}${inc(3,'Ocupación propia',stat(appts.length,'Turnos totales'))}</div>${section('Citas',rows)}${inc(2,'Suspender jornada',`<div class="form-actions">${navBtn('SC-14','Suspender una jornada','secondary')}</div>`)}${inc(3,'Estadísticas propias',card(`<h2>Mis datos autorizados</h2><p>${upcoming.length} turnos próximos · ${attended.length} atenciones registradas.</p><div class="form-actions">${btn('export-doctor','Exportar mis datos','secondary')}</div>`))}`);
+  };
+  const availabilityScreen=()=>{
+    const days=[['1','Lunes'],['2','Martes'],['3','Miércoles'],['4','Jueves'],['5','Viernes']];
+    const availability=availabilityFor(currentDoctorId());const checks=days.map(([v,t])=>`<label class="checkline"><input type="checkbox" name="days" value="${v}" ${availability.days.includes(Number(v))?'checked':''}><span>${t}</span></label>`).join('');
+    const next=possibleMedicalDates(currentDoctorId()).slice(0,8);
+    return page('Disponibilidad mensual','Definí al menos dos días de atención por semana. La publicación habilita los cupos.',null,
+      `<div class="content-grid">${card(`<h2>Días de atención</h2><form data-form="availability" novalidate><div class="field od-field" style="margin-bottom:16px"><label for="availability-month">Mes a publicar *</label><input id="availability-month" name="availability-month" type="month" value="${availability.month||dateOffset(0).slice(0,7)}" required><span class="field-error" id="availability-month-error"></span></div><div class="od-stack">${checks}</div><div class="form-actions"><button class="btn" type="submit">Publicar disponibilidad</button></div></form><p class="small muted">Duración por turno: ${data.settings.duration} min · Arancel: ${money(data.settings.fee)}. Administración puede modificarlos.</p>`,'span-7')}${card(`<h2>Estado actual</h2>${badge(availability.published?'Publicada':'Sin publicar',availability.published?'success':'warning')}<p class="muted">Próximos días con cupos: ${next.map(fmtDate).join(', ')||'—'}.</p>`,'span-5')}</div>
+      ${inc(2,'Suspensión de jornada',section('Imprevistos',card(`<h2>Suspender una jornada</h2><p class="muted">El día deja de ofrecer cupos. Las personas con turnos reciben un aviso interno.</p>${form('suspend-day',select('suspend-date','Fecha',next.map(d=>[d,fmtDate(d)]),next[0]||''),'Suspender jornada')}${availability.suspended.length?`<p class="small">Suspendidas: ${availability.suspended.map(fmtDate).join(', ')}</p>`:''}`)))}`);
+  };
+  const consultationScreen=()=>{
+    const options=optionAppointments().filter(([key])=>data.appointments.find(a=>a.id===key)?.doctorId===currentDoctorId());
+    const selected=options.some(([v])=>v===ui.selectedAppointment)?ui.selectedAppointment:options[0]?.[0];
+    const appt=data.appointments.find(a=>a.id===selected);
+    if(!appt)return page('Registrar consulta','No hay citas médicas para atender.',navBtn('SC-13','Volver a agenda'),empty('Sin citas disponibles','Los turnos confirmados aparecerán en tu agenda.'));
+    const existing=data.notes.find(n=>n.appointmentId===appt.id);
+    return page('Registrar consulta','Documentá la atención. El resultado Atendido se registra al guardar el diagnóstico.',navBtn('SC-13','Volver a agenda','secondary'),
+      `<div class="content-grid">${card(`<h2>Atención médica</h2>${existing?`${note('success','Consulta registrada','La nota original se conserva. Añadí las modificaciones en Correcciones.')}<p><b>Diagnóstico:</b> ${esc(existing.diagnosis)}</p><p>${esc(existing.observation)}</p><div class="form-actions">${navBtn('SC-16','Abrir correcciones')}</div>`:form('consultation',select('consult-appointment','Turno',options,selected)+field('consult-diagnosis','Diagnóstico','','text',true,'Campo obligatorio.')+textarea('consult-observation','Observaciones','',false),'Guardar consulta',btn('mark-absent','Registrar ausencia','danger',`data-id="${appt.id}"`))}<p class="small muted">Una consulta guardada no se sobrescribe: las modificaciones posteriores se agregan como correcciones.</p>`,'span-8')}${card(`<h2>Turno seleccionado</h2><dl class="kv"><div><dt>Paciente</dt><dd>${esc(patientName(appt.patientId))}</dd></div><div><dt>Fecha</dt><dd>${fmtDate(appt.date)} · ${appt.time}</dd></div><div><dt>Reserva</dt><dd>${esc(appt.status)}</dd></div><div><dt>Resultado</dt><dd>${esc(appt.result)}</dd></div></dl>`,'span-4')}</div>`);
+  };
+  const correctionsScreen=()=>{
+    const own=data.notes.filter(n=>n.doctorId===currentDoctorId());
+    if(!own.length)return page('Correcciones y adjuntos','Solo podés corregir tus propias notas.',navBtn('SC-13','Volver a agenda'),empty('Sin consultas propias','Guardá una consulta para añadir correcciones o documentos.'));
+    const noteSelected=own.find(n=>n.appointmentId===ui.selectedAppointment)||own[0];
+    const noteOptions=own.map(n=>[n.id,`${fmtDate(n.created)} · ${patientName(n.patientId)} · ${n.id}`]);
+    return page('Correcciones y adjuntos','Cada corrección conserva la nota original e identifica motivo, autor y fecha.',null,
+      `<div class="content-grid">${card(`<h2>Nota original</h2><p><b>Diagnóstico:</b> ${esc(noteSelected.diagnosis)}</p><p>${esc(noteSelected.observation)}</p><p class="small muted">${fmtDate(noteSelected.created)} · ${esc(staffName(noteSelected.doctorId))}</p>${noteSelected.corrections.length?`<hr class="divider"><h3>Correcciones</h3><div class="timeline">${noteSelected.corrections.map(c=>`<div class="timeline-item"><strong>${esc(c.text)}</strong><small>${fmtDate(c.date)} · ${esc(c.author)}</small><p>Motivo: ${esc(c.reason)}</p></div>`).join('')}</div>`:''}${noteSelected.attachments.length?`<hr class="divider"><h3>Adjuntos</h3>${noteSelected.attachments.map(a=>`<p>${esc(a.name)} · ${Math.round(a.size/1024)} KB</p>`).join('')}`:''}`,'span-7')}${card(`<h2>Añadir corrección</h2>${form('correction',select('correction-note','Consulta propia',noteOptions,noteSelected.id)+textarea('correction-text','Texto de la corrección','',true)+field('correction-reason','Motivo','','text',true),'Guardar corrección')}<hr class="divider"><h2>Adjuntar archivo</h2><form data-form="attachment" novalidate><div class="field"><label for="attachment-file">Archivo PDF, JPG o PNG *</label><input id="attachment-file" name="attachment-file" type="file" accept=".pdf,.jpg,.jpeg,.png" required><small class="hint">Máximo 10 MB. Se conserva solo la referencia del archivo en esta demo.</small><span class="field-error" id="attachment-file-error"></span></div><input type="hidden" name="attachment-note" value="${noteSelected.id}"><div class="form-actions"><button class="btn secondary" type="submit">Añadir documento</button></div></form>`,'span-5')}</div>`);
+  };
+  const nursingAgendaScreen=()=>{
+    const days=[['1','Lunes'],['2','Martes'],['3','Miércoles'],['4','Jueves'],['5','Viernes']];
+    const appts=data.appointments.filter(a=>a.type==='vaccine'&&a.status==='Confirmado').sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    return page('Agenda del vacunatorio','Publicá la disponibilidad del equipo. Cada cupo dura 15 minutos.',null,
+      `<div class="content-grid">${card(`<h2>Disponibilidad de Enfermería</h2><form data-form="nursing-schedule" novalidate><div class="od-stack">${days.map(([v,t])=>`<label class="checkline"><input type="checkbox" name="nursing-days" value="${v}" ${data.nursing.days.includes(Number(v))?'checked':''}><span>${t}</span></label>`).join('')}</div><div class="form-actions"><button class="btn" type="submit">Publicar agenda</button></div></form>`,'span-7')}${card(`<h2>Estado</h2>${badge(data.nursing.published?'Publicada':'Sin publicar',data.nursing.published?'success':'warning')}<p>${appts.length} turnos de vacunación confirmados.</p><p class="small muted">Se requiere personal y dosis disponible para aceptar cada reserva.</p>`,'span-5')}</div>${section('Turnos del vacunatorio',appts.length?card(recordList(appts,a=>`<div class="list-row"><div><strong>${esc(patientName(a.patientId))} · ${esc(byVaccine(a.vaccineId)?.name)}</strong><span class="meta">${fmtDate(a.date)} · ${a.time} · ${esc(a.id)}</span></div><div class="row-actions">${badge(a.result,statusTone(a.result))}${a.result==='Sin registrar'?btn('open-application','Registrar aplicación','secondary small',`data-id="${a.id}"`):''}</div></div>`)):empty('Sin turnos de vacunación','Publicá agenda y cargá dosis para habilitar la reserva.'))}`);
+  };
+  const inventoryScreen=()=>{
+    const rows=data.vaccines.map(v=>{const qty=stock(v.id);return `<div class="list-row"><div><strong>${esc(v.name)}</strong><span class="meta">${qty} dosis físicas · ${reserved(v.id)} comprometidas · umbral ${v.threshold}</span><span class="meta">${data.batches.filter(b=>b.vaccineId===v.id).map(b=>`${b.id} vence ${fmtDate(b.expiry)}`).join(' · ')}</span></div>${badge(qty-reserved(v.id)<=v.threshold?'Stock bajo':'Disponible',qty-reserved(v.id)<=v.threshold?'warning':'success')}</div>`});
+    return page('Vacunas e inventario','Catálogo, entradas y ajustes por lote con trazabilidad de movimientos.',null,
+      `${section('Inventario actual',data.vaccines.length?card(recordList(rows,x=>x)):empty('Sin vacunas','Creá una vacuna para empezar a registrar lotes.'))}<div class="content-grid" style="margin-top:24px">${card(`<h2>Nueva vacuna</h2>${form('vaccine',field('vaccine-name','Nombre de vacuna')+field('vaccine-threshold','Umbral mínimo','10','number',true,'Alerta cuando las dosis disponibles llegan a este valor.','min="0"'),'Crear vacuna')}`,'span-4')}${card(`<h2>Entrada de lote</h2>${form('batch',select('batch-vaccine','Vacuna',data.vaccines.map(v=>[v.id,v.name]))+field('batch-code','Código de lote')+field('batch-quantity','Cantidad','20','number',true,'','min="1"')+field('batch-expiry','Vencimiento',dateOffset(365),'date'),'Registrar lote')}`,'span-4')}${card(`<h2>Ajustar inventario</h2>${form('stock-adjust',select('adjust-batch','Lote',data.batches.map(b=>[b.id,`${b.id} · ${byVaccine(b.vaccineId)?.name}`]))+field('adjust-delta','Variación de dosis','0','number',true,'Usá un valor negativo para una baja.')+field('adjust-reason','Motivo','','text',true),'Guardar ajuste')}`,'span-4')}</div>`);
+  };
+  const applicationScreen=()=>{
+    const appts=data.appointments.filter(a=>a.type==='vaccine'&&a.status==='Confirmado'&&a.result==='Sin registrar');
+    const current=appts.find(a=>a.id===ui.selectedAppointment)||appts[0];
+    if(!current)return page('Registrar aplicación','Seleccioná un turno pendiente para registrar la dosis administrada.',navBtn('SC-17','Ver agenda'),empty('No hay aplicaciones pendientes','Las reservas de vacunación sin resultado aparecerán aquí.'));
+    const batches=data.batches.filter(b=>b.vaccineId===current.vaccineId&&b.quantity>0&&b.expiry>=dateOffset(0));
+    return page('Registrar aplicación','Elegí el lote físico utilizado. El registro descuenta una dosis y actualiza el historial.',null,
+      `<div class="content-grid">${card(`<h2>Aplicación</h2>${batches.length?form('application',select('apply-appointment','Turno',appts.map(a=>[a.id,`${a.id} · ${patientName(a.patientId)} · ${byVaccine(a.vaccineId)?.name}`]),current.id)+select('apply-batch','Lote vigente',batches.map(b=>[b.id,`${b.id} · ${b.quantity} dosis · vence ${fmtDate(b.expiry)}`]),batches[0].id)+textarea('apply-observation','Observaciones','',false),'Registrar aplicación',btn('mark-vaccine-absent','Registrar ausencia','danger',`data-id="${current.id}"`)):empty('Sin dosis válida','No hay un lote vigente con stock físico para esta vacuna.','go-inventory','Abrir inventario')}`,'span-7')}${card(`<h2>Turno</h2><dl class="kv"><div><dt>Paciente</dt><dd>${esc(patientName(current.patientId))}</dd></div><div><dt>Vacuna</dt><dd>${esc(byVaccine(current.vaccineId)?.name)}</dd></div><div><dt>Fecha y hora</dt><dd>${fmtDate(current.date)} · ${current.time}</dd></div><div><dt>Reserva</dt><dd>${esc(current.status)}</dd></div></dl>`,'span-5')}</div>`);
+  };
+  const nurseAlertsScreen=()=>{
+    const low=data.vaccines.filter(v=>availableDoses(v.id)<=v.threshold);
+    const pending=data.appointments.filter(a=>a.type==='vaccine'&&a.status==='Confirmado'&&a.result==='Sin registrar'&&hoursUntil(a)<=0);
+    return page('Alertas y pendientes','Revisá stock y aplicaciones que aún requieren registro.',null,
+      `<div class="content-grid">${card(`<h2>Stock bajo</h2>${low.length?recordList(low,v=>`<div class="list-row"><div><strong>${esc(v.name)}</strong><span class="meta">${availableDoses(v.id)} disponibles · umbral ${v.threshold}</span></div>${navBtn('SC-18','Ver inventario','secondary small')}</div>`):empty('Sin alertas de stock','Los umbrales configurados se están cumpliendo.')}`,'span-6')}${card(`<h2>Aplicaciones pendientes</h2>${pending.length?recordList(pending,a=>`<div class="list-row"><div><strong>${esc(patientName(a.patientId))}</strong><span class="meta">${fmtDate(a.date)} · ${a.time} · ${esc(byVaccine(a.vaccineId)?.name)}</span></div>${btn('open-application','Registrar','secondary small',`data-id="${a.id}"`)}</div>`):empty('Sin aplicaciones pendientes','Las reservas vencidas sin resultado aparecerán aquí.')}`,'span-6')}</div>`);
+  };
+
+  const adminHomeScreen=()=>{
+    const active=data.staff.filter(s=>s.active).length;const patients=data.patients.length;
+    const staffRows=credentialNotice('staff')+recordList(data.staff,s=>`<div class="list-row"><div><strong>${esc(s.name)}</strong><span class="meta">${esc(s.email)} · ${esc(roleNames[s.role])}${s.specialty?' · '+esc(s.specialty):''}</span></div><div class="row-actions">${badge(s.active?'Activa':'Desactivada',s.active?'success':'neutral')}${s.active?btn('reset-account','Clave temporal','secondary small',`data-id="${s.id}"`):''}${s.active&&s.id!=='ADM-01'?btn('deactivate-staff','Desactivar','danger small',`data-id="${s.id}"`):''}</div></div>`);
+    return page('Administración','Gestioná cuentas y la configuración base de la sala médica.',navBtn('SC-22','Dar de alta paciente'),
+      `<div class="content-grid">${stat(active,'Cuentas activas')}${stat(patients,'Pacientes registrados')}${inc(2,'Turnos asistidos',stat(data.appointments.filter(a=>a.status==='Confirmado').length,'Turnos confirmados'))}${inc(3,'Cobros',stat(data.charges.filter(c=>c.status==='Aprobado').length,'Cobros aprobados'))}</div>${section('Cuentas de personal',card(staffRows))}<div class="content-grid" style="margin-top:24px">${card(`<h2>Crear cuenta de personal</h2>${form('staff',field('staff-name','Nombre y apellido')+field('staff-email','Correo electrónico','','email')+select('staff-role','Rol',[['medico','Médico'],['enfermeria','Enfermería'],['admin','Administrador']])+field('staff-specialty','Especialidad (si es médico)','','text',false),'Crear cuenta')}<p class="small muted">La cuenta recibe una clave temporal y debe cambiarla al ingresar.</p>`,'span-7')}${card(`<h2>Accesos de gestión</h2><div class="quick-links" style="grid-template-columns:1fr">${[['SC-23','Duración y aranceles'],['SC-22','Alta de pacientes']].map(([s,t])=>`<a class="quick-link" href="#${s}" data-nav="${s}"><strong>${t}</strong><span>Abrir pantalla</span></a>`).join('')}${inc(2,'Gestión presencial',`<a class="quick-link" href="#SC-24" data-nav="SC-24"><strong>Turnos asistidos</strong><span>Reservar y reprogramar</span></a>`)}${inc(3,'Reportes',`<a class="quick-link" href="#SC-29" data-nav="SC-29"><strong>Reportes</strong><span>Indicadores de la sala</span></a>`)}</div>`,'span-5')}</div>`);
+  };
+  const assistedPatientScreen=()=>{
+    const adults=data.patients.filter(p=>!p.tutorId);
+    return page('Alta asistida','Administración puede registrar personas adultas y vincular menores con su tutor responsable.',null,
+      `<div class="content-grid">${card(`<h2>Registrar paciente</h2>${form('patient',select('patient-type','Tipo de registro',[['adulto','Persona adulta'],['menor','Menor con tutor']])+field('patient-name','Nombre y apellido')+field('patient-dni','DNI','','text',true,'Sin puntos.')+field('patient-birth','Fecha de nacimiento','','date')+field('patient-email','Correo (adultos)','','email',false)+select('patient-tutor','Tutor (para menor)',[['','No corresponde'],...adults.map(p=>[p.id,p.name])],'',false)+inc(3,'Cobertura en alta',select('patient-coverage','Obra social (opcional)',[['','Particular'],...data.coverages.filter(c=>c.active).map(c=>[c.id,c.name])],'',false)),'Guardar paciente')}`,'span-7')}${card(`<h2>Pacientes registrados</h2>${credentialNotice('patient')}${recordList(data.patients,p=>`<div class="list-row"><div><strong>${esc(p.name)}</strong><span class="meta">DNI ${esc(p.dni)} · ${p.tutorId?'Tutor: '+esc(patientName(p.tutorId)):'Persona adulta'}</span></div>${p.email?`<div class="row-actions">${btn('reset-account','Clave temporal','secondary small',`data-id="${p.id}"`)}</div>`:''}</div>`)}`,'span-5')}</div>`);
+  };
+  const settingsScreen=()=>page('Duración y aranceles','Configurá la prestación antes de publicar cupos médicos.',null,
+    `<div class="content-grid">${card(`<h2>Consulta médica</h2>${form('settings',field('setting-duration','Duración por turno',data.settings.duration,'number',true,'Minutos por cita.','min="15" step="5"')+field('setting-fee','Arancel de referencia (ARS)',data.settings.fee,'number',true,'Cobro presencial; no hay pasarela.','min="0"')+inc(2,'Límite diario de sobreturnos',field('setting-overbook','Límite diario de sobreturnos',data.settings.overbookLimit,'number',true,'Valor de ejemplo pendiente de validación.','min="0"'))+inc(3,'Tarifa de vacunación',field('setting-vaccine-fee','Tarifa de vacunación (ARS)',data.settings.vaccineFee,'number',true,'Solo referencia para cobro presencial.','min="0"')),'Guardar parámetros')}`,'span-7')}${card(`<h2>Aplicación de los cambios</h2><p>La duración define los cupos que el médico publica. Los aranceles se muestran al confirmar una prestación.</p>${inc(2,'Parámetro pendiente',note('warning','Límite pendiente de validación','Dos sobreturnos por profesional y día es una propuesta, no una decisión final.'))}`,'span-5')}</div>`);
+  const adminAgendaScreen=()=>{
+    const appts=data.appointments.slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    const dates=possibleMedicalDates().slice(0,20);
+    const formFields=select('assist-patient','Paciente',optionPatients())+select('assist-type','Prestación',ui.scope>=3?[['medical','Consulta médica'],['vaccine','Vacunación']]:[['medical','Consulta médica']])+select('assist-date','Fecha',dates.map(d=>[d,fmtDate(d)]),dates[0]||'')+select('assist-time','Horario',[['09:00','09:00'],['09:15','09:15'],['09:30','09:30'],['10:00','10:00'],['10:30','10:30'],['11:00','11:00']]);
+    return page('Agenda general','Gestioná reservas presenciales y consultá cambios compartidos con cada rol.',null,
+      `${card(`<h2>Turnos registrados</h2>${recordList(appts,a=>`<div class="list-row"><div><strong>${esc(patientName(a.patientId))} · ${esc(appointmentName(a))}</strong><span class="meta">${fmtDate(a.date)} · ${a.time} · ${esc(a.id)}</span></div><div class="row-actions">${badge(a.status,statusTone(a.status))}${badge(a.result,statusTone(a.result))}${a.overbook?badge('Sobreturno','warning'):''}</div></div>`)}`)}${section('Nueva reserva asistida',card(`<h2>Registrar turno en mostrador</h2>${form('assisted-booking',formFields,'Confirmar reserva')}`))}${inc(3,'Vacunación asistida',note('info','Vacunación presencial','La reserva también verifica disponibilidad de personal y dosis.'))}`);
+  };
+  const reprogramScreen=()=>{
+    const selected=data.appointments.filter(a=>a.status==='Confirmado');const first=selected.find(a=>a.id===ui.selectedAppointment)||selected[0];const dateOpts=possibleMedicalDates().slice(0,20);
+    return page('Suspensión y reprogramación','Resolvé turnos afectados por una jornada suspendida y notificá a las personas.',null,
+      `<div class="content-grid">${card(`<h2>Suspender jornada médica</h2>${form('admin-suspend',select('admin-suspend-date','Fecha',dateOpts.map(d=>[d,fmtDate(d)]),dateOpts[0]||''),'Suspender jornada')}${data.availability.suspended.length?`<p class="small muted">Jornadas suspendidas: ${data.availability.suspended.map(fmtDate).join(', ')}</p>`:''}`,'span-5')}${card(`<h2>Reprogramar turno</h2>${selected.length?form('reprogram',select('reprogram-appointment','Turno',selected.map(a=>[a.id,`${a.id} · ${patientName(a.patientId)} · ${fmtDate(a.date)}`]),first?.id)+select('reprogram-date','Nueva fecha',dateOpts.map(d=>[d,fmtDate(d)]),dateOpts[0]||'')+select('reprogram-time','Nuevo horario',[['09:00','09:00'],['09:30','09:30'],['10:00','10:00'],['10:30','10:30'],['11:00','11:00']]),'Guardar nueva fecha',btn('admin-cancel','Cancelar turno','danger',`data-id="${first?.id||''}"`)):empty('Sin turnos afectados','Cuando se suspenda una jornada, sus turnos aparecerán aquí.')}`,'span-7')}</div>${section('Turnos confirmados',card(recordList(selected,a=>`<div class="list-row"><div><strong>${esc(patientName(a.patientId))}</strong><span class="meta">${fmtDate(a.date)} · ${a.time} · ${esc(a.id)}</span></div><div class="row-actions">${data.availability.suspended.includes(a.date)?badge('Jornada suspendida','warning'):badge('Confirmado','success')}${btn('select-reprogram','Gestionar','secondary small',`data-id="${a.id}"`)}</div></div>`)))}`);
+  };
+  const overbookScreen=()=>{
+    const day=ui.overbookDate||data.appointments.find(a=>a.type==='medical'&&a.status==='Confirmado')?.date||possibleMedicalDates()[0];
+    const used=data.appointments.filter(a=>a.type==='medical'&&a.date===day&&a.overbook&&a.status==='Confirmado').length;
+    const occupied=data.appointments.filter(a=>a.type==='medical'&&a.date===day&&a.status==='Confirmado'&&!a.overbook);
+    return page('Asignar sobreturno','Cita excepcional sobre un horario ocupado, sujeta al límite diario configurable.',null,
+      `<div class="content-grid">${card(`<h2>Nuevo sobreturno</h2>${note('warning','Parámetro pendiente de validación',`Límite de ejemplo: ${data.settings.overbookLimit} por profesional y día.`)}${occupied.length?form('overbook',select('overbook-patient','Paciente',optionPatients())+select('overbook-slot','Horario ocupado',occupied.map(a=>[a.id,`${fmtDate(a.date)} · ${a.time} · ${staffName(a.doctorId)}`]),occupied[0].id)+field('overbook-reason','Motivo de excepción','','text',true),'Asignar sobreturno'):empty('No hay horarios ocupados','Primero debe existir una reserva médica confirmada para elegir el horario.')}<p class="small muted">Usados en ${fmtDate(day)}: ${used} de ${data.settings.overbookLimit}.</p>`,'span-7')}${card(`<h2>Reglas de excepción</h2><p>El sobreturno no reemplaza la cita original. Ambas personas figuran en la agenda con una marca textual de excepción.</p><p>El límite se cuenta por profesional y día, y no permite nuevos sobreturnos cuando se alcanza.</p>`,'span-5')}</div>`);
+  };
+  const coverageCatalogScreen=()=>page('Obras sociales','Administrá las entidades aceptadas sin borrar la cobertura histórica de pacientes.',null,
+    `<div class="content-grid">${card(`<h2>Catálogo</h2>${data.coverages.length?recordList(data.coverages,c=>`<div class="list-row"><div><strong>${esc(c.name)}</strong><span class="meta">${esc(c.id)}</span></div><div class="row-actions">${badge(c.active?'Activa':'Inactiva',c.active?'success':'neutral')}${btn('toggle-coverage',c.active?'Desactivar':'Activar',c.active?'danger small':'secondary small',`data-id="${c.id}"`)}</div></div>`):empty('Sin entidades','Agregá una obra social para habilitar la modalidad con cobertura.')}`,'span-7')}${card(`<h2>Nueva entidad</h2>${form('coverage-catalog',field('catalog-name','Nombre de la obra social'),'Agregar entidad')}`,'span-5')}</div>`);
+  const chargesScreen=()=>{
+    const eligible=data.appointments.filter(a=>a.status==='Confirmado');
+    return page('Cobro presencial','Registrá el resultado simulado de una operación realizada en la sala.',null,
+      `<div class="content-grid">${card(`<h2>Registrar cobro</h2>${eligible.length?form('charge',select('charge-appointment','Turno',eligible.map(a=>[a.id,`${a.id} · ${patientName(a.patientId)} · ${appointmentName(a)}`]))+field('charge-amount','Importe (ARS)',data.settings.fee,'number',true,'','min="0"')+select('charge-method','Medio',[['Efectivo','Efectivo'],['Débito','Débito'],['Transferencia','Transferencia']])+select('charge-result','Resultado',[['Aprobado','Aprobado'],['Rechazado','Rechazado'],['Cancelado','Cancelado']]),'Guardar cobro'):empty('No hay turnos','Registrá una reserva antes de cargar un cobro.')}${note('info','Simulación de mostrador','No se procesa dinero ni se conecta una pasarela de pagos.')}`,'span-7')}${card(`<h2>Operaciones</h2>${data.charges.length?recordList(data.charges,c=>`<div class="list-row"><div><strong>${esc(c.id)} · ${esc(patientName(c.patientId))}</strong><span class="meta">${fmtDate(c.date)} · ${money(c.amount)} · ${esc(c.method)}</span></div><div class="row-actions">${badge(c.status,statusTone(c.status))}${c.status==='Aprobado'?btn('download-invoice','Factura PDF','secondary small',`data-id="${c.appointmentId}"`):''}</div></div>`):empty('Sin cobros registrados','Los resultados presenciales de demostración aparecerán aquí.')}`,'span-5')}</div>`);
+  };
+  const inReportRange=d=>(!ui.reportFrom||d>=ui.reportFrom)&&(!ui.reportTo||d<=ui.reportTo);
+  const reportNumbers=()=>{const appointments=data.appointments.filter(a=>a.status==='Confirmado'&&inReportRange(a.date));const charges=data.charges.filter(c=>c.status==='Aprobado'&&inReportRange(c.date));return {appointments:appointments.length,attended:appointments.filter(a=>a.result==='Atendido').length,absent:appointments.filter(a=>a.result==='Ausente').length,stock:data.batches.reduce((n,b)=>n+Number(b.quantity),0),income:charges.reduce((n,c)=>n+Number(c.amount),0),charges:charges.length,covered:appointments.filter(a=>a.modality==='Con cobertura').length}};
+  const reportScreen=()=>{
+    const n=reportNumbers();const title={ocupacion:'Ocupación de agendas',asistencia:'Asistencia y ausencias',inventario:'Inventario de vacunas',cobros:'Cobros y cobertura'}[ui.report];
+    const bars=ui.report==='ocupacion'?[['Turnos',n.appointments,Math.max(1,n.appointments)],['Atendidos',n.attended,Math.max(1,n.appointments)]]:ui.report==='asistencia'?[['Atendidos',n.attended,Math.max(1,n.appointments)],['Ausentes',n.absent,Math.max(1,n.appointments)]]:ui.report==='inventario'?data.vaccines.map(v=>[v.name,stock(v.id),Math.max(1,stock(v.id)+reserved(v.id))]):[['Cobros',n.charges,Math.max(1,data.charges.length)],['Cubiertos',n.covered,Math.max(1,n.appointments)]];
+    return page('Reportes','Analizá la actividad de la sala y descargá un extracto de demostración.',null,
+      `${card(`<h2>Filtros</h2>${form('report',select('report-type','Reporte',[['ocupacion','Ocupación'],['asistencia','Asistencia y ausencias'],['inventario','Inventario'],['cobros','Cobros']],ui.report)+field('report-from','Desde',ui.reportFrom||dateOffset(-30),'date')+field('report-to','Hasta',ui.reportTo||dateOffset(30),'date'),'Aplicar filtros')}`)}${section(title,card(`<div class="content-grid">${stat(ui.report==='cobros'?money(n.income):ui.report==='inventario'?n.stock:n.appointments,ui.report==='cobros'?'Total aprobado':ui.report==='inventario'?'Dosis físicas':'Turnos confirmados')}${stat(n.attended,'Atendidos')}${stat(n.absent,'Ausentes')}${stat(n.charges,'Cobros aprobados')}</div><hr class="divider">${bars.some(([,value])=>value>0)?`<div class="chart-bars">${bars.map(([label,value,max])=>`<div class="bar-row"><span>${esc(label)}</span><div class="bar-track"><span class="bar-fill" style="width:${Math.max(2,Math.round(value/max*100))}%"></span></div><strong>${esc(value)}</strong></div>`).join('')}</div>`:empty('Sin resultados','Cambiá el período o el tipo de reporte.')}<div class="form-actions">${btn('export-pdf','Exportar PDF','secondary')}${btn('export-excel','Exportar Excel','secondary')}</div>`))}`);
+  };
+  const auditScreen=()=>{
+    const q=(ui.auditFilter||'').toLowerCase();const rows=data.audit.filter(a=>(a.actor+' '+a.action+' '+a.target).toLowerCase().includes(q));
+    return page('Bitácora de auditoría','Consulta de operaciones críticas. No incluye contenido clínico sensible.',null,
+      `${card(`<h2>Filtrar eventos</h2>${form('audit-filter',field('audit-query','Actor, acción o referencia',ui.auditFilter||'','search',false),'Buscar')}`)}${section('Eventos',rows.length?card(recordList(rows,a=>`<div class="list-row"><div><strong>${esc(a.action)}</strong><span class="meta">${fmtDate(a.date)} · ${esc(a.actor)}</span></div><span class="small muted">${esc(a.target)}</span></div>`)):empty('Sin resultados','Probá otro actor, acción o referencia.'))}`);
+  };
+  const screenContent=screen=>({
+    'SC-01':accessScreen,'SC-02':recoveryScreen,'SC-04':patientDashboard,'SC-05':searchMedicalScreen,'SC-06':confirmMedicalScreen,'SC-07':patientAppointmentsScreen,'SC-08':historyScreen,'SC-09':noticesScreen,'SC-10':vaccinationScreen,'SC-11':coverageScreen,'SC-12':invoicesScreen,'SC-13':doctorAgendaScreen,'SC-14':availabilityScreen,'SC-15':consultationScreen,'SC-16':correctionsScreen,'SC-17':nursingAgendaScreen,'SC-18':inventoryScreen,'SC-19':applicationScreen,'SC-20':nurseAlertsScreen,'SC-21':adminHomeScreen,'SC-22':assistedPatientScreen,'SC-23':settingsScreen,'SC-24':adminAgendaScreen,'SC-25':reprogramScreen,'SC-26':overbookScreen,'SC-27':coverageCatalogScreen,'SC-28':chargesScreen,'SC-29':reportScreen,'SC-30':auditScreen
+  }[screen]||(()=>fallbackPage('missing')))();
+
+  const showFormError=(form,message,name)=>{
+    form.querySelector('.form-summary')?.remove();
+    form.insertAdjacentHTML('afterbegin',`<div class="form-summary">${note('error','Revisá el formulario',message)}</div>`);
+    if(name){const input=form.querySelector(`[name="${name}"]`);if(input){input.setAttribute('aria-invalid','true');input.setAttribute('aria-describedby',`${name}-error`);const err=form.querySelector(`#${name}-error`);if(err)err.textContent=message;input.focus()}}
+  };
+  const validForm=form=>{
+    const fields=[...form.querySelectorAll('input,select,textarea')].filter(el=>el.type!=='hidden');
+    const first=fields.find(el=>!el.checkValidity());
+    if(first){showFormError(form,first.validity.valueMissing?'Completá el campo obligatorio antes de continuar.':'Ingresá un valor válido para este campo.',first.name);return false}
+    return true;
+  };
+  const done=(title,text)=>{save();render();flash(title,text)};
+  const accountForEmail=email=>data.patients.find(p=>p.email.toLowerCase()===email.toLowerCase())||data.staff.find(s=>s.email.toLowerCase()===email.toLowerCase());
+  const submitForm=(form)=>{
+    if(!validForm(form))return;
+    const fd=new FormData(form);const get=n=>String(fd.get(n)||'').trim();
+    const name=form.dataset.form;
+    if(name==='login'){
+      const account=accountForEmail(get('login-email'));
+      if(!account||get('login-password')!==(account.password||'demo1234'))return showFormError(form,'El correo o la contraseña no coinciden. Revisalos e intentá otra vez.','login-password');
+      if(account.active===false)return showFormError(form,'Esta cuenta está desactivada. Contactá a Administración.','login-email');
+      if(account.temp){ui.tempEmail=account.email;go('SC-02');return flash('Cambio obligatorio','Usá tu clave temporal y definí una nueva.')}
+      if(account.role){ui.role=account.role;ui.activeStaffId=account.id}else{ui.role='paciente';ui.selectedPatient=account.id}
+      addAudit(account.name,'Inicio de sesión',account.id);save();go(roleHome[ui.role]||'SC-04');return flash('Sesión iniciada',`Ingresaste como ${roleNames[ui.role]}.`)
+    }
+    if(name==='temp-password'){
+      const account=accountForEmail(get('temp-email'));if(!account||!account.temp||get('temp-old')!==account.password)return showFormError(form,'La cuenta o la clave temporal no coincide. Solicitá ayuda a Administración.','temp-old');
+      if(get('temp-new').length<8)return showFormError(form,'La nueva contraseña debe tener al menos ocho caracteres.','temp-new');
+      account.password=get('temp-new');account.temp=false;addAudit(account.name,'Cambio de clave temporal',account.id);save();go('SC-01');flash('Clave actualizada','Ya podés iniciar sesión con tu nueva contraseña.');return
+    }
+    if(name==='search-medical'){
+      ui.search={specialty:get('search-specialty'),doctor:get('search-doctor'),date:get('search-date')};render();return
+    }
+    if(name==='confirm-medical'){
+      const slot=ui.selectedSlot;if(!slot)return showFormError(form,'Elegí un horario desde la búsqueda.');
+      if(Date.now()>=ui.holdUntil)return showFormError(form,'La retención de cinco minutos venció. Volvé a elegir el horario.');
+      if(medicalSlots(slot.date,slot.doctorId).find(s=>s.time===slot.time)?.busy)return showFormError(form,'El cupo fue tomado. Elegí otro horario.');
+      const patientId=get('confirm-patient');
+      if(data.appointments.some(a=>a.patientId===patientId&&a.date===slot.date&&a.time===slot.time&&a.status==='Confirmado'))return showFormError(form,'Ese paciente ya tiene un turno a la misma hora. Elegí otro horario.');
+      const a={id:id('T'),type:'medical',patientId,doctorId:slot.doctorId,date:slot.date,time:slot.time,status:'Confirmado',result:'Sin registrar',modality:get('confirm-modality')||'Particular',overbook:false};
+      data.appointments.push(a);if(ui.scope>=2)addNotice(patientId,'Turno confirmado',`Tu turno ${a.id} con ${staffName(a.doctorId)} está confirmado para el ${fmtDate(a.date)} a las ${a.time}.`);
+      addAudit(patientName(patientId),'Reserva médica confirmada',a.id);ui.selectedAppointment=a.id;ui.selectedSlot=null;save();go('SC-07');flash('Turno confirmado',`${a.id} · ${fmtDate(a.date)} a las ${a.time}.`);return
+    }
+    if(name==='save-coverage'){
+      const patient=byPatient(get('coverage-patient'));const coverage=get('coverage-id');
+      if(!patient||!relevantPatientIds().includes(patient.id))return showFormError(form,'Elegí un paciente de tu grupo familiar.','coverage-patient');
+      if(coverage&&!byCoverage(coverage)?.active)return showFormError(form,'La entidad seleccionada no está activa.','coverage-id');
+      patient.coverageId=coverage||null;patient.coverageNumber=get('coverage-number');addAudit(patient.name,'Cobertura actualizada',patient.id);done('Cobertura guardada',coverage?'La modalidad con cobertura ya está disponible al reservar.':'El paciente continúa como particular.');return
+    }
+    if(name==='book-vaccine'){
+      const patientId=get('vac-patient'),vaccineId=get('vac-vaccine'),date=get('vac-date'),time=get('vac-time');
+      if(!data.nursing.published||!vaccineSlots(date).some(s=>s.time===time&&!s.busy))return showFormError(form,'Ese horario ya no está libre. Elegí otra fecha u hora.','vac-time');
+      if(availableDoses(vaccineId)<=0)return showFormError(form,'No hay dosis disponibles para esta vacuna.','vac-vaccine');
+      if(data.appointments.some(a=>a.patientId===patientId&&a.date===date&&a.time===time&&a.status==='Confirmado'))return showFormError(form,'El paciente ya tiene un turno a la misma hora.','vac-time');
+      const a={id:id('V'),type:'vaccine',patientId,vaccineId,nurseId:'ENF-01',date,time,status:'Confirmado',result:'Sin registrar',modality:'Particular',overbook:false};data.appointments.push(a);addNotice(patientId,'Vacunación reservada',`${byVaccine(vaccineId).name} · ${fmtDate(date)} a las ${time}. Dosis comprometida.`, 'Enviado',3);addAudit(patientName(patientId),'Vacunación reservada',a.id);save();go('SC-07');flash('Vacunación confirmada',`Se reservó el cupo y una dosis para ${patientName(patientId)}.`);return
+    }
+    if(name==='availability'){
+      const days=fd.getAll('days').map(Number);if(days.length<2)return showFormError(form,'Elegí al menos dos días semanales antes de publicar.');
+      const availability=availabilityFor(currentDoctorId());availability.days=days;availability.month=get('availability-month');availability.published=true;addAudit(userName(),'Disponibilidad publicada',currentDoctorId());done('Disponibilidad publicada','Los cupos ya aparecen en la búsqueda médica.');return
+    }
+    if(name==='suspend-day'||name==='admin-suspend'){
+      const day=get(name==='suspend-day'?'suspend-date':'admin-suspend-date');
+      if(!day)return showFormError(form,'Elegí una fecha.');
+      const doctorId=name==='suspend-day'?currentDoctorId():'MED-01';const availability=availabilityFor(doctorId);
+      if(!availability.suspended.includes(day))availability.suspended.push(day);
+      const affected=data.appointments.filter(a=>a.type==='medical'&&a.doctorId===doctorId&&a.date===day&&a.status==='Confirmado');
+      affected.forEach(a=>addNotice(a.patientId,'Jornada suspendida',`El turno ${a.id} del ${fmtDate(day)} requiere reprogramación o cancelación.`,'Enviado',2));
+      addAudit(name==='suspend-day'?userName():'Martina Sosa','Jornada suspendida',day);done('Jornada suspendida',`${affected.length} turno(s) afectado(s). Administración puede reprogramarlos.`);return
+    }
+    if(name==='consultation'){
+      const a=data.appointments.find(x=>x.id===get('consult-appointment'));if(!a||a.doctorId!==currentDoctorId())return showFormError(form,'Elegí un turno de tu agenda.');
+      if(data.notes.some(n=>n.appointmentId===a.id))return showFormError(form,'Esta consulta ya existe. Usá Correcciones para conservar la nota original.');
+      if(!get('consult-diagnosis'))return showFormError(form,'Ingresá el diagnóstico obligatorio.','consult-diagnosis');
+      data.notes.push({id:id('HC'),appointmentId:a.id,patientId:a.patientId,doctorId:currentDoctorId(),diagnosis:get('consult-diagnosis'),observation:get('consult-observation'),corrections:[],attachments:[],created:dateOffset(0)});a.result='Atendido';addAudit(userName(),'Consulta registrada',a.id);save();go('SC-16');flash('Consulta guardada','Resultado Atendido e historia clínica actualizados.');return
+    }
+    if(name==='correction'){
+      const n=data.notes.find(x=>x.id===get('correction-note')&&x.doctorId===currentDoctorId());if(!n)return showFormError(form,'Solo podés corregir consultas propias.');
+      n.corrections.push({text:get('correction-text'),reason:get('correction-reason'),author:userName(),date:dateOffset(0)});addAudit(userName(),'Corrección clínica añadida',n.id);done('Corrección añadida','La nota original permanece visible.');return
+    }
+    if(name==='attachment'){
+      const file=fd.get('attachment-file'),n=data.notes.find(x=>x.id===get('attachment-note')&&x.doctorId===currentDoctorId());
+      if(!n)return showFormError(form,'Seleccioná una consulta propia.');
+      if(!file||!file.name)return showFormError(form,'Elegí un archivo.','attachment-file');
+      if(!/\.(pdf|jpe?g|png)$/i.test(file.name)||file.size>10*1024*1024)return showFormError(form,'Usá PDF, JPG o PNG de hasta 10 MB.','attachment-file');
+      n.attachments.push({name:file.name,size:file.size});addAudit(userName(),'Referencia de adjunto añadida',n.id);done('Documento añadido','La referencia se incorporó a la consulta.');return
+    }
+    if(name==='nursing-schedule'){
+      const days=fd.getAll('nursing-days').map(Number);if(!days.length)return showFormError(form,'Elegí al menos un día de atención.');
+      data.nursing.days=days;data.nursing.published=true;addAudit('Paula Medina','Agenda vacunatorio publicada','ENF-01');done('Agenda publicada','Ya se pueden ofrecer cupos de vacunación de 15 minutos.');return
+    }
+    if(name==='vaccine'){
+      if(data.vaccines.some(v=>v.name.toLowerCase()===get('vaccine-name').toLowerCase()))return showFormError(form,'Esa vacuna ya está en el catálogo.','vaccine-name');
+      const v={id:id('VAC'),name:get('vaccine-name'),threshold:Number(get('vaccine-threshold')),fee:data.settings.vaccineFee};data.vaccines.push(v);addAudit('Paula Medina','Vacuna creada',v.id);done('Vacuna creada','Registrá un lote para ofrecer dosis.');return
+    }
+    if(name==='batch'){
+      if(get('batch-expiry')<dateOffset(0))return showFormError(form,'El lote debe tener una fecha de vencimiento futura.','batch-expiry');
+      if(Number(get('batch-quantity'))<=0)return showFormError(form,'Ingresá una cantidad mayor que cero.','batch-quantity');
+      const b={id:get('batch-code'),vaccineId:get('batch-vaccine'),quantity:Number(get('batch-quantity')),expiry:get('batch-expiry')};if(data.batches.some(x=>x.id===b.id))return showFormError(form,'Ese código de lote ya existe.','batch-code');
+      data.batches.push(b);addAudit('Paula Medina','Entrada de lote',b.id);done('Lote registrado',`${b.quantity} dosis añadidas al inventario.`);return
+    }
+    if(name==='stock-adjust'){
+      const b=data.batches.find(x=>x.id===get('adjust-batch')),delta=Number(get('adjust-delta'));if(!b)return showFormError(form,'Elegí un lote.');
+      if(!delta||!get('adjust-reason'))return showFormError(form,'Ingresá una variación distinta de cero y un motivo.','adjust-delta');
+      if(b.quantity+delta<0)return showFormError(form,'El ajuste dejaría el lote con stock negativo.','adjust-delta');
+      b.quantity+=delta;addAudit('Paula Medina',`Ajuste de inventario: ${get('adjust-reason')}`,b.id);done('Movimiento guardado',`El lote ${b.id} tiene ${b.quantity} dosis.`);return
+    }
+    if(name==='application'){
+      const a=data.appointments.find(x=>x.id===get('apply-appointment')&&x.type==='vaccine'&&x.status==='Confirmado'&&x.result==='Sin registrar');const b=data.batches.find(x=>x.id===get('apply-batch'));
+      if(!a||!b||b.vaccineId!==a.vaccineId||b.quantity<1||b.expiry<dateOffset(0))return showFormError(form,'Verificá turno y lote vigente con dosis disponible.');
+      b.quantity-=1;a.result='Atendido';a.batchId=b.id;a.observation=get('apply-observation');addAudit('Paula Medina','Aplicación registrada',a.id);addNotice(a.patientId,'Vacuna aplicada',`${byVaccine(a.vaccineId).name} aplicada. Lote ${b.id}.`,'Enviado',3);
+      if(availableDoses(a.vaccineId)<=byVaccine(a.vaccineId).threshold)addNotice('ENF-01','Stock bajo',`${byVaccine(a.vaccineId).name}: ${availableDoses(a.vaccineId)} dosis disponibles.`,'Interno',3);
+      save();go('SC-20');flash('Aplicación registrada','Se descontó una dosis y se actualizó el historial.');return
+    }
+    if(name==='staff'){
+      if(ui.role!=='admin')return showFormError(form,'Solo Administración puede crear cuentas de personal.');
+      if(accountForEmail(get('staff-email')))return showFormError(form,'Ese correo ya corresponde a una cuenta.','staff-email');
+      const role=get('staff-role');const s={id:id(role==='medico'?'MED':role==='enfermeria'?'ENF':'ADM'),name:get('staff-name'),email:get('staff-email'),role,specialty:get('staff-specialty'),active:true,temp:true,password:'temporal123'};
+      data.staff.push(s);if(role==='medico')availabilityFor(s.id);ui.latestAccount={kind:'staff',name:s.name,email:s.email,password:s.password};addAudit(userName(),'Cuenta de personal creada',s.id);done('Cuenta creada',`Entregá a ${s.name} su usuario y clave temporal. Debe cambiarla al ingresar.`);return
+    }
+    if(name==='patient'){
+      if(ui.role!=='admin')return showFormError(form,'Solo Administración puede dar de alta pacientes.');
+      const type=get('patient-type'),tutor=get('patient-tutor');
+      if(type==='menor'&&!byPatient(tutor))return showFormError(form,'Seleccioná primero una persona adulta responsable.','patient-tutor');
+      if(type==='adulto'&&!get('patient-email'))return showFormError(form,'Ingresá el correo de la persona adulta.','patient-email');
+      if(type==='adulto'&&accountForEmail(get('patient-email')))return showFormError(form,'Ese correo ya está registrado.','patient-email');
+      if(data.patients.some(p=>p.dni===get('patient-dni')))return showFormError(form,'Ese DNI ya está registrado.','patient-dni');
+      const age=(Date.now()-new Date(get('patient-birth')+'T12:00:00').getTime())/31557600000;
+      if(type==='adulto'&&age<18)return showFormError(form,'Para una persona menor elegí el registro con tutor.','patient-birth');
+      if(type==='menor'&&age>=18)return showFormError(form,'Para una persona adulta elegí el alta de adulto.','patient-birth');
+      const p={id:id('PAC'),name:get('patient-name'),dni:get('patient-dni'),birth:get('patient-birth'),email:type==='adulto'?get('patient-email'):'',tutorId:type==='menor'?tutor:null,coverageId:get('patient-coverage')||null};
+      if(type==='adulto'){p.temp=true;p.password='temporal123';ui.latestAccount={kind:'patient',name:p.name,email:p.email,password:p.password}}
+      data.patients.push(p);addAudit(userName(),'Paciente registrado',p.id);done('Paciente registrado',type==='menor'?`${p.name} quedó vinculado con ${patientName(tutor)}.`:`Entregá a ${p.name} su usuario y clave temporal; deberá cambiarla al ingresar.`);return
+    }
+    if(name==='settings'){
+      const duration=Number(get('setting-duration')),fee=Number(get('setting-fee'));
+      if(duration<15||fee<0)return showFormError(form,'Ingresá duración de al menos 15 minutos y arancel no negativo.');
+      data.settings.duration=duration;data.settings.fee=fee;
+      if(ui.scope>=2)data.settings.overbookLimit=Math.max(0,Number(get('setting-overbook')));
+      if(ui.scope>=3)data.settings.vaccineFee=Math.max(0,Number(get('setting-vaccine-fee')));
+      addAudit('Martina Sosa','Parámetros actualizados','Configuración');done('Parámetros guardados','Las próximas reservas usarán la configuración actual.');return
+    }
+    if(name==='assisted-booking'){
+      const type=get('assist-type'),date=get('assist-date'),time=get('assist-time'),patientId=get('assist-patient');
+      if(data.appointments.some(a=>a.patientId===patientId&&a.date===date&&a.time===time&&a.status==='Confirmado'))return showFormError(form,'El paciente ya tiene un turno a esa hora.','assist-time');
+      if(type==='vaccine'){
+        const vaccine=data.vaccines.find(v=>availableDoses(v.id)>0);if(!vaccine||!vaccineSlots(date).some(s=>s.time===time&&!s.busy))return showFormError(form,'No hay cupo, personal o dosis para la vacunación elegida.','assist-date');
+        const a={id:id('V'),type:'vaccine',patientId,vaccineId:vaccine.id,nurseId:'ENF-01',date,time,status:'Confirmado',result:'Sin registrar',modality:'Particular',overbook:false};data.appointments.push(a);addNotice(patientId,'Vacunación reservada',`Turno ${a.id} para ${fmtDate(date)} a las ${time}.`,'Enviado',3);addAudit('Martina Sosa','Vacunación asistida',a.id);done('Reserva registrada',`${a.id} aparece en la agenda del vacunatorio.`);return
+      }
+      if(!medicalSlots(date).some(s=>s.time===time&&!s.busy))return showFormError(form,'Ese cupo no está disponible. Elegí otro horario.','assist-time');
+      const a={id:id('T'),type:'medical',patientId,doctorId:'MED-01',date,time,status:'Confirmado',result:'Sin registrar',modality:'Particular',overbook:false};data.appointments.push(a);addNotice(patientId,'Reserva asistida',`Turno ${a.id} para ${fmtDate(date)} a las ${time}.`);addAudit('Martina Sosa','Reserva asistida',a.id);done('Reserva registrada',`${a.id} aparece en Paciente y Médico.`);return
+    }
+    if(name==='reprogram'){
+      const a=data.appointments.find(x=>x.id===get('reprogram-appointment')&&x.status==='Confirmado');if(!a)return showFormError(form,'Elegí un turno confirmado.','reprogram-appointment');
+      const newDate=get('reprogram-date'),newTime=get('reprogram-time');
+      if(a.type==='medical'&&!medicalSlots(newDate,a.doctorId).some(s=>s.time===newTime&&!s.busy))return showFormError(form,'El nuevo cupo no está disponible. Elegí otra fecha u hora.','reprogram-time');
+      if(a.type==='vaccine'&&!vaccineSlots(newDate).some(s=>s.time===newTime&&!s.busy))return showFormError(form,'El vacunatorio no tiene cupo en ese horario.','reprogram-time');
+      const old=`${fmtDate(a.date)} ${a.time}`;a.date=newDate;a.time=newTime;addNotice(a.patientId,'Turno reprogramado',`${a.id}: de ${old} a ${fmtDate(newDate)} ${newTime}.`);addAudit('Martina Sosa','Turno reprogramado',a.id);done('Turno reprogramado','La nueva fecha aparece en todas las agendas.');return
+    }
+    if(name==='overbook'){
+      const base=data.appointments.find(a=>a.id===get('overbook-slot')&&a.type==='medical'&&a.status==='Confirmado');if(!base)return showFormError(form,'Elegí un horario ocupado.');
+      const used=data.appointments.filter(a=>a.type==='medical'&&a.doctorId===base.doctorId&&a.date===base.date&&a.overbook&&a.status==='Confirmado').length;
+      if(used>=data.settings.overbookLimit)return showFormError(form,'Se alcanzó el límite diario configurable para este profesional.','overbook-slot');
+      const patientId=get('overbook-patient');if(data.appointments.some(a=>a.patientId===patientId&&a.date===base.date&&a.time===base.time&&a.status==='Confirmado'))return showFormError(form,'El paciente ya tiene una cita a esa hora.','overbook-patient');
+      const a={id:id('ST'),type:'medical',patientId,doctorId:base.doctorId,date:base.date,time:base.time,status:'Confirmado',result:'Sin registrar',modality:'Particular',overbook:true,reason:get('overbook-reason')};data.appointments.push(a);addNotice(patientId,'Sobreturno asignado',`${a.id} · ${fmtDate(a.date)} a las ${a.time}.`);addAudit('Martina Sosa','Sobreturno asignado',a.id);done('Sobreturno creado',`${used+1} de ${data.settings.overbookLimit} para ese día.`);return
+    }
+    if(name==='coverage-catalog'){
+      const coverageName=get('catalog-name');if(data.coverages.some(c=>c.name.toLowerCase()===coverageName.toLowerCase()))return showFormError(form,'Esa entidad ya está en el catálogo.','catalog-name');
+      const c={id:id('OS'),name:coverageName,active:true};data.coverages.push(c);addAudit('Martina Sosa','Entidad de cobertura creada',c.id);done('Entidad agregada','Ya se puede seleccionar en fichas de pacientes.');return
+    }
+    if(name==='charge'){
+      const a=data.appointments.find(x=>x.id===get('charge-appointment'));if(!a)return showFormError(form,'Elegí un turno.');
+      const amount=Number(get('charge-amount'));if(amount<0)return showFormError(form,'El importe no puede ser negativo.','charge-amount');
+      const c={id:id('COB'),appointmentId:a.id,patientId:a.patientId,amount,method:get('charge-method'),status:get('charge-result'),date:dateOffset(0)};data.charges.push(c);addAudit('Martina Sosa',`Cobro ${c.status.toLowerCase()}`,c.id);
+      if(c.status==='Aprobado')addNotice(a.patientId,'Factura disponible',`El cobro presencial ${c.id} fue aprobado. Ya podés consultar la factura simulada.`,'Enviado',3);
+      done(c.status==='Aprobado'?'Cobro aprobado':'Cobro '+c.status.toLowerCase(),c.status==='Aprobado'?'La factura simulada ya está disponible.':'No se generó factura para este resultado.');return
+    }
+    if(name==='report'){
+      if(get('report-from')>get('report-to'))return showFormError(form,'La fecha inicial debe ser anterior a la final.','report-from');
+      ui.report=get('report-type');ui.reportFrom=get('report-from');ui.reportTo=get('report-to');render();flash('Filtros aplicados','El reporte muestra el período seleccionado.');return
+    }
+    if(name==='audit-filter'){
+      ui.auditFilter=get('audit-query');render();return
+    }
+  };
+
+  const openModal=(title,message,label,confirm,danger=false)=>{ui.modal={title,message,label,confirm,danger,returnFocus:document.activeElement};renderModal()};
+  const closeModal=()=>{const previous=ui.modal?.returnFocus;ui.modal=null;renderModal();if(previous?.isConnected)previous.focus()};
+  const downloadFile=(name,mime,content)=>{const url=URL.createObjectURL(new Blob([content],{type:mime}));const anchor=document.createElement('a');anchor.href=url;anchor.download=name;document.body.appendChild(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)};
+  const ascii=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,' ');
+  const pdfText=s=>ascii(s).replace(/[\\()]/g,'\\$&');
+  const makePdf=lines=>{
+    const body=['BT','/F1 18 Tf',`1 0 0 1 50 780 Tm (${pdfText(lines[0]||'SIGSAM')}) Tj`,'/F1 11 Tf',...lines.slice(1,28).map((line,i)=>`1 0 0 1 50 ${744-i*23} Tm (${pdfText(line)}) Tj`),'ET'].join('\n');
+    const objs=[
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+      `<< /Length ${body.length} >>\nstream\n${body}\nendstream`
+    ];
+    let pdf='%PDF-1.4\n';const offsets=[0];objs.forEach((o,i)=>{offsets.push(pdf.length);pdf+=`${i+1} 0 obj\n${o}\nendobj\n`});const xref=pdf.length;
+    pdf+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n${offsets.slice(1).map(n=>String(n).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size ${objs.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    return pdf;
+  };
+  const xml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+  const makeExcel=rows=>`<?xml version="1.0" encoding="UTF-8"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="SIGSAM"><Table>${rows.map(row=>`<Row>${row.map(cell=>`<Cell><Data ss:Type="String">${xml(cell)}</Data></Cell>`).join('')}</Row>`).join('')}</Table></Worksheet></Workbook>`;
+  const reportRows=()=>{
+    const n=reportNumbers();const title={ocupacion:'Ocupación',asistencia:'Asistencia',inventario:'Inventario',cobros:'Cobros'}[ui.report];
+    if(ui.report==='inventario')return [['Vacuna','Dosis físicas','Dosis comprometidas'],...data.vaccines.map(v=>[v.name,String(stock(v.id)),String(reserved(v.id))])];
+    if(ui.report==='cobros')return [['Cobro','Paciente','Importe ARS','Estado'],...data.charges.filter(c=>inReportRange(c.date)).map(c=>[c.id,patientName(c.patientId),String(c.amount),c.status])];
+    if(ui.report==='asistencia')return [['Indicador','Cantidad'],['Atendidos',String(n.attended)],['Ausentes',String(n.absent)],['Turnos confirmados',String(n.appointments)]];
+    return [['Indicador','Cantidad'],['Turnos confirmados',String(n.appointments)],['Atendidos',String(n.attended)],['Cobros aprobados',String(n.charges)]];
+  };
+  const exportReport=(format,doctorOnly=false)=>{
+    const rows=doctorOnly?[['Turno','Fecha','Paciente','Resultado'],...data.appointments.filter(a=>a.type==='medical'&&a.doctorId===currentDoctorId()).map(a=>[a.id,fmtDate(a.date),patientName(a.patientId),a.result])]:reportRows();
+    if(rows.length<2){flash('Sin datos para exportar','Cambiá los filtros o registrá actividad antes de descargar.');return}
+    const name=doctorOnly?'SIGSAM_medico':'SIGSAM_reporte_'+ui.report;
+    if(format==='pdf')downloadFile(name+'.pdf','application/pdf',makePdf([doctorOnly?'SIGSAM - Datos propios':'SIGSAM - Reporte '+ui.report,...rows.map(row=>row.join(' | '))]));
+    else downloadFile(name+'.xls','application/vnd.ms-excel',makeExcel(rows));
+    flash('Exportación iniciada','Se descargó un archivo de demostración generado en el navegador.');
+  };
+  const downloadInvoice=appointmentId=>{
+    const c=data.charges.slice().reverse().find(x=>x.appointmentId===appointmentId&&x.status==='Aprobado');
+    if(!c){flash('Factura no disponible','Necesitás un cobro presencial aprobado.');return}
+    const a=data.appointments.find(x=>x.id===appointmentId);
+    downloadFile(`SIGSAM_factura_${c.id}.pdf`,'application/pdf',makePdf(['SIGSAM - Factura simulada',`Comprobante ${c.id}`,`Fecha: ${fmtDate(c.date)}`,`Paciente: ${patientName(c.patientId)}`,`Prestacion: ${appointmentName(a)}`,`Turno: ${appointmentId}`,`Importe: ARS ${c.amount}`,`Medio: ${c.method}`,'Documento de demostracion sin validez fiscal']));
+    flash('Factura descargada','Este PDF es un comprobante simulado de la demo.');
+  };
+  const cancelAppointment=(appointmentId,admin=false)=>{
+    const a=data.appointments.find(x=>x.id===appointmentId);
+    if(!a||a.status!=='Confirmado')return flash('Turno no disponible','La reserva ya no se puede cancelar.');
+    if(!admin&&hoursUntil(a)<24)return flash('Fuera de plazo','Faltan menos de 24 horas. Contactá a la sala para gestionar el turno.');
+    openModal('Cancelar turno',`Se cancelará ${a.id} del ${fmtDate(a.date)} a las ${a.time}. El horario quedará libre.`,'Sí, cancelar',()=>{
+      a.status='Cancelado';addNotice(a.patientId,'Turno cancelado',`El turno ${a.id} fue cancelado.`, 'Enviado',2);addAudit(admin?'Martina Sosa':patientName(a.patientId),'Turno cancelado',a.id);done('Turno cancelado','El cupo quedó libre y el aviso interno se conservó.');
+    },true);
+  };
+  const markAbsent=(appointmentId,vaccine=false)=>{
+    const a=data.appointments.find(x=>x.id===appointmentId);if(!a||a.result!=='Sin registrar')return flash('Resultado ya registrado','El turno ya tiene un resultado asistencial.');
+    openModal('Registrar ausencia',`El resultado de ${a.id} será Ausente. La reserva seguirá identificada por separado.`,'Registrar ausencia',()=>{a.result='Ausente';addAudit(userName(),'Ausencia registrada',a.id);done('Ausencia registrada','El resultado asistencial se actualizó sin cambiar el estado de reserva.');},true);
+  };
+  const handleAction=(action,element)=>{
+    const ref=element?.dataset.id;
+    switch(action){
+      case 'toggle-review':ui.review=!ui.review;render();break;
+      case 'toggle-fidelity':ui.fidelity=ui.fidelity==='final'?'wireframe':'final';render();break;
+      case 'variant-normal':ui.variant='Normal';render();break;
+      case 'go-search':go('SC-05');break;
+      case 'go-inventory':ui.role='enfermeria';go('SC-18');break;
+      case 'signout':addAudit(userName(),'Cierre de sesión',ui.role);save();ui.role='publico';go('SC-01');flash('Sesión cerrada','Podés volver a ingresar cuando quieras.');break;
+      case 'reset-demo':openModal('Restablecer datos de demostración','Se eliminarán los cambios locales de esta demo y volverán los datos de ejemplo.','Restablecer',()=>{data=seed();ui.role='paciente';ui.scope=projectScope;ui.latestAccount=null;ui.selectedPatient='PAC-01';ui.selectedAppointment='T-2048';ui.selectedSlot=null;save();go('SC-04');flash('Demo restablecida','Se cargaron los datos iniciales.')},true);break;
+      case 'choose-medical-date':ui.search.date=element.dataset.date;render();break;
+      case 'choose-medical-slot':if(medicalSlots(element.dataset.date,ui.search.doctor).find(s=>s.time===element.dataset.time)?.busy)return flash('Cupo tomado','Elegí un horario disponible.');ui.selectedSlot={date:element.dataset.date,time:element.dataset.time,doctorId:ui.search.doctor||'MED-01'};ui.holdUntil=Date.now()+5*60*1000;go('SC-06');break;
+      case 'cancel-appointment':cancelAppointment(ref,false);break;
+      case 'admin-cancel':cancelAppointment(ref,true);break;
+      case 'mark-absent':markAbsent(ref,false);break;
+      case 'mark-vaccine-absent':markAbsent(ref,true);break;
+      case 'open-consult':ui.selectedAppointment=ref;go('SC-15');break;
+      case 'open-correction':ui.selectedAppointment=ref;go('SC-16');break;
+      case 'open-application':ui.selectedAppointment=ref;go('SC-19');break;
+      case 'select-reprogram':ui.selectedAppointment=ref;render();document.querySelector('[name="reprogram-appointment"]')?.focus();break;
+      case 'reset-account':{
+        if(ui.role!=='admin')return flash('Sin permiso','Solo Administración puede generar una clave temporal.');
+        const account=data.staff.find(x=>x.id===ref)||data.patients.find(x=>x.id===ref);
+        if(!account?.email)return flash('Cuenta no disponible','Los menores ingresan mediante la cuenta de su tutor.');
+        openModal('Generar clave temporal',`Administración entregará una nueva clave temporal a ${account.name}. La anterior dejará de funcionar.`,'Generar clave',()=>{account.temp=true;account.password='temporal123';ui.latestAccount={kind:account.role?'staff':'patient',name:account.name,email:account.email,password:account.password};addAudit(userName(),'Clave temporal generada',account.id);done('Clave temporal generada',`Entregá la nueva clave a ${account.name}. El cambio será obligatorio al ingresar.`)});break
+      }
+      case 'deactivate-staff':{const s=data.staff.find(x=>x.id===ref);if(!s)return;openModal('Desactivar cuenta',`${s.name} perderá acceso. Sus registros se conservan.`,'Desactivar',()=>{s.active=false;addAudit('Martina Sosa','Cuenta desactivada',s.id);done('Cuenta desactivada','La historia vinculada permanece disponible.')},true);break}
+      case 'toggle-coverage':{const c=byCoverage(ref);if(!c)return;openModal(c.active?'Desactivar entidad':'Activar entidad',c.active?`${c.name} dejará de ofrecerse en nuevas afiliaciones. El historial no se borra.`:`${c.name} volverá a estar disponible para nuevas afiliaciones.`,c.active?'Desactivar':'Activar',()=>{c.active=!c.active;addAudit('Martina Sosa',c.active?'Entidad activada':'Entidad desactivada',c.id);done('Catálogo actualizado','El cambio se refleja en las opciones de cobertura.')},c.active);break}
+      case 'read-notice':{const n=data.notices.find(x=>x.id===ref);if(n){n.read=true;done('Aviso leído','La bandeja se actualizó.')}break}
+      case 'read-all':{const owner=ui.role==='paciente'?ui.selectedPatient:ui.role==='medico'?currentDoctorId():ui.role==='enfermeria'?'ENF-01':'ADM-01';data.notices.filter(n=>n.for===owner).forEach(n=>n.read=true);done('Avisos actualizados','Todos se marcaron como leídos.');break}
+      case 'download-invoice':downloadInvoice(ref);break;
+      case 'export-pdf':exportReport('pdf');break;
+      case 'export-excel':exportReport('xls');break;
+      case 'export-doctor':exportReport('xls',true);break;
+      case 'close-modal':closeModal();break;
+      case 'confirm-modal':{const confirm=ui.modal?.confirm;ui.modal=null;renderModal();if(confirm)confirm();break}
+    }
+  };
+
+  document.addEventListener('click',event=>{
+    ui.lastActivity=Date.now();
+    const nav=event.target.closest('[data-nav]');
+    if(nav){event.preventDefault();const screen=nav.dataset.nav;const meta=byId[screen];if(nav.closest('.review-panel')&&meta&&meta.role!=='all'&&meta.role!=='publico')ui.role=meta.role;go(screen);return}
+    const scope=event.target.closest('[data-scope]');
+    if(scope){ui.scope=Number(scope.dataset.scope);ui.variant='Normal';if(byId[ui.screen]?.sprint>ui.scope)go(roleHome[ui.role]||'SC-01');else render();return}
+    const variant=event.target.closest('[data-variant]');
+    if(variant){ui.variant=variant.dataset.variant;render();return}
+    const action=event.target.closest('[data-action]');if(action)handleAction(action.dataset.action,action);
+  });
+  document.addEventListener('submit',event=>{
+    const form=event.target.closest('form[data-form]');if(!form)return;event.preventDefault();ui.lastActivity=Date.now();submitForm(form);
+  });
+  document.addEventListener('change',event=>{
+    ui.lastActivity=Date.now();const el=event.target;
+    if(el.matches('[data-review-role]')){ui.role=el.value;ui.activeStaffId=data.staff.find(s=>s.role===ui.role&&s.active)?.id||ui.activeStaffId;ui.variant='Normal';go(ui.role==='publico'?'SC-01':roleHome[ui.role]);return}
+    if(el.name==='vac-date'){ui.vaccineDate=el.value;render();return}
+    if(el.name==='vac-vaccine'){ui.vaccineId=el.value;render();return}
+    if(el.name==='consult-appointment'||el.name==='apply-appointment'||el.name==='reprogram-appointment'){ui.selectedAppointment=el.value;render();return}
+    if(el.name==='correction-note'){const n=data.notes.find(x=>x.id===el.value);if(n)ui.selectedAppointment=n.appointmentId;render();return}
+    if(el.name==='overbook-slot'){const a=data.appointments.find(x=>x.id===el.value);if(a)ui.overbookDate=a.date;render()}
+  });
+  document.addEventListener('focusout',event=>{
+    const el=event.target;if(!el.matches('form input,form select,form textarea'))return;
+    if(el.type==='hidden'||!el.name)return;
+    const err=el.closest('.field')?.querySelector('.field-error');
+    if(!el.checkValidity()){el.setAttribute('aria-invalid','true');if(err)err.textContent=el.validity.valueMissing?'Este campo es obligatorio.':'Ingresá un valor válido.'}
+    else{el.removeAttribute('aria-invalid');if(err)err.textContent=''}
+  },true);
+  document.addEventListener('keydown',event=>{
+    ui.lastActivity=Date.now();
+    if(event.key==='Escape'&&ui.modal){event.preventDefault();closeModal()}
+    if(event.altKey&&event.key.toLowerCase()==='r'){event.preventDefault();ui.review=!ui.review;render()}
+  });
+  window.addEventListener('popstate',()=>{const route=location.hash.slice(1);ui.screen=byId[route]?route:'SC-04';ui.variant='Normal';render();window.scrollTo(0,ui.scroll[ui.screen]||0)});
+  window.addEventListener('hashchange',()=>{const route=location.hash.slice(1);if(route&&route!==ui.screen){ui.screen=route;ui.variant='Normal';render()}});
+  setInterval(()=>{
+    const clock=document.querySelector('[data-hold-clock]');
+    if(clock){const seconds=Math.max(0,Math.ceil((ui.holdUntil-Date.now())/1000));clock.textContent=`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;if(seconds===0&&ui.screen==='SC-06'){ui.variant='Retención vencida';render()}}
+    if(ui.role!=='publico'&&Date.now()-ui.lastActivity>15*60*1000){addAudit(userName(),'Sesión cerrada por inactividad',ui.role);save();ui.role='publico';ui.lastActivity=Date.now();go('SC-01');flash('Sesión finalizada','Pasaron 15 minutos sin actividad. Volvé a ingresar.')}
+  },1000);
+  render();
+})();
+
+</script>
+</body>
+</html>
