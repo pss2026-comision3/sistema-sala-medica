@@ -214,6 +214,29 @@ Estados: `Aceptada` · `Reemplazada` · `Propuesta`.
   vivan en la misma migración que las tablas y no haya que crear una segunda
   después.
 
+## D-17 — Cookie de sesión y vencimiento por inactividad
+
+- **Estado:** Aceptada (2026-10-04)
+- **Decisión:** la cookie `sigsam_sesion` guarda un token opaco (32 bytes
+  base64url). La base guarda su `sha256` hex en `sesion.token_hash`. La
+  sesión vence a los **15 minutos sin requests** que llamen a `getSession()`.
+  La cookie tiene un tope duro de **12 horas** (`maxAge`) y NO es la fuente
+  del vencimiento por inactividad.
+- **Motivo:** CA4 de US-001. `cookies().set/.delete` no puede llamarse
+  desde un Server Component, así que el `maxAge` no se renueva en cada
+  página: la inactividad se mide en `sesion.ultima_actividad` con un
+  *toque* máximo cada 60 s.
+- **Consecuencias:**
+  - `src/proxy.ts` solo comprueba que la cookie exista. Una cookie
+    presente no autoriza; un layout la valida contra `getSession()` y
+    redirige a `/login` si expiró o si la cuenta se desactivó.
+  - `getSession()` actualiza `ultima_actividad` como máximo una vez por
+    minuto para no escribir en cada navegación.
+  - El logout invalida la fila (`finalizada_en`) y borra la cookie desde
+    la Server Action.
+  - Cambio de clave temporal NO invalida otras sesiones activas (la US no
+    lo pide).
+
 ---
 
 ## Cómo agregar una decisión

@@ -42,17 +42,22 @@ La app queda en <http://localhost:3000>.
 
 ### Credenciales del seed
 
-El seed (`prisma/seed.ts`) crea el primer Administrador. Por defecto:
+El seed (`prisma/seed.ts`) es **idempotente** (corrido varias veces no duplica
+filas ni resetea claves). Crea estas cuentas de demostración:
 
-| Campo          | Valor                                        |
-| -------------- | -------------------------------------------- |
-| Email          | `admin@sigsam.local`                         |
-| Contraseña     | `Admin@1234`                                 |
-| Rol            | `ADMIN`                                      |
-| Clave temporal | `sí` (obliga a cambiarla en el primer login) |
+| Email                     | Contraseña        | Rol          | Clave temporal |
+| ------------------------- | ----------------- | ------------ | -------------- |
+| `admin@sigsam.local`      | `Admin@1234`      | `ADMIN`      | sí             |
+| `medico@sigsam.local`     | `Medico@1234`     | `MEDICO`     | no             |
+| `enfermeria@sigsam.local` | `Enfermeria@1234` | `ENFERMERIA` | no             |
+| `paciente@sigsam.local`   | `Paciente@1234`   | `PACIENTE`   | sí             |
 
-Se pueden sobreescribir con las variables `ADMIN_EMAIL`, `ADMIN_PASSWORD` y
-`ADMIN_NOMBRE` del `.env`.
+> ⚠️ Son **datos de prueba**: cambiar las contraseñas antes de cualquier
+> despliegue real.
+
+El Admin inicial (`admin@sigsam.local`) se puede sobreescribir con las
+variables `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NOMBRE` del `.env` solo
+antes del primer seed.
 
 ## Comandos
 
@@ -76,18 +81,27 @@ Antes de cada PR deben pasar `npm run lint`, `npm run format:check` y
 ```
 prisma/
   schema.prisma            # Fuente de verdad del modelo (21 tablas, 10 enums)
-  seed.ts                  # Admin inicial con clave temporal (D-12)
+  seed.ts                  # Usuarios demo (4) con clave temporal (D-12)
   migrations/              # Migraciones + SQL a mano (índices/CHECK, D-16)
 src/
   app/                     # Rutas y UI (App Router)
-    api/auth/              # Route Handlers de autenticación (US-001)
+    actions/auth.ts        # Server Actions: login, logout, cambiarClave
+    (app)/                 # Grupo protegido: shell con sidebar
+      admin/  medico/  enfermeria/  paciente/  sin-permiso/
+    login/  recuperar/  cambiar-clave/
+  components/
+    public-shell.tsx       # Layout del login y recuperar (2 columnas)
+    app-shell.tsx          # Layout autenticado (sidebar + topbar)
+    logout-button.tsx      # Botón "Cerrar sesión"
   lib/
     db/prisma.ts           # Singleton de PrismaClient (driver adapter pg)
-    auth/                  # Lógica de sesión/roles (US-001)
+    auth/                  # Sesión, sesión, login, logout (US-001)
+  proxy.ts                 # Proxy (ex-middleware): redirige sin cookie a /login
   generated/prisma/        # Cliente Prisma generado (gitignored)
 docs/
   DECISIONES.md            # Registro de decisiones del equipo
   CONTEXTO-PROYECTO.md     # Contexto general y reparto de USs
+  PLAN-US-001.md           # Plan de implementación del login
   SUPABASE.md              # Guía para configurar la base
   baseDeDatos.md           # Modelo ER de referencia
 ```
@@ -96,5 +110,6 @@ docs/
 
 - [`docs/DECISIONES.md`](docs/DECISIONES.md) — decisiones de arquitectura.
 - [`docs/CONTEXTO-PROYECTO.md`](docs/CONTEXTO-PROYECTO.md) — contexto y alcance.
+- [`docs/PLAN-US-001.md`](docs/PLAN-US-001.md) — plan del login y logout.
 - [`docs/SUPABASE.md`](docs/SUPABASE.md) — configurar la base de datos.
 - [`docs/baseDeDatos.md`](docs/baseDeDatos.md) — modelo de datos de referencia.
