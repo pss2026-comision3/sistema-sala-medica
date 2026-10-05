@@ -78,10 +78,10 @@ export async function crearCuentaPersonal(
 
       await tx.auditoria.create({
         data: {
-          actor_id: BigInt(admin.usuarioId),
+          actorId: BigInt(admin.usuarioId),
           accion: "Creación de cuenta personal",
           entidad: "usuario",
-          referencia_id: usuario.id,
+          referenciaId: usuario.id,
           detalle: `Rol asignado: ${rol}`,
         },
       });
