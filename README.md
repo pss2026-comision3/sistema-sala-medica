@@ -59,6 +59,16 @@ El Admin inicial (`admin@sigsam.local`) se puede sobreescribir con las
 variables `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NOMBRE` del `.env` solo
 antes del primer seed.
 
+### Pacientes de prueba (alta asistida, US-002)
+
+Cuentas creadas desde **Pacientes** en el panel del Admin. Ya cambiaron su
+clave temporal; esta es la clave actual.
+
+| Email                      | Contraseña | Rol        |
+| -------------------------- | ---------- | ---------- |
+| `pepitogonzalez@gmail.com` | `87654321` | `PACIENTE` |
+| `fulanitoperez@gmail.com`  | `87654321` | `PACIENTE` |
+
 ## Comandos
 
 | Comando                | Qué hace                                             |
