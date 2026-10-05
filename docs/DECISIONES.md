@@ -237,6 +237,25 @@ Estados: `Aceptada` · `Reemplazada` · `Propuesta`.
   - Cambio de clave temporal NO invalida otras sesiones activas (la US no
     lo pide).
 
+## D-18 — Restablecimiento asistido presencial y cambio voluntario de contraseña
+
+- **Estado:** Aceptada (2026-10-05)
+- **Decisión:** El restablecimiento de contraseñas es exclusivamente asistido y
+  presencial por un Administrador desde `/admin`, generando una clave temporal
+  aleatoria (≥8 caracteres) e invalidando de inmediato todas las sesiones
+  activas en la tabla `sesion` (`finalizada_en = now()`). Los usuarios
+  autenticados disponen de la ruta `/cuenta/clave` para el cambio voluntario de
+  su propia contraseña validando la contraseña actual.
+- **Motivo:** Cumplimiento de CA1, CA2, CA4 y CA5 de US-006 y RF-07. No existe
+  recuperación automática por email ni se reactivan cuentas al restablecer.
+- **Consecuencias:**
+  - Solo cuentas activas (`activo = true`) pueden restablecerse.
+  - Al generar clave temporal se audita `Restablecimiento de contraseña`.
+  - El usuario con clave temporal es forzado a cambiarla en su siguiente acceso.
+  - El cambio voluntario valida contraseña actual, longitud mínima de 8
+    caracteres, repetición y diferencia con la actual, registrando auditoría
+    `Cambio voluntario de contraseña`.
+
 ---
 
 ## Cómo agregar una decisión
