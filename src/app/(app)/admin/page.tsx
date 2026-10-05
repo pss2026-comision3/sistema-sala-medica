@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { AdminCuentasTable, type CuentaItem } from "./admin-cuentas-table";
+import NuevaCuentaForm from "./nueva-cuenta-form";
 
 export default async function AdminInicioPage() {
   const sesion = await requireRole("ADMIN");
@@ -11,6 +12,17 @@ export default async function AdminInicioPage() {
     },
     orderBy: [{ activo: "desc" }, { persona: { nombreCompleto: "asc" } }],
   });
+
+  // Hacemos la query para traer las especialidades de la base[cite: 60, 61]
+  const especialidades = await prisma.especialidad.findMany({
+    orderBy: { nombre: "asc" },
+  });
+
+  // Parseamos el BigInt a string para poder pasarlo al Client Component
+  const especialidadesFormat = especialidades.map((esp) => ({
+    id: esp.id.toString(),
+    nombre: esp.nombre,
+  }));
 
   const cuentas: CuentaItem[] = usuarios.map((u) => ({
     id: u.id.toString(),
@@ -47,6 +59,20 @@ export default async function AdminInicioPage() {
         </header>
 
         <AdminCuentasTable cuentasIniciales={cuentas} />
+      </section>
+
+      {/* Nueva sección con el formulario, justo debajo de la tabla */}
+      <section className="sigsam-card">
+        <header className="sigsam-card-header" style={{ marginBottom: "20px" }}>
+          <div>
+            <h2>Crear cuenta de personal</h2>
+            <p className="sigsam-muted">
+              La cuenta recibe una clave temporal y debe cambiarla al ingresar.
+            </p>
+          </div>
+        </header>
+
+        <NuevaCuentaForm especialidades={especialidadesFormat} />
       </section>
     </>
   );
