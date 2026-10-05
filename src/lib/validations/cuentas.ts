@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+/*
+ * Este archivo contiene las validaciones para la creación de cuentas internas en el sistema.
+ */
+
 export const esquemaCuentaPersonal = z
   .object({
     nombre: z.string().trim().min(1, "El nombre es obligatorio."),
