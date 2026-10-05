@@ -58,6 +58,36 @@ export const MSG = {
   MEDICO_NO_ENCONTRADO:
     "El profesional médico no fue encontrado o no está activo.",
   VACUNA_NO_ENCONTRADA: "El tipo de vacuna solicitado no fue encontrado.",
+  ALTA_CAMPOS_REQUERIDOS:
+    "Completá nombre, apellido, DNI, fecha de nacimiento, teléfono y correo.",
+  ALTA_NOMBRE_LARGO:
+    "El nombre y el apellido juntos no pueden superar los 255 caracteres.",
+  ALTA_DNI_INVALIDO: "Ingresá el DNI solo con números, sin puntos.",
+  ALTA_TELEFONO_LARGO: "El teléfono no puede superar los 30 caracteres.",
+  ALTA_FECHA_INVALIDA: "Ingresá una fecha de nacimiento válida.",
+  ALTA_FECHA_FUTURA: "La fecha de nacimiento no puede ser futura.",
+  ALTA_NO_ADULTO:
+    "La persona es menor de 18 años. Un menor se registra vinculado a su tutor.",
+  ALTA_EMAIL_INVALIDO: "Ingresá un correo electrónico válido.",
+  ALTA_EMAIL_EN_USO: "Ese correo ya está registrado en otra cuenta.",
+  ALTA_OBRA_SOCIAL_INVALIDA:
+    "Seleccioná una obra social activa del catálogo o «Sin obra social».",
+  ALTA_AFILIACION_INCOMPLETA:
+    "Para registrar una obra social completá el plan y el número de afiliado.",
+  ALTA_AFILIACION_LARGA:
+    "El plan admite hasta 120 caracteres y el número de afiliado hasta 80.",
+  ALTA_DNI_COINCIDENTE:
+    "Ya hay pacientes registrados con ese DNI. Verificá la identidad y elegí cómo continuar.",
+  ALTA_RESOLUCION_INVALIDA:
+    "Elegí una de las opciones para el DNI coincidente.",
+  ALTA_MOTIVO_REQUERIDO:
+    "Para registrar otro paciente con el mismo DNI indicá el motivo de la excepción.",
+  ALTA_REGISTRO_CON_CUENTA:
+    "Ese registro ya tiene una cuenta. Elegí otra opción.",
+  ALTA_REGISTRO_NO_ADULTO:
+    "Ese registro corresponde a una persona menor de 18 años y no puede tener cuenta propia.",
+  ALTA_CONFLICTO:
+    "No se pudo completar el alta: el correo ya está en uso o el registro elegido ya tiene una cuenta.",
 } as const;
 
 export const AUDITORIA = {
@@ -68,4 +98,5 @@ export const AUDITORIA = {
   CAMBIO_VOLUNTARIO: "Cambio voluntario de contraseña",
   CONFIGURACION_MEDICO: "Configuración de duración y arancel médico",
   CONFIGURACION_VACUNA: "Configuración de arancel de vacuna",
+  ALTA_PACIENTE: "Alta de paciente adulto",
 } as const;
