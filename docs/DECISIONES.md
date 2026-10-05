@@ -256,6 +256,28 @@ Estados: `Aceptada` · `Reemplazada` · `Propuesta`.
     caracteres, repetición y diferencia con la actual, registrando auditoría
     `Cambio voluntario de contraseña`.
 
+## D-19 — Configuración de duración y arancel por prestación
+
+- **Estado:** Aceptada (2026-10-05)
+- **Decisión:** La duración de turno y el arancel particular de consultas se
+  definen por cada profesional en la tabla `medico`, validando minutos enteros
+  estrictamente positivos y aranceles no negativos con hasta 2 decimales. Para
+  el vacunatorio, el arancel se configura por tipo de vacuna en la tabla
+  `vacuna` (admitiendo cero), mientras que su duración es invariable y fija en
+  15 minutos por protocolo asistencial. Las modificaciones guardadas en
+  `/admin/parametros` aplican únicamente a publicaciones futuras de
+  disponibilidad y nuevas reservas; no regeneran automáticamente días con citas
+  o retenciones vigentes ni alteran citas ya confirmadas (preservadas en los
+  snapshots de `turno`). Los umbrales de alerta de stock y movimientos de
+  inventario son competencia exclusiva de Enfermería.
+- **Motivo:** Cumplimiento de CA1, CA2, CA3, CA4 y CA5 de US-SIG-007 y RF-09.
+- **Consecuencias:**
+  - El formulario del Administrador solo modifica `duracionTurnoMin` y
+    `arancelActual` para médicos, y `arancelActual` para vacunas.
+  - La duración de 15 minutos en vacunas se expone como regla inmutable.
+  - Toda actualización genera registro de auditoría (`Configuración de duración y arancel médico` o `Configuración de arancel de vacuna`).
+  - No se tocan filas históricas en la tabla `turno`.
+
 ---
 
 ## Cómo agregar una decisión

@@ -47,6 +47,17 @@ export const MSG = {
   CAMBIO_VOLUNTARIO_EXITO: "Tu contraseña se actualizó correctamente.",
   CLAVE_TEMPORAL_GENERADA:
     "Clave temporal generada con éxito. Entregale estas credenciales en mano al solicitante.",
+  DURACION_INVALIDA: "La duración debe ser un número entero mayor a 0 minutos.",
+  DURACION_DECIMAL: "La duración debe ser un número entero en minutos.",
+  ARANCEL_INVALIDO: "El arancel debe ser un importe mayor o igual a 0.",
+  ARANCEL_DECIMALES: "El arancel admite como máximo dos decimales.",
+  ARANCEL_VACUNA_INVALIDO:
+    "El arancel de la vacuna debe ser un importe mayor o igual a 0.",
+  CONFIGURACION_MEDICO_EXITO: "Configuración del médico actualizada con éxito.",
+  CONFIGURACION_VACUNA_EXITO: "Arancel de la vacuna actualizado con éxito.",
+  MEDICO_NO_ENCONTRADO:
+    "El profesional médico no fue encontrado o no está activo.",
+  VACUNA_NO_ENCONTRADA: "El tipo de vacuna solicitado no fue encontrado.",
 } as const;
 
 export const AUDITORIA = {
@@ -55,4 +66,6 @@ export const AUDITORIA = {
   CAMBIO_TEMPORAL: "Cambio de clave temporal",
   RESTABLECIMIENTO_ADMIN: "Restablecimiento de contraseña",
   CAMBIO_VOLUNTARIO: "Cambio voluntario de contraseña",
+  CONFIGURACION_MEDICO: "Configuración de duración y arancel médico",
+  CONFIGURACION_VACUNA: "Configuración de arancel de vacuna",
 } as const;
