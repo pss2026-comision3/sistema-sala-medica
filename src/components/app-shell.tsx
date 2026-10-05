@@ -96,6 +96,13 @@ export function AppShell({ sesion, children }: Props) {
             <span className="user-name">{sesion.nombre}</span>
             <span className="user-role">{ETIQUETA_ROL[sesion.rol]}</span>
           </div>
+          <Link
+            href="/cuenta/clave"
+            className="sigsam-btn-ghost"
+            title="Cambiar mi contraseña"
+          >
+            Cambiar clave
+          </Link>
           <LogoutButton />
         </div>
       </header>

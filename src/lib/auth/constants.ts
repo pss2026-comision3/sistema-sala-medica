@@ -38,10 +38,21 @@ export const MSG = {
     "La cuenta o la clave temporal no coinciden. Solicitá ayuda a Administración.",
   RECUPERACION_OK: "Clave actualizada. Ya podés iniciar sesión.",
   SIN_PERMISO: "Tu rol no tiene permiso para abrir esta pantalla.",
+  SOLO_CUENTAS_ACTIVAS:
+    "Solo se pueden restablecer cuentas que se encuentren activas.",
+  PASSWORD_ACTUAL_REQUERIDO: "Ingresá tu contraseña actual.",
+  PASSWORD_ACTUAL_INCORRECTO: "La contraseña actual no coincide.",
+  NUEVA_REQUERIDA: "Ingresá la nueva contraseña.",
+  IGUAL_A_ACTUAL: "La nueva contraseña tiene que ser distinta de la actual.",
+  CAMBIO_VOLUNTARIO_EXITO: "Tu contraseña se actualizó correctamente.",
+  CLAVE_TEMPORAL_GENERADA:
+    "Clave temporal generada con éxito. Entregale estas credenciales en mano al solicitante.",
 } as const;
 
 export const AUDITORIA = {
   INICIO: "Inicio de sesión",
   CIERRE: "Cierre de sesión",
   CAMBIO_TEMPORAL: "Cambio de clave temporal",
+  RESTABLECIMIENTO_ADMIN: "Restablecimiento de contraseña",
+  CAMBIO_VOLUNTARIO: "Cambio voluntario de contraseña",
 } as const;

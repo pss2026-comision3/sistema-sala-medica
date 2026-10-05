@@ -1,10 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { AUDITORIA } from "@/lib/auth/constants";
 
-type AccionAuditable =
-  | typeof AUDITORIA.INICIO
-  | typeof AUDITORIA.CIERRE
-  | typeof AUDITORIA.CAMBIO_TEMPORAL;
+type AccionAuditable = (typeof AUDITORIA)[keyof typeof AUDITORIA];
 
 export async function registrarAuditoria(input: {
   actorId: bigint;

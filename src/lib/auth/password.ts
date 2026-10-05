@@ -1,7 +1,13 @@
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 
 export function normalizarEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+export function generarClaveTemporal(): string {
+  const bytes = randomBytes(6).toString("base64url");
+  return `Tmp${bytes}`.slice(0, 10);
 }
 
 export async function hashearPassword(password: string): Promise<string> {

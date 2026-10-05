@@ -16,7 +16,9 @@ export function PublicShell({ children }: Props) {
           SIGSAM
         </Link>
         <div>
-          <h1><strong>Tu salud, con tiempo para vos.</strong></h1>
+          <h1>
+            <strong>Tu salud, con tiempo para vos.</strong>
+          </h1>
           <p>Organizá tus turnos médicos desde un espacio claro y seguro.</p>
         </div>
         <small>Prototipo de la sala médica · Datos ficticios</small>

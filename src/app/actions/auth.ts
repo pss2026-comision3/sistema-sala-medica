@@ -4,8 +4,13 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/db/prisma";
 import { AUDITORIA, INICIO_POR_ROL, MSG } from "@/lib/auth/constants";
-import { destinoPostLogin } from "@/lib/auth/guards";
 import {
+  destinoPostLogin,
+  requireRole,
+  requireSession,
+} from "@/lib/auth/guards";
+import {
+  generarClaveTemporal,
   HASH_DUMMY,
   hashearPassword,
   normalizarEmail,
@@ -20,12 +25,24 @@ import { registrarAuditoria } from "@/lib/auth/audit";
 
 export type EstadoFormulario = {
   error?: string;
+  exito?: boolean;
   campos?: {
     email?: string;
     password?: string;
+    actual?: string;
     temporal?: string;
     nueva?: string;
     confirmacion?: string;
+  };
+};
+
+export type ResultadoRestablecimiento = {
+  error?: string;
+  exito?: boolean;
+  credenciales?: {
+    nombre: string;
+    email: string;
+    claveTemporal: string;
   };
 };
 
@@ -242,4 +259,154 @@ export async function cambiarClave(
 
   const sesionActualizada = await getSession();
   redirect(destinoPostLogin(sesionActualizada ?? sesion));
+}
+
+export async function restablecerClavePorAdmin(
+  usuarioId: string,
+): Promise<ResultadoRestablecimiento> {
+  const sesionAdmin = await requireRole("ADMIN");
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: BigInt(usuarioId) },
+    include: { persona: true },
+  });
+
+  if (!usuario || !usuario.activo) {
+    return { error: MSG.SOLO_CUENTAS_ACTIVAS };
+  }
+
+  const claveTemporal = generarClaveTemporal();
+  const passwordHash = await hashearPassword(claveTemporal);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.usuario.update({
+      where: { id: usuario.id },
+      data: {
+        passwordHash,
+        claveTemporal: true,
+      },
+    });
+
+    await tx.sesion.updateMany({
+      where: {
+        usuarioId: usuario.id,
+        finalizadaEn: null,
+      },
+      data: {
+        finalizadaEn: new Date(),
+      },
+    });
+
+    await tx.auditoria.create({
+      data: {
+        actorId: BigInt(sesionAdmin.usuarioId),
+        accion: AUDITORIA.RESTABLECIMIENTO_ADMIN,
+        entidad: "usuario",
+        referenciaId: usuario.id,
+        detalle: null,
+      },
+    });
+  });
+
+  return {
+    exito: true,
+    credenciales: {
+      nombre: usuario.persona.nombreCompleto,
+      email: usuario.email,
+      claveTemporal,
+    },
+  };
+}
+
+export async function cambiarPasswordVoluntario(
+  _prev: EstadoFormulario,
+  formData: FormData,
+): Promise<EstadoFormulario> {
+  const sesion = await requireSession();
+  if (sesion.claveTemporal) {
+    redirect("/cambiar-clave");
+  }
+
+  const actual = String(formData.get("actual") ?? "");
+  const nueva = String(formData.get("nueva") ?? "");
+  const confirmacion = String(formData.get("confirmacion") ?? "");
+
+  if (!actual) {
+    return {
+      error: MSG.PASSWORD_ACTUAL_REQUERIDO,
+      campos: { actual, nueva, confirmacion },
+    };
+  }
+
+  if (!nueva) {
+    return {
+      error: MSG.NUEVA_REQUERIDA,
+      campos: { actual, nueva, confirmacion },
+    };
+  }
+
+  if (nueva.length < 8) {
+    return {
+      error: MSG.NUEVA_CORTA,
+      campos: { actual, nueva, confirmacion },
+    };
+  }
+
+  if (nueva !== confirmacion) {
+    return {
+      error: MSG.REPETICION_NO_COINCIDE,
+      campos: { actual, nueva, confirmacion },
+    };
+  }
+
+  if (nueva === actual) {
+    return {
+      error: MSG.IGUAL_A_ACTUAL,
+      campos: { actual, nueva, confirmacion },
+    };
+  }
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: BigInt(sesion.usuarioId) },
+  });
+
+  if (!usuario || !usuario.activo) {
+    await cerrarSesionActual();
+    redirect("/login");
+  }
+
+  const actualOk = await verificarPassword(actual, usuario.passwordHash);
+  if (!actualOk) {
+    return {
+      error: MSG.PASSWORD_ACTUAL_INCORRECTO,
+      campos: { actual, nueva, confirmacion },
+    };
+  }
+
+  const mismaQueActual = await verificarPassword(nueva, usuario.passwordHash);
+  if (mismaQueActual) {
+    return {
+      error: MSG.IGUAL_A_ACTUAL,
+      campos: { actual, nueva, confirmacion },
+    };
+  }
+
+  const nuevoHash = await hashearPassword(nueva);
+
+  await prisma.usuario.update({
+    where: { id: usuario.id },
+    data: {
+      passwordHash: nuevoHash,
+    },
+  });
+
+  await registrarAuditoria({
+    actorId: usuario.id,
+    accion: AUDITORIA.CAMBIO_VOLUNTARIO,
+    referenciaId: usuario.id,
+  });
+
+  return {
+    exito: true,
+  };
 }
