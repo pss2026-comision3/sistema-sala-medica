@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth/guards";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
+import { Rol } from "@/generated/prisma/client";
 
 /*
  * Este archivo contiene acciones del lado del servidor relacionadas con la creacion de cuentas internas.
@@ -17,17 +18,19 @@ export type FormState = {
 };
 
 export async function crearCuentaPersonal(
+  prevData: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const admin = await requireRole("ADMIN");
 
+  // TODO: Generar una clave temporal aleatoria.
+  const claveTemporal = "password123";
+
   const datosForm = {
-    nombre: formData.get("nombre") as string,
-    apellido: formData.get("apellido") as string,
+    nombreCompleto: formData.get("nombreCompleto") as string,
     email: formData.get("email") as string,
-    claveTemporal: formData.get("claveTemporal") as string,
     rol: formData.get("rol") as string,
-    especialidadId: formData.get("especialidadId") as string,
+    especialidadId: (formData.get("especialidadId") as string) || undefined,
   };
 
   const validacion = esquemaCuentaPersonal.safeParse(datosForm);
@@ -40,8 +43,7 @@ export async function crearCuentaPersonal(
     };
   }
 
-  const { nombre, apellido, email, claveTemporal, rol, especialidadId } =
-    validacion.data;
+  const { nombreCompleto, email, rol, especialidadId } = validacion.data;
 
   const passwordHash = await bcrypt.hash(claveTemporal, 10);
   const emailNormalizado = email.toLowerCase();
@@ -50,7 +52,7 @@ export async function crearCuentaPersonal(
     await prisma.$transaction(async (tx) => {
       const persona = await tx.persona.create({
         data: {
-          nombreCompleto: `${nombre} ${apellido}`.trim(),
+          nombreCompleto: nombreCompleto,
         },
       });
 
@@ -59,7 +61,7 @@ export async function crearCuentaPersonal(
           personaId: persona.id,
           email: emailNormalizado,
           passwordHash: passwordHash,
-          rol: rol,
+          rol: rol as Rol,
           activo: true,
           claveTemporal: true,
         },
@@ -102,5 +104,8 @@ export async function crearCuentaPersonal(
     };
   }
 
-  redirect("/admin/cuentas?exito=true");
+  return {
+    success: true,
+    message: "La cuenta de personal se creó correctamente.",
+  };
 }
