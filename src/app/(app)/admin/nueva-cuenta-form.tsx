@@ -3,6 +3,12 @@
 import { useState, useActionState } from "react";
 import { crearCuentaPersonal, type FormState } from "@/app/actions/cuentas";
 
+/*
+ * Este componente renderiza un formulario para crear una nueva cuenta de personal. Se utiliza en la página de administración.
+ */
+
+// TODO: Mejorar UX: Al saltar un error en creacion de cuenta se borran los datos del formulario. Mejorar para que se mantengan los datos ingresados y solo se muestren los errores.
+
 type Especialidad = { id: string; nombre: string };
 type Campo = "nombreCompleto" | "email" | "rol" | "especialidadId";
 
