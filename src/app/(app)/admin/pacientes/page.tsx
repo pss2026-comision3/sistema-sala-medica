@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { AltaPacienteForm, type ObraSocialItem } from "./alta-paciente-form";
 
 export default async function AdminPacientesPage() {
+  // Lógica de seguridad de tu compañera
   await requireRole("ADMIN");
 
   // Fecha máxima seleccionable: hoy, según la hora de la sala (Argentina).
@@ -13,8 +15,8 @@ export default async function AdminPacientesPage() {
     day: "2-digit",
   }).format(new Date());
 
+  // Lógica de base de datos de tu compañera
   const [obrasSocialesDb, pacientesDb] = await Promise.all([
-    // CA4: solo se ofrecen entidades activas del catálogo.
     prisma.obraSocial.findMany({
       where: { activa: true },
       orderBy: { nombre: "asc" },
@@ -35,7 +37,8 @@ export default async function AdminPacientesPage() {
 
   return (
     <>
-      <div className="sigsam-page-head">
+      {/* Cabecera fusionada: Tus estilos flex + Textos de ella + Tu botón */}
+      <div className="sigsam-page-head flex justify-between items-center">
         <div>
           <div className="sigsam-eyebrow">Administración</div>
           <h1>Alta asistida</h1>
@@ -44,8 +47,19 @@ export default async function AdminPacientesPage() {
             temporales para el primer ingreso.
           </p>
         </div>
+        
+        {/* Tu botón hacia la User Story del menor */}
+        <div>
+          <Link 
+            href="/admin/pacientes/nuevo-menor" 
+            className="bg-teal-700 !text-white px-4 py-2 rounded-md hover:bg-teal-800 transition-colors font-medium shadow-sm inline-block"
+          >
+            + Registrar Menor
+          </Link>
+        </div>
       </div>
 
+      {/* Formulario de adulto que hizo tu compañera */}
       <section className="sigsam-card" style={{ marginBottom: 28 }}>
         <h2>Registrar paciente adulto</h2>
         <AltaPacienteForm
@@ -54,6 +68,7 @@ export default async function AdminPacientesPage() {
         />
       </section>
 
+      {/* Listado de pacientes reales que hizo tu compañera */}
       <section className="sigsam-card">
         <h2>Pacientes registrados</h2>
         {pacientesDb.length === 0 ? (

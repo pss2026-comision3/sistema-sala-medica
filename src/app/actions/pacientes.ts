@@ -1,9 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-
 import { Prisma } from "@/generated/prisma/client";
-
 import { prisma } from "@/lib/db/prisma";
 import { AUDITORIA, MSG } from "@/lib/auth/constants";
 import { requireRole } from "@/lib/auth/guards";
@@ -12,8 +10,6 @@ import {
   hashearPassword,
   normalizarEmail,
 } from "@/lib/auth/password";
-
-// US-SIG-002 — Dar de alta a un paciente adulto.
 
 /** Paciente existente con el mismo DNI (CA3). Solo lo ve el Administrador. */
 export type CoincidenciaDni = {
@@ -317,4 +313,73 @@ export async function altaPacienteAdulto(
       registroExistente: personaExistenteId !== null,
     },
   };
+}
+
+
+// Acción 1: Buscar tutor por DNI para el frontend
+export async function buscarTutorPorDni(dni: string) {
+  try {
+    const paciente = await prisma.paciente.findFirst({
+      where: { dni },
+      include: { persona: true } // Traemos los datos de Persona para mostrar el nombre
+    })
+
+    if (!paciente) {
+      return { success: false, error: "No se encontró ningún paciente con ese DNI." }
+    }
+
+    return { 
+      success: true, 
+      tutor: {
+        id: paciente.personaId.toString(), // Convertimos BigInt a string
+        nombreCompleto: paciente.persona.nombreCompleto,
+        dni: paciente.dni
+      }
+    }
+  } catch (error) {
+    console.error("Error al buscar tutor:", error)
+    return { success: false, error: "Error interno al buscar el tutor." }
+  }
+}
+
+// Acción 2: Registrar al menor
+export async function registrarMenor(prevState: any, formData: FormData) {
+  const nombreCompleto = formData.get("nombreCompleto") as string
+  const dni = formData.get("dni") as string
+  const fechaNacimiento = formData.get("fechaNacimiento") as string
+  const telefono = formData.get("telefono") as string
+  const tutorId = formData.get("tutorId") as string
+
+  if (!tutorId) {
+    return { success: false, error: "Es obligatorio vincular a un tutor válido." }
+  }
+
+  try {
+    const nuevaPersona = await prisma.persona.create({
+      data: {
+        nombreCompleto,
+        paciente: {
+          create: {
+            dni,
+            // Modificado para usar la misma sintaxis robusta de fecha que tu compañera
+            fechaNacimiento: new Date(`${fechaNacimiento}T00:00:00.000Z`),
+            telefono,
+            tutorId: BigInt(tutorId),
+          }
+        }
+      }
+    })
+
+    // ¡Agregamos esto para que se refresque la tabla principal que hizo ella!
+    revalidatePath("/admin/pacientes")
+
+    return { 
+      success: true, 
+      message: "Menor registrado correctamente.",
+      pacienteId: nuevaPersona.id.toString() 
+    }
+  } catch (error) {
+    console.error("Error al registrar menor:", error)
+    return { success: false, error: "Ocurrió un error al guardar los datos." }
+  }
 }
