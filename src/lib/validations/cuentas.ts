@@ -6,10 +6,8 @@ import { z } from "zod";
 
 export const esquemaCuentaPersonal = z
   .object({
-    nombre: z.string().trim().min(1, "El nombre es obligatorio."),
-    apellido: z.string().trim().min(1, "El apellido es obligatorio."),
+    nombreCompleto: z.string().trim().min(1, "El nombre es obligatorio."),
     email: z.string().trim().email("Ingresá un correo válido."),
-    claveTemporal: z.string().min(8, "La clave temporal es obligatoria."),
     rol: z.enum(["ADMIN", "MEDICO", "ENFERMERIA"], {
       error: "El rol es obligatorio o no es válido.",
     }),
