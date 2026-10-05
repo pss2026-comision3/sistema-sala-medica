@@ -180,7 +180,15 @@ export default function NuevaCuentaForm({
       <form action={formAction} noValidate>
         {!state.success && renderFormMessage(state.message)}
 
-        <div className="sigsam-form-grid">
+        <div
+          className="sigsam-form-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px",
+            alignItems: "start",
+          }}
+        >
           {renderTextField({
             id: "nombreCompleto",
             label: "Nombre y apellido",
