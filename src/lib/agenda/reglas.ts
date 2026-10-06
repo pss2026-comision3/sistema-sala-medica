@@ -48,13 +48,15 @@ export function diasDelMes(fechaCualquieraDelMes: string): string[] {
   });
 }
 
+/** "Jueves, 1 de octubre", con solo la primera letra en mayúscula. */
 export function etiquetaFecha(fecha: string): string {
-  return new Intl.DateTimeFormat("es-AR", {
+  const texto = new Intl.DateTimeFormat("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     timeZone: "UTC",
   }).format(new Date(`${fecha}T12:00:00Z`));
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 /** Instante absoluto de inicio de un turno, en horario de Argentina (UTC-3, sin cambio horario). */

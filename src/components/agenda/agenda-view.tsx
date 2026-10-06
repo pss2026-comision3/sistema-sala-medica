@@ -243,9 +243,7 @@ export function AgendaMedicaView({
             className="sigsam-card"
             style={{ marginTop: "16px" }}
           >
-            <h2 style={{ textTransform: "capitalize" }}>
-              {etiquetaFecha(dia.fecha)}
-            </h2>
+            <h2>{etiquetaFecha(dia.fecha)}</h2>
 
             {dia.jornadas.map((j) => (
               <JornadaBloque key={`${j.fecha}-${j.horaDesde}`} jornada={j} />
@@ -254,55 +252,73 @@ export function AgendaMedicaView({
             {dia.turnos.length === 0 ? (
               <p className="sigsam-muted">Sin turnos con este filtro.</p>
             ) : (
-              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {dia.turnos.map((t) => (
-                  <li
-                    key={t.id}
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      gap: "12px",
-                      alignItems: "center",
-                      padding: "10px 0",
-                      borderTop: "1px solid var(--color-line)",
-                    }}
+              <div className="sigsam-agenda">
+                <div
+                  className="sigsam-agenda-lista"
+                  role="table"
+                  aria-label={`Turnos del ${etiquetaFecha(dia.fecha)}`}
+                >
+                  <div
+                    className="sigsam-agenda-fila sigsam-agenda-cabecera"
+                    role="row"
                   >
-                    <time style={{ fontWeight: 700, minWidth: "56px" }}>
-                      {t.hora}
-                    </time>
-                    <div style={{ flex: "1 1 220px" }}>
-                      <strong>{t.paciente.nombre}</strong>
-                      <div
-                        className="sigsam-muted"
-                        style={{ fontSize: "14px" }}
-                      >
-                        DNI {t.paciente.dni} ·{" "}
-                        {t.paciente.obraSocial ?? "Particular"}
+                    <span
+                      className="sigsam-agenda-cabecera-hora"
+                      role="columnheader"
+                    >
+                      Hora
+                    </span>
+                    <span
+                      className="sigsam-agenda-cabecera-paciente"
+                      role="columnheader"
+                    >
+                      Paciente
+                    </span>
+                    <span role="columnheader">Ficha</span>
+                    <span role="columnheader">Estado</span>
+                    <span role="columnheader">Resultado</span>
+                  </div>
+
+                  {dia.turnos.map((t) => (
+                    <div key={t.id} className="sigsam-agenda-fila" role="row">
+                      <time className="sigsam-agenda-hora" role="cell">
+                        {t.hora}
+                      </time>
+                      <div className="sigsam-agenda-paciente" role="cell">
+                        <strong>{t.paciente.nombre}</strong>
+                        <div
+                          className="sigsam-muted"
+                          style={{ fontSize: "14px" }}
+                        >
+                          DNI {t.paciente.dni} ·{" "}
+                          {t.paciente.obraSocial ?? "Particular"}
+                        </div>
                       </div>
-                    </div>
-                    <span>{ETIQUETA_ESTADO_CITA[t.estado]}</span>
-                    <span>{ETIQUETA_RESULTADO_ATENCION[t.resultado]}</span>
-                    {t.pendienteDeResolver && (
-                      <span
-                        style={{
-                          color: "var(--color-warning)",
-                          fontWeight: 700,
-                        }}
-                      >
-                        Pendiente de resolver
+                      {/* Ocupa su columna aunque la fila no tenga botón. */}
+                      <div className="sigsam-agenda-accion" role="cell">
+                        {verFicha && t.estado === "CONFIRMADO" && (
+                          <Link
+                            href={`/medico/turnos/${t.id}`}
+                            className="sigsam-btn secondary small"
+                          >
+                            Abrir ficha
+                          </Link>
+                        )}
+                      </div>
+                      <span className="sigsam-agenda-estado" role="cell">
+                        <span className="sigsam-agenda-etiqueta">Estado: </span>
+                        {ETIQUETA_ESTADO_CITA[t.estado]}
                       </span>
-                    )}
-                    {verFicha && t.estado === "CONFIRMADO" && (
-                      <Link
-                        href={`/medico/turnos/${t.id}`}
-                        className="sigsam-btn secondary small"
-                      >
-                        Abrir ficha
-                      </Link>
-                    )}
-                  </li>
-                ))}
-              </ul>
+                      <span className="sigsam-agenda-resultado" role="cell">
+                        <span className="sigsam-agenda-etiqueta">
+                          Resultado:{" "}
+                        </span>
+                        {ETIQUETA_RESULTADO_ATENCION[t.resultado]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </section>
         ))

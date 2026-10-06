@@ -29,7 +29,7 @@ export default async function FichaCitaPage(
         <div>
           <div className="sigsam-eyebrow">SIGSAM</div>
           <h1>Ficha de la cita</h1>
-          <p style={{ textTransform: "capitalize" }}>
+          <p>
             {etiquetaFecha(turno.fecha)} · {turno.hora} hs
           </p>
         </div>
