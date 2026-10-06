@@ -1,3 +1,5 @@
+import { MedicoDisponibilidadView } from "./medico-disponibilidad-view";
+
 export default function MedicoDisponibilidadPage() {
   return (
     <>
@@ -8,9 +10,8 @@ export default function MedicoDisponibilidadPage() {
           <p>Días y horarios que publicás para tus turnos.</p>
         </div>
       </div>
-      <div className="sigsam-empty">
-        <p>Esta función se incorpora en otra historia de usuario.</p>
-      </div>
+      
+      <MedicoDisponibilidadView />
     </>
   );
 }
