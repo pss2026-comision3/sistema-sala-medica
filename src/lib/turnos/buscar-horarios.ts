@@ -19,7 +19,6 @@ export type HorarioConsulta = {
   hora: string;
   duracionMin: number;
   arancel: string;
-  superpuesto: boolean;
 };
 
 function partesSala(fecha: Date) {
@@ -46,7 +45,7 @@ function fechaDb(iso: string) {
   return new Date(`${iso}T00:00:00.000Z`);
 }
 
-function sumarDias(iso: string, dias: number) {
+export function sumarDias(iso: string, dias: number) {
   return new Date(fechaDb(iso).getTime() + dias * DIA_MS)
     .toISOString()
     .slice(0, 10);
@@ -155,44 +154,20 @@ export async function cargarCatalogoMedico() {
   }));
 }
 
-export async function listarFechasAtencion(
-  especialidadId: bigint,
-  medicoId: bigint | null,
-  fechaDesde: string,
-) {
-  const fechaHasta = sumarDias(fechaDesde, 60);
-  const bloques = await prisma.disponibilidad.findMany({
-    where: {
-      fecha: { gte: fechaDb(fechaDesde), lte: fechaDb(fechaHasta) },
-      estado: "PUBLICADA",
-      ...(medicoId ? { profesionalId: medicoId } : {}),
-      profesional: {
-        activo: true,
-        rol: "MEDICO",
-        medico: { especialidadId },
-      },
-    },
-    select: { fecha: true },
-    orderBy: { fecha: "asc" },
-  });
-  return [
-    ...new Set(bloques.map((b) => b.fecha.toISOString().slice(0, 10))),
-  ].slice(0, 14);
-}
-
-export async function buscarHorariosDia(
+export async function buscarHorariosEnFechas(
   pacienteId: bigint,
   especialidadId: bigint,
-  medicoId: bigint | null,
-  fechaElegida: string,
+  medicoId: bigint,
+  fechaDesde: string,
+  fechaHasta: string,
   ahora = new Date(),
 ) {
   const [bloques, turnosPaciente] = await Promise.all([
     prisma.disponibilidad.findMany({
       where: {
-        fecha: fechaDb(fechaElegida),
+        fecha: { gte: fechaDb(fechaDesde), lte: fechaDb(fechaHasta) },
         estado: "PUBLICADA",
-        ...(medicoId ? { profesionalId: medicoId } : {}),
+        profesionalId: medicoId,
         profesional: {
           activo: true,
           rol: "MEDICO",
@@ -253,27 +228,39 @@ export async function buscarHorariosDia(
       t.disponibilidad.profesional.medico?.especialidadId === especialidadId,
   );
   const minimo = partesSala(new Date(ahora.getTime() + DIA_MS));
-  const horarios: HorarioConsulta[] = [];
+  const fechas = [
+    ...new Set(
+      bloques.map((bloque) => bloque.fecha.toISOString().slice(0, 10)),
+    ),
+  ];
+  const fechasVisibles = new Set(fechas);
+  const horariosPorFecha: Record<string, HorarioConsulta[]> =
+    Object.fromEntries(fechas.map((fecha) => [fecha, []]));
   const horariosAgregados = new Set<string>();
-  const ocupadosPorMedico = new Map<
-    bigint,
+  let haySuperposiciones = false;
+  const ocupadosPorMedicoYFecha = new Map<
+    string,
     { desde: number; hasta: number }[]
   >();
   for (const bloque of bloques) {
-    const ocupados = ocupadosPorMedico.get(bloque.profesionalId) ?? [];
+    const fecha = bloque.fecha.toISOString().slice(0, 10);
+    if (!fechasVisibles.has(fecha)) continue;
+    const clave = `${bloque.profesionalId}:${fecha}`;
+    const ocupados = ocupadosPorMedicoYFecha.get(clave) ?? [];
     for (const turno of bloque.turnos) {
       if (ocupa(turno.estado, turno.retenidoHasta, ahora)) {
         const desde = minutos(turno.hora);
         ocupados.push({ desde, hasta: desde + turno.duracionMin });
       }
     }
-    ocupadosPorMedico.set(bloque.profesionalId, ocupados);
+    ocupadosPorMedicoYFecha.set(clave, ocupados);
   }
 
   for (const bloque of bloques) {
     const medico = bloque.profesional.medico;
     if (!medico?.especialidad || medico.duracionTurnoMin <= 0) continue;
     const fecha = bloque.fecha.toISOString().slice(0, 10);
+    if (!fechasVisibles.has(fecha)) continue;
     const inicio = minutos(bloque.horaDesde);
     const fin = minutos(bloque.horaHasta);
     for (
@@ -283,15 +270,15 @@ export async function buscarHorariosDia(
     ) {
       const hora = aHora(minuto);
       if (`${fecha}T${hora}:00` < minimo) continue;
-      const identidad = `${bloque.profesionalId}:${hora}`;
+      const identidad = `${bloque.profesionalId}:${fecha}:${hora}`;
       if (horariosAgregados.has(identidad)) continue;
-      const ocupado = (ocupadosPorMedico.get(bloque.profesionalId) ?? []).some(
+      const ocupado = (
+        ocupadosPorMedicoYFecha.get(`${bloque.profesionalId}:${fecha}`) ?? []
+      ).some(
         (turno) =>
           minuto < turno.hasta &&
           turno.desde < minuto + medico.duracionTurnoMin,
       );
-      if (ocupado) continue;
-      horariosAgregados.add(identidad);
       const superpuesto = vigentes.some((turno) => {
         if (turno.disponibilidad.fecha.toISOString().slice(0, 10) !== fecha)
           return false;
@@ -301,7 +288,10 @@ export async function buscarHorariosDia(
           desde < minuto + medico.duracionTurnoMin
         );
       });
-      horarios.push({
+      if (superpuesto) haySuperposiciones = true;
+      if (ocupado || superpuesto) continue;
+      horariosAgregados.add(identidad);
+      horariosPorFecha[fecha].push({
         clave: `${bloque.id}:${hora}`,
         disponibilidadId: bloque.id.toString(),
         medico: bloque.profesional.persona.nombreCompleto,
@@ -310,16 +300,20 @@ export async function buscarHorariosDia(
         hora,
         duracionMin: medico.duracionTurnoMin,
         arancel: medico.arancelActual.toString(),
-        superpuesto,
       });
     }
   }
 
-  return {
-    horarios: horarios.sort(
+  for (const horarios of Object.values(horariosPorFecha)) {
+    horarios.sort(
       (a, b) =>
         a.hora.localeCompare(b.hora) || a.medico.localeCompare(b.medico, "es"),
-    ),
+    );
+  }
+  return {
+    fechas,
+    horariosPorFecha,
     citaMismaEspecialidad,
+    haySuperposiciones,
   };
 }
