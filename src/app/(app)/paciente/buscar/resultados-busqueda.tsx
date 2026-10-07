@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { HorarioConsulta } from "@/lib/turnos/buscar-horarios";
 import { CalendarioAtencion } from "./calendario-atencion";
 import { HorariosSkeleton } from "./horarios-skeleton";
@@ -59,6 +60,7 @@ export function ResultadosBusqueda({
   diaInicial: string;
   horarioInicial: string;
 }) {
+  const router = useRouter();
   const diasDisponibles = new Set(
     Object.entries(resultado.horariosPorFecha)
       .filter(([, horarios]) => horarios.length > 0)
@@ -91,6 +93,19 @@ export function ResultadosBusqueda({
 
   const horarios = resultado.horariosPorFecha[dia] ?? [];
   const horarioElegido = horarios.find((h) => h.clave === horario);
+
+  function navegarAConfirmar(opcion: HorarioConsulta) {
+    const params = new URLSearchParams({
+      disponibilidadId: opcion.disponibilidadId,
+      hora: opcion.hora,
+      medico: opcion.medico,
+      especialidad: opcion.especialidad,
+      fecha: opcion.fecha,
+      duracionMin: String(opcion.duracionMin),
+      arancel: opcion.arancel,
+    });
+    router.push(`/paciente/confirmar?${params.toString()}`);
+  }
 
   return (
     <>
@@ -201,6 +216,13 @@ export function ResultadosBusqueda({
               <small className="text-muted mt-3 block">
                 La selección no reserva el turno.
               </small>
+              <button
+                type="button"
+                onClick={() => navegarAConfirmar(horarioElegido)}
+                className="bg-brand hover:bg-brand-hover mt-4 w-full rounded-lg px-4 py-3 font-medium text-white"
+              >
+                Reservar este turno
+              </button>
             </div>
           )}
         </section>

@@ -135,7 +135,7 @@ export async function reservarTurnoTemporal(
           entidad: "turno",
           referenciaId: turno.id,
           detalle: JSON.stringify({
-            disponibilidadId: BigInt(disponibilidadId),
+            disponibilidadId: disponibilidadId, // ✅ string, no BigInt
             hora,
             retenidoMinutos: RETENCION_MINUTOS,
           }),
