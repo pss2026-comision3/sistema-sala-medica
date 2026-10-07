@@ -22,3 +22,11 @@ export const esquemaCuentaPersonal = z
       });
     }
   });
+
+export const esquemaDesactivarCuenta = z.object({
+  usuarioId: z.string().min(1, "Falta el ID del usuario."),
+  motivo: z
+    .string()
+    .trim()
+    .min(5, "El motivo es obligatorio (mínimo 5 caracteres)."),
+});
