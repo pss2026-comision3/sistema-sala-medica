@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, startTransition } from "react";
 import {
   confirmarReservaDefinitiva,
   type ResultadoConfirmacion,
@@ -8,7 +8,6 @@ import {
 import { X } from "lucide-react";
 
 interface ConfirmarReservaDialogProps {
-  open: boolean;
   onClose: () => void;
   turnoId: string;
   onConfirmado: () => void;
@@ -24,7 +23,6 @@ function esError(r: ResultadoConfirmacion): r is { error: string } {
 }
 
 export function ConfirmarReservaDialog({
-  open,
   onClose,
   turnoId,
   onConfirmado,
@@ -36,11 +34,13 @@ export function ConfirmarReservaDialog({
     async (_prev: ResultadoConfirmacion, _formData: FormData) => {
       return await confirmarReservaDefinitiva(turnoId);
     },
-    { error: "" }, // estado inicial como error vacío
+    { error: "" },
   );
 
   const manejarConfirmar = () => {
-    accion(new FormData());
+    startTransition(() => {
+      accion(new FormData());
+    });
   };
 
   useEffect(() => {
@@ -49,19 +49,21 @@ export function ConfirmarReservaDialog({
     }
   }, [estado, onConfirmado]);
 
-  if (!open) return null;
+  const handleClose = () => {
+    onClose();
+  };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onClose}
+      onClick={handleClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dialog-title"
     >
       <div
         className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dialog-title"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2
@@ -71,7 +73,7 @@ export function ConfirmarReservaDialog({
             Confirmar turno definitivamente
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={estaPendiente}
             className="text-sigsam-text-muted hover:text-sigsam-text p-1 disabled:opacity-50"
             aria-label="Cerrar"
@@ -93,16 +95,18 @@ export function ConfirmarReservaDialog({
 
         <div className="flex gap-3">
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleClose}
             disabled={estaPendiente}
-            className="border-sigsam-border text-sigsam-text hover:bg-sigsam-hover flex-1 rounded-lg border px-4 py-2 disabled:opacity-50"
+            className="sigsam-btn secondary flex-1 disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
+            type="button"
             onClick={manejarConfirmar}
             disabled={estaPendiente}
-            className="bg-sigsam-primary hover:bg-sigsam-primary-hover flex-1 rounded-lg px-4 py-2 text-white disabled:opacity-50"
+            className="sigsam-btn flex-1 disabled:opacity-50"
           >
             {estaPendiente ? "Confirmando..." : "Confirmar definitivamente"}
           </button>
