@@ -99,4 +99,7 @@ export const AUDITORIA = {
   CONFIGURACION_MEDICO: "Configuración de duración y arancel médico",
   CONFIGURACION_VACUNA: "Configuración de arancel de vacuna",
   ALTA_PACIENTE: "Alta de paciente adulto",
+  RESERVA_TURNO: "Reserva de turno",
+  CONFIRMACION_TURNO: "Confirmación de turno",
+  CANCELACION_EXPIRACION: "Cancelación por expiración de retención",
 } as const;
