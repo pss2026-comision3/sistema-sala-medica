@@ -135,7 +135,7 @@ export async function reservarTurnoTemporal(
           entidad: "turno",
           referenciaId: turno.id,
           detalle: JSON.stringify({
-            disponibilidadId: disponibilidadId, // ✅ string, no BigInt
+            disponibilidadId: disponibilidadId,
             hora,
             retenidoMinutos: RETENCION_MINUTOS,
           }),
@@ -273,4 +273,71 @@ export async function liberarRetencionesExpiradas(): Promise<number> {
   });
 
   return turnosExpirados.length;
+}
+
+/**
+ * Cancela una reserva temporal (RESERVADO → CANCELADO) y libera el cupo.
+ * - Verifica que el turno pertenezca al paciente logueado
+ * - Verifica que esté en RESERVADO
+ * - Actualiza estado a CANCELADO, limpia retenido_hasta y setea campos de cancelación
+ * - Audita la cancelación
+ */
+export async function cancelarReserva(
+  turnoId: string,
+): Promise<{ exito: true } | { error: string }> {
+  const sesion = await requireRole("PACIENTE");
+  const usuarioId = BigInt(sesion.usuarioId);
+  const turnoIdBig = BigInt(turnoId);
+  const ahora = new Date();
+
+  // 1. Buscar turno y verificar pertenencia
+  const turno = await prisma.turno.findUnique({
+    where: { id: turnoIdBig },
+    select: {
+      id: true,
+      estado: true,
+      creadoPor: true,
+    },
+  });
+  if (!turno) {
+    return { error: "Turno no encontrado." };
+  }
+  if (turno.creadoPor !== usuarioId) {
+    return { error: "No tenés permiso para cancelar este turno." };
+  }
+  if (turno.estado !== "RESERVADO") {
+    return { error: "Solo se pueden cancelar reservas temporales (5 min)." };
+  }
+
+  // 2. Cancelar: estado → CANCELADO, limpiar retenido_hasta, setear campos requeridos por CHECK constraint
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.turno.update({
+        where: { id: turnoIdBig },
+        data: {
+          estado: "CANCELADO",
+          retenidoHasta: null,
+          canceladoEn: ahora,
+          canceladoPor: usuarioId,
+          motivoCancelacion: "Cancelación por el paciente",
+        },
+      });
+
+      // Auditar
+      await tx.auditoria.create({
+        data: {
+          actorId: usuarioId,
+          accion: AUDITORIA.CANCELACION_EXPIRACION,
+          entidad: "turno",
+          referenciaId: turnoIdBig,
+          detalle: JSON.stringify({ motivo: "cancelacion_usuario" }),
+        },
+      });
+    });
+
+    return { exito: true };
+  } catch (error) {
+    console.error("Error cancelando reserva:", error);
+    return { error: "Error interno al cancelar la reserva." };
+  }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, startTransition, memo } from "react";
+import { useActionState, useEffect, startTransition } from "react";
 import {
   confirmarReservaDefinitiva,
   type ResultadoConfirmacion,
@@ -22,7 +22,7 @@ function esError(r: ResultadoConfirmacion): r is { error: string } {
   return "error" in r;
 }
 
-function ConfirmarReservaDialogInner({
+export function ConfirmarReservaDialog({
   onClose,
   turnoId,
   onConfirmado,
@@ -115,6 +115,3 @@ function ConfirmarReservaDialogInner({
     </div>
   );
 }
-
-// ✅ Memo para evitar re-renders innecesarios
-export const ConfirmarReservaDialog = memo(ConfirmarReservaDialogInner);
