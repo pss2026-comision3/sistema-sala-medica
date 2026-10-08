@@ -1,8 +1,18 @@
-import type { FiltrosAgenda, JornadaAgenda, TurnoAgenda } from "./tipos";
+import { MSG } from "@/lib/auth/constants";
+
+import type {
+  EstadoTurnoAgenda,
+  FiltrosAgenda,
+  JornadaAgenda,
+  TurnoAgenda,
+} from "./tipos";
 
 // Reglas reales de la agenda (US-010). No dependen de datos de demostración.
 
 export const ZONA_SALA = "America/Argentina/Buenos_Aires";
+
+/** Plazo mínimo de cancelación desde el portal (CA4 / RF-11): 24 horas. */
+export const PLAZO_CANCELACION_MS = 24 * 60 * 60 * 1000;
 
 const FORMATO_FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -132,6 +142,24 @@ export function evaluarInicioAtencion(
       puede: false,
       motivo: `Todavía no llegó el horario de inicio (${turno.hora} hs).`,
     };
+  }
+  return { puede: true, motivo: "" };
+}
+
+/**
+ * CA4 (US-013): el paciente puede cancelar una cita confirmada cuando faltan
+ * 24 horas o más para su inicio. `inicio` es el ISO de `inicioTurno()`.
+ */
+export function puedeCancelarTurno(
+  turno: { estado: EstadoTurnoAgenda; inicio: string },
+  ahora: Date = new Date(),
+): { puede: boolean; motivo: string } {
+  if (turno.estado !== "CONFIRMADO") {
+    return { puede: false, motivo: MSG.CANCELACION_ESTADO };
+  }
+  const restante = new Date(turno.inicio).getTime() - ahora.getTime();
+  if (restante < PLAZO_CANCELACION_MS) {
+    return { puede: false, motivo: MSG.CANCELACION_PLAZO };
   }
   return { puede: true, motivo: "" };
 }

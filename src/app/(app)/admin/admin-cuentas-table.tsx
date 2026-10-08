@@ -92,15 +92,90 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
 
   return (
     <div>
-      {/* ... (Aviso de credenciales y errores, lo mantenemos igual) ... */}
-
+      {/* Aviso de credenciales recién generadas */}
       {resultado && (
         <div
           className="sigsam-notice success"
           role="status"
           style={{ marginBottom: "24px" }}
         >
-          {/* ... contenido del notice igual que antes ... */}
+          <span className="sigsam-notice-symbol" aria-hidden="true">
+            ✓
+          </span>
+          <div style={{ width: "100%" }}>
+            <strong>Credenciales para entregar (Asistencia presencial)</strong>
+            <p style={{ marginTop: "6px" }}>
+              Se generó una clave temporal para{" "}
+              <strong>{resultado.nombre}</strong>. Sus sesiones anteriores se
+              cerraron de inmediato.
+            </p>
+
+            <div
+              style={{
+                marginTop: "12px",
+                padding: "12px",
+                backgroundColor: "#fff",
+                border: "1px solid #bfddcb",
+                borderRadius: "6px",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "16px",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div>
+                  <span className="sigsam-muted" style={{ fontSize: "13px" }}>
+                    Usuario:
+                  </span>{" "}
+                  <strong>{resultado.email}</strong>
+                </div>
+                <div style={{ marginTop: "4px" }}>
+                  <span className="sigsam-muted" style={{ fontSize: "13px" }}>
+                    Clave temporal:
+                  </span>{" "}
+                  <code
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: "700",
+                      backgroundColor: "#eaf3f3",
+                      padding: "2px 8px",
+                      borderRadius: "4px",
+                      color: "#145f65",
+                    }}
+                  >
+                    {resultado.claveTemporal}
+                  </code>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={handleCopiarCredenciales}
+                  className="sigsam-btn secondary small"
+                >
+                  {copiado ? "Copiado ✓" : "Copiar credenciales"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResultado(undefined)}
+                  className="sigsam-btn-ghost small"
+                >
+                  Cerrar aviso
+                </button>
+              </div>
+            </div>
+
+            <p
+              className="sigsam-muted"
+              style={{ fontSize: "12px", marginTop: "8px" }}
+            >
+              Entregá esta clave en mano al solicitante. Deberá cambiarla
+              obligatoriamente al volver a ingresar al sistema.
+            </p>
+          </div>
         </div>
       )}
 
