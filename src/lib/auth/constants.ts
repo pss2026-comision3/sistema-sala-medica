@@ -87,7 +87,14 @@ export const MSG = {
   ALTA_REGISTRO_NO_ADULTO:
     "Ese registro corresponde a una persona menor de 18 años y no puede tener cuenta propia.",
   ALTA_CONFLICTO:
-    "No se pudo completar el alta: el correo ya está en uso o el registro elegido ya tiene una cuenta.",
+    "No se pudo completar la alta: el correo ya está en uso y el registro elegido ya tiene una cuenta.",
+  CANCELACION_PLAZO:
+    "Este turno no se puede cancelar: faltan menos de 24 horas para el inicio.",
+  CANCELACION_NO_ENCONTRADO:
+    "El turno solicitado no existe o ya no está disponible para cancelar.",
+  CANCELACION_ESTADO: "Solo se pueden cancelar citas confirmadas.",
+  CANCELACION_EXITO: "Turno cancelado con éxito.",
+  CITA_SIN_ACCESO: "No tenés acceso a esta cita.",
 } as const;
 
 export const AUDITORIA = {
@@ -102,4 +109,5 @@ export const AUDITORIA = {
   RESERVA_TURNO: "Reserva de turno",
   CONFIRMACION_TURNO: "Confirmación de turno",
   CANCELACION_EXPIRACION: "Cancelación por expiración de retención",
+  CANCELACION_TURNO_PACIENTE: "Cancelación de turno por paciente",
 } as const;
