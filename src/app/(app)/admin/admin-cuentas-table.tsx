@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useState, useTransition, useActionState } from "react";
 
 import { ETIQUETA_ROL } from "@/lib/auth/constants";
 import type { Rol } from "@/generated/prisma/client";
@@ -8,6 +8,7 @@ import {
   restablecerClavePorAdmin,
   type ResultadoRestablecimiento,
 } from "@/app/actions/auth";
+import { desactivarCuentaPersonal } from "@/app/actions/cuentas";
 
 export type CuentaItem = {
   id: string;
@@ -27,6 +28,13 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
   const [cuentaParaReset, setCuentaParaReset] = useState<CuentaItem | null>(
     null,
   );
+
+  // Estados para el nuevo modal de desactivación
+  const [cuentaParaDesactivar, setCuentaParaDesactivar] =
+    useState<CuentaItem | null>(null);
+  const [stateDesactivar, actionDesactivar, isPendingDesactivar] =
+    useActionState(desactivarCuentaPersonal, { success: false });
+
   const [resultado, setResultado] =
     useState<ResultadoRestablecimiento["credenciales"]>(undefined);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
@@ -41,6 +49,11 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
       c.nombre.toLowerCase().includes(normalizado) ||
       c.email.toLowerCase().includes(normalizado),
   );
+
+  // CA2: Contamos los admins activos para ocultar el botón si es el último
+  const adminsActivosCount = cuentasIniciales.filter(
+    (c) => c.rol === "ADMIN" && c.activo,
+  ).length;
 
   function handleConfirmarReset() {
     if (!cuentaParaReset) return;
@@ -65,7 +78,15 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2500);
     } catch {
-      // Ignorar si el navegador no soporta clipboard
+      // Ignorar
+    }
+  }
+
+  // Cerrar el modal de desactivar y recargar si fue exitoso
+  function handleCerrarModalDesactivar() {
+    setCuentaParaDesactivar(null);
+    if (stateDesactivar.success) {
+      window.location.reload();
     }
   }
 
@@ -140,7 +161,7 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                 <button
                   type="button"
                   onClick={() => setResultado(undefined)}
-                  className="sigsam-btn-ghost"
+                  className="sigsam-btn-ghost small"
                 >
                   Cerrar aviso
                 </button>
@@ -164,7 +185,6 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
         </p>
       )}
 
-      {/* Buscador de cuentas */}
       <div style={{ marginBottom: "20px" }}>
         <div className="sigsam-field" style={{ maxWidth: "420px" }}>
           <label htmlFor={searchInputId}>
@@ -181,7 +201,6 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
         </div>
       </div>
 
-      {/* Listado de cuentas */}
       {cuentasFiltradas.length === 0 ? (
         <div className="sigsam-empty">
           <p>No se encontraron cuentas activas con ese criterio.</p>
@@ -195,11 +214,7 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
             backgroundColor: "#fff",
           }}
         >
-          <div
-            style={{
-              overflowX: "auto",
-            }}
-          >
+          <div style={{ overflowX: "auto" }}>
             <table
               style={{
                 width: "100%",
@@ -237,84 +252,222 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {cuentasFiltradas.map((cuenta) => (
-                  <tr
-                    key={cuenta.id}
-                    style={{
-                      borderBottom: "1px solid var(--color-line)",
-                    }}
-                  >
-                    <td style={{ padding: "12px 16px" }}>
-                      <strong>{cuenta.nombre}</strong>
-                      <div
-                        className="sigsam-muted"
-                        style={{ fontSize: "13px", marginTop: "2px" }}
-                      >
-                        {cuenta.email}
-                      </div>
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      {ETIQUETA_ROL[cuenta.rol]}
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "2px 8px",
-                          borderRadius: "4px",
-                          fontSize: "12px",
-                          fontWeight: "700",
-                          backgroundColor: cuenta.activo
-                            ? "#edf7f1"
-                            : "#fcf0f0",
-                          color: cuenta.activo ? "#1b6338" : "#b4393a",
-                        }}
-                      >
-                        {cuenta.activo ? "Activa" : "Desactivada"}
-                      </span>
-                      {cuenta.claveTemporal && cuenta.activo && (
+                {cuentasFiltradas.map((cuenta) => {
+                  // Ocultar botón de desactivar si es el último admin activo
+                  const esUltimoAdmin =
+                    cuenta.rol === "ADMIN" &&
+                    cuenta.activo &&
+                    adminsActivosCount <= 1;
+
+                  return (
+                    <tr
+                      key={cuenta.id}
+                      style={{ borderBottom: "1px solid var(--color-line)" }}
+                    >
+                      <td style={{ padding: "12px 16px" }}>
+                        <strong>{cuenta.nombre}</strong>
+                        <div
+                          className="sigsam-muted"
+                          style={{ fontSize: "13px", marginTop: "2px" }}
+                        >
+                          {cuenta.email}
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        {ETIQUETA_ROL[cuenta.rol]}
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
                         <span
                           style={{
                             display: "inline-block",
-                            marginLeft: "6px",
-                            padding: "2px 6px",
+                            padding: "2px 8px",
                             borderRadius: "4px",
-                            fontSize: "11px",
-                            backgroundColor: "#fff8eb",
-                            color: "#8a5800",
-                            border: "1px solid #ead4ae",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            backgroundColor: cuenta.activo
+                              ? "#edf7f1"
+                              : "#fcf0f0",
+                            color: cuenta.activo ? "#1b6338" : "#b4393a",
                           }}
                         >
-                          Clave temporal
+                          {cuenta.activo ? "Activa" : "Desactivada"}
                         </span>
-                      )}
-                    </td>
-                    <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                      {cuenta.activo ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setErrorAccion(null);
-                            setCuentaParaReset(cuenta);
-                          }}
-                          className="sigsam-btn secondary small"
-                          aria-label={`Generar clave temporal para ${cuenta.nombre}`}
-                        >
-                          Clave temporal
-                        </button>
-                      ) : (
-                        <span
-                          className="sigsam-muted"
-                          style={{ fontSize: "13px" }}
-                        >
-                          Sin acciones
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                        {cuenta.activo ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "8px",
+                              justifyContent: "flex-end",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setErrorAccion(null);
+                                setCuentaParaReset(cuenta);
+                              }}
+                              className="sigsam-btn secondary small"
+                            >
+                              Clave temporal
+                            </button>
+
+                            {!esUltimoAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => setCuentaParaDesactivar(cuenta)}
+                                className="sigsam-btn danger small"
+                              >
+                                Desactivar
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span
+                            className="sigsam-muted"
+                            style={{ fontSize: "13px" }}
+                          >
+                            Sin acciones
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Modal / Diálogo para Desactivar Cuenta */}
+      {cuentaParaDesactivar && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(16, 42, 49, 0.6)",
+            display: "grid",
+            placeItems: "center",
+            padding: "16px",
+            zIndex: 50,
+          }}
+        >
+          <div
+            className="sigsam-card"
+            style={{
+              maxWidth: "480px",
+              width: "100%",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div className="sigsam-eyebrow">Baja lógica</div>
+            <h2 style={{ fontSize: "20px" }}>Desactivar cuenta</h2>
+            <p
+              className="sigsam-muted"
+              style={{ marginTop: "8px", marginBottom: "16px" }}
+            >
+              ¿Desactivar el acceso de{" "}
+              <strong>{cuentaParaDesactivar.nombre}</strong>? Sus registros se
+              conservarán.
+            </p>
+
+            {/* Mostramos el mensaje de error del Server Action acá mismo */}
+            {!stateDesactivar.success && stateDesactivar.message && (
+              <div
+                className="sigsam-notice error"
+                style={{ marginBottom: "16px" }}
+              >
+                <span className="sigsam-notice-symbol" aria-hidden="true">
+                  !
+                </span>
+                <div>
+                  <strong>No se puede desactivar</strong>
+                  <p>{stateDesactivar.message}</p>
+                </div>
+              </div>
+            )}
+
+            {stateDesactivar.success ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginTop: "24px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleCerrarModalDesactivar}
+                  className="sigsam-btn"
+                >
+                  Aceptar y cerrar
+                </button>
+              </div>
+            ) : (
+              <form action={actionDesactivar}>
+                <input
+                  type="hidden"
+                  name="usuarioId"
+                  value={cuentaParaDesactivar.id}
+                />
+
+                <div className="sigsam-field" style={{ marginBottom: "20px" }}>
+                  <label htmlFor="motivo">Motivo de la desactivación *</label>
+                  <input
+                    type="text"
+                    id="motivo"
+                    name="motivo"
+                    required
+                    placeholder="Ej. Fin de contrato, reemplazo, etc."
+                    aria-invalid={!!stateDesactivar.errors?.motivo}
+                  />
+                  {stateDesactivar.errors?.motivo && (
+                    <span
+                      className="sigsam-alert-error"
+                      style={{
+                        color: "#b4393a",
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        display: "block",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {stateDesactivar.errors.motivo[0]}
+                    </span>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "12px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleCerrarModalDesactivar}
+                    className="sigsam-btn-ghost"
+                    disabled={isPendingDesactivar}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="sigsam-btn danger"
+                    disabled={isPendingDesactivar}
+                  >
+                    {isPendingDesactivar
+                      ? "Desactivando…"
+                      : "Confirmar desactivación"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

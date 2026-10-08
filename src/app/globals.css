@@ -429,6 +429,104 @@ small {
   margin: 0 auto;
 }
 
+/* Agenda (US-010). Títulos y filas comparten columnas (subgrid) y el diseño
+   depende del ancho del contenedor, no de la ventana. */
+.sigsam-agenda {
+  container-type: inline-size;
+  /* Relleno y no margen: los márgenes se colapsan con el párrafo de arriba. */
+  padding-top: 12px;
+}
+
+.sigsam-agenda-lista {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  column-gap: 16px;
+}
+
+.sigsam-agenda-fila {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-line);
+}
+
+/* Título y datos de cada columna centrados entre sí. */
+.sigsam-agenda-fila > * {
+  text-align: center;
+}
+
+/* Excepción: la columna de paciente va justificada a la izquierda, título incluido. */
+.sigsam-agenda-paciente,
+.sigsam-agenda-cabecera-paciente {
+  text-align: left;
+}
+
+.sigsam-agenda-cabecera {
+  padding-top: 0;
+  border-top: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+}
+
+.sigsam-agenda-hora,
+.sigsam-agenda-accion,
+.sigsam-agenda-resultado {
+  white-space: nowrap;
+}
+
+.sigsam-agenda-paciente,
+.sigsam-agenda-estado {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sigsam-agenda-hora {
+  font-weight: 700;
+}
+
+/* Más aire entre "Hora" y "Paciente", en el título y en los datos. */
+.sigsam-agenda-hora,
+.sigsam-agenda-cabecera-hora {
+  padding-right: 8px;
+}
+
+.sigsam-agenda-etiqueta {
+  display: none;
+}
+
+/* Contenedor angosto: cada fila se apila y cada dato lleva su etiqueta. */
+@container (max-width: 800px) {
+  .sigsam-agenda-lista {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sigsam-agenda-fila {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 4px;
+  }
+
+  .sigsam-agenda-fila > * {
+    text-align: left;
+  }
+
+  .sigsam-agenda-cabecera {
+    display: none;
+  }
+
+  .sigsam-agenda-etiqueta {
+    display: inline;
+    font-weight: 700;
+    margin-right: 6px;
+  }
+
+  .sigsam-agenda-accion:empty {
+    display: none;
+  }
+}
+
 /* --- Vistas públicas --- */
 .sigsam-public-layout {
   min-height: 100vh;
