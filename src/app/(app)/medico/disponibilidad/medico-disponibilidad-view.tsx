@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { publicarDisponibilidadMensual, type DiaConfiguracion } from "@/app/actions/disponibilidad";
+import {
+  obtenerConfiguracionMesAnterior,
+  publicarDisponibilidadMensual,
+  type DiaConfiguracion,
+} from "@/app/actions/disponibilidad";
+import { DiasPublicados } from "./dias-publicados";
 
 const DIAS_SEMANA = [
   { valor: 1, label: "Lunes" },
@@ -17,22 +22,52 @@ export function MedicoDisponibilidadView() {
   const [mes, setMes] = useState(hoy.getMonth() + 1);
   const [anio, setAnio] = useState(hoy.getFullYear());
   
-  // Iniciamos con 1 día por defecto
+  // US-008 CA1: siempre son exactamente 2 días de atención por semana.
   const [dias, setDias] = useState<DiaConfiguracion[]>([
     { diaSemana: 1, horaDesde: "08:00", horaHasta: "12:00" },
+    { diaSemana: 4, horaDesde: "08:00", horaHasta: "12:00" },
   ]);
 
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [copiando, startCopia] = useTransition();
+  const [mensajeCopia, setMensajeCopia] = useState<string | null>(null);
+  // Se incrementa al publicar para que la lista de días publicados se recargue.
+  const [versionLista, setVersionLista] = useState(0);
 
-  const handleAgregarDia = () => {
-    if (dias.length >= 2) return;
-    setDias([...dias, { diaSemana: 2, horaDesde: "08:00", horaHasta: "12:00" }]);
-  };
+  // US-008 CA1: llena el formulario con los días y horarios del mes anterior.
+  const handleCopiarMesAnterior = () => {
+    setErrorAccion(null);
+    setMensajeExito(null);
+    setMensajeCopia(null);
 
-  const handleRemoverDia = (index: number) => {
-    setDias(dias.filter((_, i) => i !== index));
+    startCopia(async () => {
+      const res = await obtenerConfiguracionMesAnterior({ mes, anio });
+      if (res.error || !res.dias || res.dias.length === 0) {
+        setErrorAccion(res.error ?? "No se encontró una configuración para copiar.");
+        return;
+      }
+
+      if (res.dias.length >= 2) {
+        setDias(res.dias.slice(0, 2));
+        setMensajeCopia(
+          `Se copiaron los días y horarios de ${res.mesOrigen}. Revisalos y tocá "Publicar disponibilidad".`,
+        );
+      } else {
+        // El mes anterior tenía un solo día: se copia ese y se mantiene el otro del formulario.
+        const copiado = res.dias[0];
+        const otro = dias.find((d) => d.diaSemana !== copiado.diaSemana) ?? {
+          diaSemana: copiado.diaSemana === 1 ? 4 : 1,
+          horaDesde: copiado.horaDesde,
+          horaHasta: copiado.horaHasta,
+        };
+        setDias([copiado, otro].sort((a, b) => a.diaSemana - b.diaSemana));
+        setMensajeCopia(
+          `En ${res.mesOrigen} había un solo día de atención y se copió ese. Completá el otro día y publicá.`,
+        );
+      }
+    });
   };
 
   const handleChangeDia = (index: number, campo: keyof DiaConfiguracion, valor: string | number) => {
@@ -45,6 +80,7 @@ export function MedicoDisponibilidadView() {
     e.preventDefault();
     setErrorAccion(null);
     setMensajeExito(null);
+    setMensajeCopia(null);
 
     // Validación básica en cliente
     const diasUnicos = new Set(dias.map(d => d.diaSemana));
@@ -59,6 +95,7 @@ export function MedicoDisponibilidadView() {
         setErrorAccion(res.error);
       } else {
         setMensajeExito(res.mensaje ?? "Disponibilidad publicada correctamente.");
+        setVersionLista((v) => v + 1);
         // Opcional: limpiar formulario después del éxito
       }
     });
@@ -108,7 +145,8 @@ export function MedicoDisponibilidadView() {
               type="number" 
               value={anio} 
               onChange={(e) => setAnio(Number(e.target.value))} 
-              min={hoy.getFullYear()} 
+              min={hoy.getFullYear()}
+              max={hoy.getFullYear()}
               required 
             />
           </div>
@@ -116,12 +154,29 @@ export function MedicoDisponibilidadView() {
 
         <hr style={{ border: "0", borderTop: "1px solid var(--color-line, #d7e2e4)", margin: "24px 0" }} />
 
-        <h3 style={{ fontSize: "16px", marginBottom: "12px" }}>Días de atención (Máximo 2)</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "12px" }}>
+          <h3 style={{ fontSize: "16px", margin: 0 }}>Días de atención (2 por semana)</h3>
+          <button
+            type="button"
+            onClick={handleCopiarMesAnterior}
+            className="sigsam-btn secondary small"
+            disabled={copiando || isPending}
+          >
+            {copiando ? "Buscando…" : "Copiar del mes anterior"}
+          </button>
+        </div>
+
+        {mensajeCopia && (
+          <div className="sigsam-notice info" role="status" style={{ marginBottom: "16px" }}>
+            <span className="sigsam-notice-symbol" aria-hidden="true">i</span>
+            <p style={{ margin: 0, fontSize: "14px" }}>{mensajeCopia}</p>
+          </div>
+        )}
         
         {dias.map((dia, index) => (
           <div key={index} style={{ display: "flex", gap: "12px", alignItems: "flex-end", marginBottom: "16px" }}>
             <div className="sigsam-field" style={{ flex: 2 }}>
-              <label>Día de la semana</label>
+              <label>{index === 0 ? "Primer día" : "Segundo día"}</label>
               <select 
                 value={dia.diaSemana} 
                 onChange={(e) => handleChangeDia(index, "diaSemana", Number(e.target.value))}
@@ -150,29 +205,8 @@ export function MedicoDisponibilidadView() {
                 required
               />
             </div>
-            {dias.length > 1 && (
-              <button 
-                type="button" 
-                onClick={() => handleRemoverDia(index)}
-                className="sigsam-btn ghost small"
-                style={{ marginBottom: "8px", color: "#d93a3a" }}
-              >
-                Quitar
-              </button>
-            )}
           </div>
         ))}
-
-        {dias.length < 2 && (
-          <button 
-            type="button" 
-            onClick={handleAgregarDia}
-            className="sigsam-btn secondary small"
-            style={{ marginBottom: "24px" }}
-          >
-            + Agregar segundo día
-          </button>
-        )}
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
           <button type="submit" className="sigsam-btn" disabled={isPending}>
@@ -180,6 +214,8 @@ export function MedicoDisponibilidadView() {
           </button>
         </div>
       </form>
+
+      <DiasPublicados key={`${mes}-${anio}-${versionLista}`} mes={mes} anio={anio} />
     </div>
   );
 }
