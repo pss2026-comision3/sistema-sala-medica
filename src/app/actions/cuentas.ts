@@ -14,10 +14,20 @@ import { Rol } from "@/generated/prisma/client";
  * Este archivo contiene acciones del lado del servidor relacionadas con la creacion de cuentas internas.
  */
 
+/** Lo que se escribió en el formulario de alta, para no perderlo si hay un error. */
+export type ValoresCuentaPersonal = {
+  nombre: string;
+  apellido: string;
+  email: string;
+  rol: string;
+  especialidadId: string;
+};
+
 export type FormState = {
   success: boolean;
   message?: string;
   errors?: Record<string, string[]>;
+  valores?: ValoresCuentaPersonal;
 };
 
 export async function crearCuentaPersonal(
@@ -30,10 +40,20 @@ export async function crearCuentaPersonal(
   const claveTemporal = "password123";
 
   const datosForm = {
-    nombreCompleto: formData.get("nombreCompleto") as string,
+    nombre: (formData.get("nombre") as string) ?? "",
+    apellido: (formData.get("apellido") as string) ?? "",
     email: formData.get("email") as string,
     rol: formData.get("rol") as string,
     especialidadId: (formData.get("especialidadId") as string) || undefined,
+  };
+
+  // Se devuelven en cada error para que el formulario no se vacíe.
+  const valores: ValoresCuentaPersonal = {
+    nombre: datosForm.nombre,
+    apellido: datosForm.apellido,
+    email: datosForm.email ?? "",
+    rol: datosForm.rol ?? "",
+    especialidadId: datosForm.especialidadId ?? "",
   };
 
   const validacion = esquemaCuentaPersonal.safeParse(datosForm);
@@ -43,10 +63,13 @@ export async function crearCuentaPersonal(
       success: false,
       errors: validacion.error.flatten().fieldErrors,
       message: "Hay errores en el formulario. Revisalos por favor.",
+      valores,
     };
   }
 
-  const { nombreCompleto, email, rol, especialidadId } = validacion.data;
+  const { nombre, apellido, email, rol, especialidadId } = validacion.data;
+  // Mismo formato que el alta de pacientes: "Nombre Apellido" en persona.nombre_completo.
+  const nombreCompleto = `${nombre} ${apellido}`;
 
   const passwordHash = await bcrypt.hash(claveTemporal, 10);
   const emailNormalizado = email.toLowerCase();
@@ -97,6 +120,7 @@ export async function crearCuentaPersonal(
         success: false,
         message: "Ese correo electrónico ya está registrado en el sistema.",
         errors: { email: ["El email ya está en uso"] },
+        valores,
       };
     }
 
@@ -104,6 +128,7 @@ export async function crearCuentaPersonal(
     return {
       success: false,
       message: "Ocurrió un error interno al intentar guardar la cuenta.",
+      valores,
     };
   }
 
