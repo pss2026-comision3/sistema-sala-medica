@@ -129,7 +129,10 @@ export async function desactivarCuentaPersonal(
   if (!validacion.success) {
     return {
       success: false,
-      errors: validacion.error.flatten().fieldErrors,
+      errors: {
+        ...validacion.error.flatten().fieldErrors,
+        usuarioId: [datosForm.usuarioId],
+      },
       message: "Revisá los datos ingresados.",
     };
   }
@@ -148,13 +151,17 @@ export async function desactivarCuentaPersonal(
         throw new Error("NO_EXISTE");
       }
 
+      const motivosBloqueo: string[] = [];
+
       // CA2: Evitar borrar el último administrador activo
       if (usuario.rol === "ADMIN") {
         const adminsActivos = await tx.usuario.count({
           where: { rol: "ADMIN", activo: true },
         });
         if (adminsActivos <= 1) {
-          throw new Error("ULTIMO_ADMIN");
+          motivosBloqueo.push(
+            "No podés desactivar la última cuenta Administrador activa.",
+          );
         }
       }
 
@@ -172,7 +179,9 @@ export async function desactivarCuentaPersonal(
           const idsTurnos = turnosPendientes
             .map((t) => t.id.toString())
             .join(", ");
-          throw new Error(`MEDICO_CON_TURNOS|${idsTurnos}`);
+          motivosBloqueo.push(
+            `El médico tiene turnos pendientes de resolución (IDs: ${idsTurnos}).`,
+          );
         }
       }
 
@@ -191,7 +200,9 @@ export async function desactivarCuentaPersonal(
             },
           });
           if (vacunasPendientes > 0) {
-            throw new Error("ULTIMO_ENFERMERO_CON_TURNOS");
+            motivosBloqueo.push(
+              "Es el único personal de enfermería y hay vacunas pendientes.",
+            );
           }
         }
       }
@@ -202,7 +213,9 @@ export async function desactivarCuentaPersonal(
       });
       if (tutorados.length > 0) {
         const nombresTutorados = tutorados.map((t) => t.dni).join(", ");
-        throw new Error(`ES_TUTOR|${nombresTutorados}`);
+        motivosBloqueo.push(
+          `Es tutor de los pacientes con DNI: ${nombresTutorados}. Reasignalos primero.`,
+        );
       }
 
       // Verificamos si tiene turnos futuros
@@ -220,7 +233,13 @@ export async function desactivarCuentaPersonal(
         const idsTurnos = turnosFuturosPaciente
           .map((t) => t.id.toString())
           .join(", ");
-        throw new Error(`PACIENTE_CON_TURNOS|${idsTurnos}`);
+        motivosBloqueo.push(
+          `El paciente tiene turnos futuros confirmados (IDs: ${idsTurnos}). Cancelalos antes de desactivar.`,
+        );
+      }
+
+      if (motivosBloqueo.length > 0) {
+        throw new Error(`BLOQUEO_MULTIPLE|${JSON.stringify(motivosBloqueo)}`);
       }
 
       await tx.usuario.update({
@@ -254,43 +273,35 @@ export async function desactivarCuentaPersonal(
     });
   } catch (error: any) {
     const msg = error.message;
-    if (msg === "ULTIMO_ADMIN")
-      return {
-        success: false,
-        message: "No podés desactivar la última cuenta Administrador activa.",
-      };
-    if (msg.startsWith("MEDICO_CON_TURNOS")) {
-      const turnos = msg.split("|")[1];
-      return {
-        success: false,
-        message: `El médico tiene turnos pendientes de resolución: ${turnos}`,
-      };
-    }
-    if (msg === "ULTIMO_ENFERMERO_CON_TURNOS")
-      return {
-        success: false,
-        message:
-          "No podés desactivarlo: es el único personal de enfermería y hay vacunas pendientes.",
-      };
-    if (msg.startsWith("ES_TUTOR")) {
-      const dnis = msg.split("|")[1];
-      return {
-        success: false,
-        message: `No se puede desactivar porque es tutor de los DNI: ${dnis}. Reasignalos primero.`,
-      };
-    }
-    if (msg.startsWith("PACIENTE_CON_TURNOS")) {
-      const turnos = msg.split("|")[1];
-      return {
-        success: false,
-        message: `El paciente tiene turnos futuros confirmados: ${turnos}. Cancelalos antes de desactivar.`,
-      };
-    }
-    if (msg === "NO_EXISTE")
+
+    if (msg === "NO_EXISTE") {
       return {
         success: false,
         message: "La cuenta no existe o ya estaba desactivada.",
       };
+    }
+
+    if (msg?.startsWith("BLOQUEO_MULTIPLE|")) {
+      const arrayString = msg.split("|")[1];
+      const motivos: string[] = JSON.parse(arrayString);
+
+      return {
+        success: false,
+        message: "Revisá los siguientes bloqueos:",
+        errors: {
+          bloqueos: motivos,
+          usuarioId: [usuarioId],
+        },
+      };
+    }
+
+    if (msg === "NO_EXISTE") {
+      return {
+        success: false,
+        message: "La cuenta no existe o ya estaba desactivada.",
+        errors: { usuarioId: [usuarioId] },
+      };
+    }
 
     console.error("Error al desactivar cuenta:", error);
     return {
