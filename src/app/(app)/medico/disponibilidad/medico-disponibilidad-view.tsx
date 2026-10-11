@@ -89,6 +89,14 @@ export function MedicoDisponibilidadView() {
       return;
     }
 
+    // NUEVA VALIDACIÓN: Desde debe ser menor a Hasta
+    for (const dia of dias) {
+      if (dia.horaDesde >= dia.horaHasta) {
+        setErrorAccion(`Error en el día ${DIAS_SEMANA.find(d => d.valor === dia.diaSemana)?.label}: La hora 'Desde' debe ser anterior a la hora 'Hasta'.`);
+        return;
+      }
+    }
+
     startTransition(async () => {
       const res = await publicarDisponibilidadMensual({ mes, anio, dias });
       if (res.error) {
@@ -131,11 +139,16 @@ export function MedicoDisponibilidadView() {
           <div className="sigsam-field" style={{ flex: 1 }}>
             <label htmlFor="mes">Mes</label>
             <select id="mes" value={mes} onChange={(e) => setMes(Number(e.target.value))} required>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>
-                  {new Date(0, m - 1).toLocaleString('es-AR', { month: 'long' })}
-                </option>
-              ))}
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+                // Si el año elegido es el actual, deshabilitar meses anteriores al mes actual
+                const isPasado = anio === hoy.getFullYear() && m < (hoy.getMonth() + 1);
+                
+                return (
+                  <option key={m} value={m} disabled={isPasado}>
+                    {new Date(0, m - 1).toLocaleString('es-AR', { month: 'long' })}
+                  </option>
+                );
+              })}
             </select>
           </div>
           <div className="sigsam-field" style={{ flex: 1 }}>
