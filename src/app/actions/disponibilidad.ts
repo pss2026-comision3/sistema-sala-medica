@@ -172,8 +172,9 @@ export async function publicarDisponibilidadMensual(input: {
     };
   }
 
-  // 6. CA2: no superponerse con otro intervalo del médico (y CA1: un solo intervalo por día).
-  //    Repetir exactamente el mismo horario no es un error: se ignora (CA3, no duplica).
+  // 6. CA2: no superponerse con otro intervalo del médico (y CA1: un solo intervalo continuo por día).
+  //    Si el médico ya tiene *cualquier* horario publicado en uno de los días que intenta publicar,
+  //    se cancela TODA la operación y se le avisa, para que vaya a editar el día específico.
   const existentes = await prisma.disponibilidad.findMany({
     where: {
       profesionalId,
@@ -183,35 +184,32 @@ export async function publicarDisponibilidadMensual(input: {
   });
 
   const conflictos: string[] = [];
-  const nuevas: typeof candidatas = [];
-  let yaPublicadas = 0;
+  
   for (const c of candidatas) {
     const delDia = existentes.filter((e) => e.fecha.toISOString().slice(0, 10) === c.fecha);
-    if (delDia.length === 0) {
-      nuevas.push(c);
-      continue;
-    }
-    const igual = delDia.some(
-      (e) => minutosDeTime(e.horaDesde) === c.desde && minutosDeTime(e.horaHasta) === c.hasta,
-    );
-    if (igual) {
-      yaPublicadas++;
-    } else {
+    
+    // Si ya existe cualquier registro para ese día, es un conflicto.
+    if (delDia.length > 0) {
       const otro = delDia[0];
       conflictos.push(
-        `${fechaLegible(c.fecha)} (ya tiene ${aHora(minutosDeTime(otro.horaDesde))} a ${aHora(minutosDeTime(otro.horaHasta))})`,
+        `${fechaLegible(c.fecha)} (ya tiene publicado de ${aHora(minutosDeTime(otro.horaDesde))} a ${aHora(minutosDeTime(otro.horaHasta))})`,
       );
     }
   }
 
+  // Si hay al menos un conflicto, abortamos TODO y devolvemos error (cartel rojo)
   if (conflictos.length > 0) {
     const muestra = conflictos.slice(0, 5).join(", ");
-    const resto = conflictos.length > 5 ? ` y ${conflictos.length - 5} más` : "";
+    const resto = conflictos.length > 5 ? ` y ${conflictos.length - 5} fechas más` : "";
     return {
       error:
-        `No se publicó nada: estas fechas ya tienen otro horario publicado y se superpondrían: ${muestra}${resto}.`,
+        `Operación cancelada: Estás intentando publicar en días que ya tienen agenda. Por favor, editá los siguientes días desde la lista de abajo: ${muestra}${resto}.`,
     };
   }
+
+  // Si llegamos acá, es porque NINGÚN día de los propuestos tiene agenda previa.
+  // Así que todas las candidatas son 'nuevas' válidas.
+  const nuevas: typeof candidatas = candidatas;
 
   // 7. CA1 / CA4: ninguna semana puede quedar con más de 2 días de atención.
   //    Al cambiar los días de la semana de un mes ya publicado, el médico quita
