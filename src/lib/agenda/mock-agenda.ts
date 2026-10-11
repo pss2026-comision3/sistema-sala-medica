@@ -57,7 +57,14 @@ function horaDesdeMinutos(minutos: number): string {
 }
 
 function semillaMedico(medicoId: string): number {
-  return [...medicoId].reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  // Genera un número (hash) con mucha variación para que 
+  // "mock-1" y "mock-2" den agendas totalmente distintas.
+  let hash = 0;
+  for (let i = 0; i < medicoId.length; i++) {
+    hash = (hash << 5) - hash + medicoId.charCodeAt(i);
+    hash |= 0; // Convierte a entero de 32 bits
+  }
+  return Math.abs(hash); // Asegura que el resultado sea siempre positivo
 }
 
 /** [MOCK-US010] Genera jornadas y turnos determinísticos para un médico. */
