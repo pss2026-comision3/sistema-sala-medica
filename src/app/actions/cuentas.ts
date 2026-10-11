@@ -9,7 +9,7 @@ import { requireRole } from "@/lib/auth/guards";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { Rol } from "@/generated/prisma/client";
-
+import { revalidatePath } from "next/cache";
 /*
  * Este archivo contiene acciones del lado del servidor relacionadas con la creacion de cuentas internas.
  */
@@ -338,5 +338,70 @@ export async function desactivarCuentaPersonal(
   return {
     success: true,
     message: "La cuenta fue desactivada y sus sesiones cerradas.",
+  };
+}
+
+export async function reactivarCuentaPersonal(
+  prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const admin = await requireRole("ADMIN");
+  const usuarioId = formData.get("usuarioId") as string;
+
+  if (!usuarioId) {
+    return {
+      success: false,
+      message: "No se proporcionó el ID de usuario.",
+    };
+  }
+
+  const idObjetivo = BigInt(usuarioId);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const usuario = await tx.usuario.findUnique({
+        where: { id: idObjetivo },
+      });
+
+      if (!usuario || usuario.activo) {
+        throw new Error("ESTADO_INVALIDO");
+      }
+
+      await tx.usuario.update({
+        where: { id: idObjetivo },
+        data: { activo: true },
+      });
+
+      await tx.auditoria.create({
+        data: {
+          actorId: BigInt(admin.usuarioId),
+          accion: "Reactivación de cuenta",
+          entidad: "usuario",
+          referenciaId: idObjetivo,
+          detalle: "Reactivación manual desde el panel de administración",
+        },
+      });
+    });
+  } catch (error: any) {
+    if (error.message === "ESTADO_INVALIDO") {
+      return {
+        success: false,
+        message: "La cuenta no existe o ya se encuentra activa.",
+      };
+    }
+
+    console.error("Error al reactivar cuenta:", error);
+    return {
+      success: false,
+      message: "Ocurrió un error interno al intentar reactivar la cuenta.",
+    };
+  }
+
+  // Refresca los datos en la página actual
+  revalidatePath("/admin"); 
+
+  return {
+    success: true,
+    message: "La cuenta fue reactivada exitosamente.",
   };
 }
