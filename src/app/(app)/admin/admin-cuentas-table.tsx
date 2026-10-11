@@ -8,7 +8,10 @@ import {
   restablecerClavePorAdmin,
   type ResultadoRestablecimiento,
 } from "@/app/actions/auth";
-import { desactivarCuentaPersonal } from "@/app/actions/cuentas";
+import { 
+  desactivarCuentaPersonal, 
+  reactivarCuentaPersonal // <- NUEVO: Importamos la acción de reactivar
+} from "@/app/actions/cuentas";
 
 export type CuentaItem = {
   id: string;
@@ -29,11 +32,17 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
     null,
   );
 
-  // Estados para el nuevo modal de desactivación
+  // Estados para el modal de desactivación
   const [cuentaParaDesactivar, setCuentaParaDesactivar] =
     useState<CuentaItem | null>(null);
   const [stateDesactivar, actionDesactivar, isPendingDesactivar] =
     useActionState(desactivarCuentaPersonal, { success: false });
+
+  // NUEVO: Estados para el modal de reactivación
+  const [cuentaParaReactivar, setCuentaParaReactivar] =
+    useState<CuentaItem | null>(null);
+  const [stateReactivar, actionReactivar, isPendingReactivar] =
+    useActionState(reactivarCuentaPersonal, { success: false });
 
   const [resultado, setResultado] =
     useState<ResultadoRestablecimiento["credenciales"]>(undefined);
@@ -86,6 +95,14 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
   function handleCerrarModalDesactivar() {
     setCuentaParaDesactivar(null);
     if (stateDesactivar.success) {
+      window.location.reload();
+    }
+  }
+
+  // NUEVO: Cerrar el modal de reactivar y recargar si fue exitoso
+  function handleCerrarModalReactivar() {
+    setCuentaParaReactivar(null);
+    if (stateReactivar.success) {
       window.location.reload();
     }
   }
@@ -324,12 +341,21 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                             )}
                           </div>
                         ) : (
-                          <span
-                            className="sigsam-muted"
-                            style={{ fontSize: "13px" }}
+                          // NUEVO: Reemplazamos "Sin acciones" por el botón Reactivar
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                            }}
                           >
-                            Sin acciones
-                          </span>
+                            <button
+                              type="button"
+                              onClick={() => setCuentaParaReactivar(cuenta)}
+                              className="sigsam-btn small"
+                            >
+                              Reactivar
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -487,6 +513,113 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                     {isPendingDesactivar
                       ? "Desactivando…"
                       : "Confirmar desactivación"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* NUEVO: Modal / Diálogo para Reactivar Cuenta */}
+      {cuentaParaReactivar && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(16, 42, 49, 0.6)",
+            display: "grid",
+            placeItems: "center",
+            padding: "16px",
+            zIndex: 50,
+          }}
+        >
+          <div
+            className="sigsam-card"
+            style={{
+              maxWidth: "480px",
+              width: "100%",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div className="sigsam-eyebrow">Restaurar acceso</div>
+            <h2 style={{ fontSize: "20px" }}>Reactivar cuenta</h2>
+            <p
+              className="sigsam-muted"
+              style={{ marginTop: "8px", marginBottom: "16px" }}
+            >
+              ¿Estás seguro que querés reactivar el acceso de{" "}
+              <strong>{cuentaParaReactivar.nombre}</strong>? La cuenta volverá a
+              estar operativa en el sistema de forma inmediata.
+            </p>
+
+            {!stateReactivar.success && stateReactivar.message && (
+              <div
+                className="sigsam-notice error"
+                style={{ marginBottom: "16px" }}
+              >
+                <span className="sigsam-notice-symbol" aria-hidden="true">
+                  !
+                </span>
+                <div>
+                  <strong>Error al reactivar</strong>
+                  <p style={{ marginTop: "4px", fontSize: "14px" }}>
+                    {stateReactivar.message}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {stateReactivar.success ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginTop: "24px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleCerrarModalReactivar}
+                  className="sigsam-btn"
+                >
+                  Aceptar y cerrar
+                </button>
+              </div>
+            ) : (
+              <form action={actionReactivar}>
+                <input
+                  type="hidden"
+                  name="usuarioId"
+                  value={cuentaParaReactivar.id}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "12px",
+                    marginTop: "20px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleCerrarModalReactivar}
+                    className="sigsam-btn-ghost"
+                    disabled={isPendingReactivar}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="sigsam-btn"
+                    disabled={isPendingReactivar}
+                  >
+                    {isPendingReactivar
+                      ? "Reactivando…"
+                      : "Confirmar reactivación"}
                   </button>
                 </div>
               </form>
