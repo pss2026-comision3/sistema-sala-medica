@@ -47,7 +47,21 @@ export default async function AdminInicioPage() {
         </div>
       </div>
 
+      {/* US-004: crear cuentas de personal, primera sección del inicio. */}
       <section className="sigsam-card" style={{ marginBottom: "28px" }}>
+        <header className="sigsam-card-header" style={{ marginBottom: "20px" }}>
+          <div>
+            <h2>Crear cuenta de personal</h2>
+            <p className="sigsam-muted">
+              La cuenta recibe una clave temporal y debe cambiarla al ingresar.
+            </p>
+          </div>
+        </header>
+
+        <NuevaCuentaForm especialidades={especialidadesFormat} />
+      </section>
+
+      <section className="sigsam-card">
         <header className="sigsam-card-header" style={{ marginBottom: "20px" }}>
           <div>
             <h2>Gestión de cuentas y recuperación de acceso</h2>
@@ -59,20 +73,6 @@ export default async function AdminInicioPage() {
         </header>
 
         <AdminCuentasTable cuentasIniciales={cuentas} />
-      </section>
-
-      {/* Nueva sección con el formulario, justo debajo de la tabla */}
-      <section className="sigsam-card">
-        <header className="sigsam-card-header" style={{ marginBottom: "20px" }}>
-          <div>
-            <h2>Crear cuenta de personal</h2>
-            <p className="sigsam-muted">
-              La cuenta recibe una clave temporal y debe cambiarla al ingresar.
-            </p>
-          </div>
-        </header>
-
-        <NuevaCuentaForm especialidades={especialidadesFormat} />
       </section>
     </>
   );

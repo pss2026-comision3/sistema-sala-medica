@@ -375,21 +375,44 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
               conservarán.
             </p>
 
-            {/* Mostramos el mensaje de error del Server Action acá mismo */}
-            {!stateDesactivar.success && stateDesactivar.message && (
-              <div
-                className="sigsam-notice error"
-                style={{ marginBottom: "16px" }}
-              >
-                <span className="sigsam-notice-symbol" aria-hidden="true">
-                  !
-                </span>
-                <div>
-                  <strong>No se puede desactivar</strong>
-                  <p>{stateDesactivar.message}</p>
+            {!stateDesactivar.success &&
+              stateDesactivar.message &&
+              stateDesactivar.errors?.usuarioId?.[0] ===
+                cuentaParaDesactivar.id && (
+                <div
+                  className="sigsam-notice error"
+                  style={{ marginBottom: "16px" }}
+                >
+                  <span className="sigsam-notice-symbol" aria-hidden="true">
+                    !
+                  </span>
+                  <div>
+                    <strong>No se puede desactivar</strong>
+                    <p style={{ marginTop: "4px", fontSize: "14px" }}>
+                      {stateDesactivar.message}
+                    </p>
+
+                    {stateDesactivar.errors?.bloqueos && (
+                      <ul
+                        style={{
+                          marginTop: "8px",
+                          paddingLeft: "20px",
+                          fontSize: "14px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
+                        {stateDesactivar.errors.bloqueos.map((motivo, i) => (
+                          <li key={i} style={{ lineHeight: "1.4" }}>
+                            {motivo}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {stateDesactivar.success ? (
               <div
