@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db/prisma";
 import { inicioTurno, puedeCancelarTurno } from "@/lib/agenda/reglas";
 import { AUDITORIA, MSG } from "@/lib/auth/constants";
 import { requireRole } from "@/lib/auth/guards";
+import {
+  anularRecordatoriosPendientes,
+  crearAvisoCancelacion,
+} from "@/lib/notificaciones/avisos";
 import { cargarBeneficiarios } from "@/lib/turnos/buscar-horarios";
 
 export async function cancelarTurnoPaciente(input: {
@@ -12,24 +16,41 @@ export async function cancelarTurnoPaciente(input: {
 }): Promise<{ exito: true; mensaje: string } | { error: string }> {
   const sesion = await requireRole("PACIENTE");
   const usuarioId = BigInt(sesion.usuarioId);
-  let turnoIdBig: bigint;
+
+  let turnoId: bigint;
   try {
-    turnoIdBig = BigInt(input.turnoId);
+    turnoId = BigInt(input.turnoId);
   } catch {
     return { error: MSG.CANCELACION_NO_ENCONTRADO };
   }
   const ahora = new Date();
 
   const turno = await prisma.turno.findUnique({
-    where: { id: turnoIdBig },
+    where: { id: turnoId },
     include: {
-      disponibilidad: { select: { fecha: true } },
+      paciente: { select: { persona: { select: { nombreCompleto: true } } } },
+      vacuna: { select: { nombre: true } },
+      disponibilidad: {
+        select: {
+          fecha: true,
+          estado: true,
+          profesional: {
+            select: {
+              persona: { select: { nombreCompleto: true } },
+              medico: {
+                select: { especialidad: { select: { nombre: true } } },
+              },
+            },
+          },
+        },
+      },
     },
   });
   if (!turno) {
     return { error: MSG.CANCELACION_NO_ENCONTRADO };
   }
 
+  // CA1: la cita debe pertenecer al titular o a un menor a cargo vigente.
   const beneficiarios = await cargarBeneficiarios(usuarioId, ahora);
   const pertenece = beneficiarios.some(
     (b) => b.id === turno.pacienteId.toString(),
@@ -38,30 +59,64 @@ export async function cancelarTurnoPaciente(input: {
     return { error: MSG.CITA_SIN_ACCESO };
   }
 
-  if (turno.estado !== "CONFIRMADO") {
-    return { error: MSG.CANCELACION_ESTADO };
-  }
-
   const fecha = turno.disponibilidad.fecha.toISOString().slice(0, 10);
   const hora = turno.hora.toISOString().slice(11, 16);
   const inicio = inicioTurno(fecha, hora);
-  const puede = puedeCancelarTurno({ estado: turno.estado, inicio }, ahora);
+
+  // CA1: cita confirmada, sin atención registrada y con 24 horas o más.
+  const puede = puedeCancelarTurno(
+    { estado: turno.estado, inicio, resultado: turno.resultado },
+    ahora,
+  );
   if (!puede.puede) {
     return { error: puede.motivo };
   }
 
+  const motivo = input.motivo?.trim() || "Cancelación por el paciente";
+  const beneficiarioNombre = turno.paciente.persona.nombreCompleto;
+  const profesional = turno.disponibilidad.profesional.persona.nombreCompleto;
+  const prestacion =
+    turno.tipo === "VACUNACION"
+      ? (turno.vacuna?.nombre ?? "Vacunación")
+      : (turno.disponibilidad.profesional.medico?.especialidad?.nombre ??
+        "Consulta médica");
+  const jornadaSuspendida = turno.disponibilidad.estado === "SUSPENDIDA";
+
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.turno.update({
-        where: { id: turnoIdBig },
+      // Guarda contra carreras: solo cancela si sigue confirmada y sin resultado.
+      const { count } = await tx.turno.updateMany({
+        where: {
+          id: turnoId,
+          estado: "CONFIRMADO",
+          resultado: "SIN_REGISTRAR",
+        },
         data: {
           estado: "CANCELADO",
           canceladoEn: ahora,
           canceladoPor: usuarioId,
-          motivoCancelacion: input.motivo || "Cancelación por el paciente",
+          motivoCancelacion: motivo,
           origenCancelacion: "paciente",
           retenidoHasta: null,
         },
+      });
+      if (count === 0) {
+        throw new Error(MSG.CANCELACION_ESTADO);
+      }
+
+      // CA4: se anula el recordatorio pendiente y se notifica la cancelación.
+      await anularRecordatoriosPendientes(tx, turnoId, ahora);
+      await crearAvisoCancelacion(tx, {
+        turnoId,
+        destinatarioId: usuarioId,
+        emailDestino: sesion.email,
+        cuerpo: [
+          `Se canceló el turno de ${beneficiarioNombre}.`,
+          `Prestación: ${prestacion}.`,
+          `Fecha: ${fecha} a las ${hora} hs.`,
+          `Profesional: ${profesional}.`,
+        ].join(" "),
+        ahora,
       });
 
       await tx.auditoria.create({
@@ -69,10 +124,12 @@ export async function cancelarTurnoPaciente(input: {
           actorId: usuarioId,
           accion: AUDITORIA.CANCELACION_TURNO_PACIENTE,
           entidad: "turno",
-          referenciaId: turnoIdBig,
+          referenciaId: turnoId,
           detalle: JSON.stringify({
             beneficiarioId: turno.pacienteId.toString(),
-            motivo: input.motivo || "cancelacion_usuario",
+            motivo,
+            resultadoPrevio: turno.resultado,
+            jornadaSuspendida,
           }),
         },
       });
@@ -80,6 +137,9 @@ export async function cancelarTurnoPaciente(input: {
     return { exito: true, mensaje: MSG.CANCELACION_EXITO };
   } catch (error) {
     console.error("Error cancelando turno:", error);
+    if (error instanceof Error && error.message === MSG.CANCELACION_ESTADO) {
+      return { error: MSG.CANCELACION_ESTADO };
+    }
     return { error: "Error interno al cancelar el turno." };
   }
 }

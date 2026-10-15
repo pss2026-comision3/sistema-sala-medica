@@ -89,10 +89,12 @@ export const MSG = {
   ALTA_CONFLICTO:
     "No se pudo completar la alta: el correo ya está en uso y el registro elegido ya tiene una cuenta.",
   CANCELACION_PLAZO:
-    "Este turno no se puede cancelar: faltan menos de 24 horas para el inicio.",
+    "Faltan menos de 24 horas para el inicio. Contactá a la sala para gestionarla presencialmente.",
   CANCELACION_NO_ENCONTRADO:
     "El turno solicitado no existe o ya no está disponible para cancelar.",
   CANCELACION_ESTADO: "Solo se pueden cancelar citas confirmadas.",
+  CANCELACION_RESULTADO:
+    "La cita ya tiene un resultado de atención registrado y no puede cancelarse.",
   CANCELACION_EXITO: "Turno cancelado con éxito.",
   CITA_SIN_ACCESO: "No tenés acceso a esta cita.",
 } as const;
@@ -110,4 +112,6 @@ export const AUDITORIA = {
   CONFIRMACION_TURNO: "Confirmación de turno",
   CANCELACION_EXPIRACION: "Cancelación por expiración de retención",
   CANCELACION_TURNO_PACIENTE: "Cancelación de turno por paciente",
+  RESULTADO_AUSENCIA_MEDICA: "Registro de ausencia médica",
+  RESULTADO_AUSENCIA_VACUNACION: "Registro de ausencia en vacunatorio",
 } as const;

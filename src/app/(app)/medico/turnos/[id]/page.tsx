@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ETIQUETA_ESTADO_CITA } from "@/lib/agenda/etiquetas";
-import { etiquetaFecha, evaluarInicioAtencion } from "@/lib/agenda/reglas";
+import { RegistrarAusenciaButton } from "@/components/agenda/RegistrarAusenciaButton";
+import { ETIQUETA_ESTADO_CITA, ETIQUETA_RESULTADO_ATENCION } from "@/lib/agenda/etiquetas";
+import {
+  etiquetaFecha,
+  evaluarInicioAtencion,
+  evaluarRegistroAusencia,
+} from "@/lib/agenda/reglas";
 import { obtenerTurnoMedico } from "@/lib/agenda/servicio-agenda";
 import { requireRole } from "@/lib/auth/guards";
 
@@ -22,6 +27,7 @@ export default async function FichaCitaPage(
   const { turno, jornada } = encontrado;
   const confirmada = turno.estado === "CONFIRMADO";
   const inicio = evaluarInicioAtencion(turno, jornada);
+  const ausencia = evaluarRegistroAusencia(turno, jornada);
 
   return (
     <>
@@ -81,6 +87,21 @@ export default async function FichaCitaPage(
             <h2>Notas clínicas</h2>
             {/* [MOCK-US010] Las notas clínicas se implementan en US-017. */}
             <p className="sigsam-muted">Disponibles al implementar US-017.</p>
+          </section>
+
+          <section className="sigsam-card" style={{ marginTop: "16px" }}>
+            <h2>Resultado de atención</h2>
+            <p>
+              <strong>Resultado actual:</strong>{" "}
+              <span className="sigsam-pill">
+                {ETIQUETA_RESULTADO_ATENCION[turno.resultado]}
+              </span>
+            </p>
+            <RegistrarAusenciaButton
+              turnoId={turno.id}
+              puede={ausencia.puede}
+              motivo={ausencia.motivo}
+            />
           </section>
 
           <section className="sigsam-card" style={{ marginTop: "16px" }}>

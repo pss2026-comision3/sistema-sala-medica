@@ -23,6 +23,8 @@ export type TurnoLista = {
   tipo: "CONSULTA" | "VACUNACION";
   prestacion: string;
   profesional: string;
+  /// CA2 (US-014): beneficiario de la cita que se muestra antes de cancelar.
+  beneficiarioNombre: string;
   especialidadId: string | null;
   vacunaId: string | null;
   estado: "RESERVADO" | "CONFIRMADO" | "CANCELADO";
@@ -83,6 +85,7 @@ function serializarTurno(
     resultado: "SIN_REGISTRAR" | "ATENDIDO" | "AUSENTE";
     modalidad: "PARTICULAR" | "CON_COBERTURA";
     reprogramadoDesdeId: bigint | null;
+    paciente: { persona: { nombreCompleto: string } };
     disponibilidad: {
       fecha: Date;
       estado: "PUBLICADA" | "SUSPENDIDA";
@@ -106,7 +109,10 @@ function serializarTurno(
   const pendienteDeResolver =
     turno.estado === "CONFIRMADO" &&
     turno.disponibilidad.estado === "SUSPENDIDA";
-  const cancel = puedeCancelarTurno({ estado: turno.estado, inicio }, ahora);
+  const cancel = puedeCancelarTurno(
+    { estado: turno.estado, inicio, resultado: turno.resultado },
+    ahora,
+  );
 
   const situacionCobro: SituacionCobro =
     turno.modalidad === "CON_COBERTURA"
@@ -128,6 +134,7 @@ function serializarTurno(
         ? (turno.vacuna?.nombre ?? "Vacunación")
         : (especialidad?.nombre ?? "Consulta médica"),
     profesional: turno.disponibilidad.profesional.persona.nombreCompleto,
+    beneficiarioNombre: turno.paciente.persona.nombreCompleto,
     estado: turno.estado,
     estadoEtiqueta: ETIQUETA_ESTADO_CITA[turno.estado],
     resultado: turno.resultado,
@@ -158,6 +165,7 @@ function serializarTurno(
 }
 
 const INCLUDE_TURNO = {
+  paciente: { select: { persona: { select: { nombreCompleto: true } } } },
   disponibilidad: {
     select: {
       fecha: true,

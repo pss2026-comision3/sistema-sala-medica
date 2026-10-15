@@ -257,16 +257,13 @@ export async function publicarDisponibilidadMensual(input: {
   if (nuevas.length === 0) {
     return {
       exito: true,
-      mensaje:
-        yaPublicadas > 0
-          ? `No se crearon fechas nuevas para ${mes}/${anio}: ya estaban publicadas con estos horarios.${avisoSalteadas}`
-          : `No se crearon fechas nuevas para ${mes}/${anio}.${avisoSalteadas}`,
+      mensaje: `No se crearon fechas nuevas para ${mes}/${anio}.${avisoSalteadas}`,
     };
   }
 
   try {
     // 8. Inserción masiva. skipDuplicates cubre una publicación simultánea del mismo bloque.
-    await prisma.disponibilidad.createMany({
+    const resultado = await prisma.disponibilidad.createMany({
       data: nuevas.map((c) => ({
         profesionalId,
         fecha: new Date(`${c.fecha}T00:00:00Z`),
@@ -278,7 +275,9 @@ export async function publicarDisponibilidadMensual(input: {
     });
 
     revalidatePath("/medico/disponibilidad");
-    const extra = yaPublicadas > 0 ? ` (${yaPublicadas} ya estaban publicadas)` : "";
+    const yaPublicadas = nuevas.length - resultado.count;
+    const extra =
+      yaPublicadas > 0 ? ` (${yaPublicadas} ya estaban publicadas)` : "";
     return {
       exito: true,
       mensaje: `Disponibilidad de ${mes}/${anio} publicada: ${nuevas.length} fechas nuevas${extra}.${avisoSalteadas}`,
