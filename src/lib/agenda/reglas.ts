@@ -144,6 +144,18 @@ export function evaluarInicioAtencion(
       motivo: `Todavía no llegó el horario de inicio (${turno.hora} hs).`,
     };
   }
+  if (turno.resultado === "ATENDIDO") {
+    return {
+      puede: false,
+      motivo: MSG.CONSULTA_YA_ATENDIDA,
+    };
+  }
+  if (turno.resultado === "AUSENTE") {
+    return {
+      puede: false,
+      motivo: MSG.CONSULTA_MARCADA_AUSENTE,
+    };
+  }
   return { puede: true, motivo: "" };
 }
 
