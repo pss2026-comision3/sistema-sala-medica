@@ -161,6 +161,14 @@ small {
   padding: 7px 12px;
   font-size: 14px;
 }
+.sigsam-btn.danger {
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+}
+.sigsam-btn.danger:hover {
+  filter: brightness(0.92);
+}
 .sigsam-btn:disabled {
   background-color: #e5ebec;
   border-color: var(--color-line);

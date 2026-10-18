@@ -15,6 +15,7 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
     { href: "/admin", label: "Inicio" },
     { href: "/admin/pacientes", label: "Pacientes" },
     { href: "/admin/agenda", label: "Agenda" },
+    { href: "/admin/jornadas", label: "Jornadas" },
     { href: "/admin/parametros", label: "Parámetros" },
   ],
   MEDICO: [
