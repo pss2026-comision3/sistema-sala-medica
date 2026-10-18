@@ -1,6 +1,6 @@
 # Plan de implementación — US-SIG-019 Adjuntar documentación a una consulta propia
 
-Este documento especifica la arquitectura, diseño, reglas de negocio y estrategia de pruebas para implementar la historia de usuario **US-SIG-019** en SIGSAM. Sigue estrictamente los estándares de `docs/PLAN-US-001.md`, `docs/PLAN-US-006.md`, `docs/PLAN-US-007.md`, `docs/PLAN-US-013.md` y `docs/PLAN-US-017.md`.
+Este documento especifica la arquitectura, diseño, reglas de negocio y estrategia de pruebas para implementar la historia de usuario **US-SIG-019** en SIGSAM.
 
 > **Estado:** Plan (sin implementación). Rama de trabajo: `feature/us-019-adjuntar-documentacion-consulta` (desde `stage`).
 
