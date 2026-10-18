@@ -113,6 +113,18 @@ export const MSG = {
     "No se puede registrar la consulta: la cita fue marcada como ausente.",
   CONSULTA_SIN_PERMISO:
     "Tu rol no tiene permiso para documentar consultas médicas.",
+  ADJUNTO_NOMBRE_REQUERIDO: "El nombre descriptivo del archivo es obligatorio.",
+  ADJUNTO_NOMBRE_LARGO: "El nombre descriptivo admite hasta 255 caracteres.",
+  ADJUNTO_ARCHIVO_REQUERIDO: "Seleccioná un archivo para adjuntar.",
+  ADJUNTO_TIPO_INVALIDO: "Solo se permiten archivos PDF, JPG o PNG.",
+  ADJUNTO_TAMANO_EXCEDIDO: "El archivo supera los 10 MB permitidos.",
+  ADJUNTO_ARCHIVO_CORRUPTO: "El archivo no coincide con el formato declarado.",
+  ADJUNTO_CONSULTA_NO_DISPONIBLE:
+    "La consulta no existe o no tenés autorización para adjuntar archivos.",
+  ADJUNTO_EXITO: "Documento adjuntado con éxito.",
+  ADJUNTO_ERROR_GUARDADO: "No se pudo guardar el archivo. Intentá nuevamente.",
+  ADJUNTO_SIN_PERMISO:
+    "Tu rol no tiene permiso para adjuntar documentos a consultas.",
 } as const;
 
 export const AUDITORIA = {
@@ -131,4 +143,5 @@ export const AUDITORIA = {
   RESULTADO_AUSENCIA_MEDICA: "Registro de ausencia médica",
   RESULTADO_AUSENCIA_VACUNACION: "Registro de ausencia en vacunatorio",
   REGISTRO_CONSULTA_MEDICA: "Registro de consulta médica",
+  REGISTRO_ADJUNTO_CONSULTA: "Registro de adjunto de consulta",
 } as const;
