@@ -12,11 +12,18 @@ export type MiPaciente = {
 
 export async function obtenerMisPacientes(): Promise<MiPaciente[]> {
   const sesion = await requireRole("PACIENTE");
-  const usuarioId = BigInt(sesion.usuarioId);
+
+  // El paciente se identifica por la persona de la cuenta, no por el id del
+  // usuario (son ids distintos).
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: BigInt(sesion.usuarioId) },
+    select: { personaId: true },
+  });
+  if (!usuario) return [];
 
   // 1. Buscar paciente titular vinculado a este usuario
   const pacienteTitular = await prisma.paciente.findUnique({
-    where: { personaId: usuarioId },
+    where: { personaId: usuario.personaId },
     select: {
       personaId: true,
       dni: true,

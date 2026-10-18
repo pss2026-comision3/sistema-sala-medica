@@ -15,6 +15,29 @@ export type ResultadoReserva =
 
 export type ResultadoConfirmacion = { exito: true } | { error: string };
 
+const MSG_JORNADA_SUSPENDIDA =
+  "La jornada de este turno fue suspendida y ya no admite reservas.";
+
+class ErrorJornadaSuspendida extends Error {}
+
+/**
+ * US-009 CA2: bloquea la fila de la jornada (`SELECT ... FOR UPDATE`) y
+ * verifica que siga publicada. Como la suspensión también actualiza esa fila,
+ * una reserva o confirmación concurrente espera a que termine y ve el estado
+ * definitivo: nunca se crea ni confirma un turno en una jornada suspendida.
+ */
+async function jornadaSiguePublicada(
+  tx: Prisma.TransactionClient,
+  disponibilidadId: bigint,
+): Promise<boolean> {
+  const filas = await tx.$queryRaw<{ estado: string }[]>`
+    SELECT "estado"::text AS "estado"
+    FROM "disponibilidad"
+    WHERE "id" = ${disponibilidadId}
+    FOR UPDATE`;
+  return filas[0]?.estado === "PUBLICADA";
+}
+
 /**
  * Reserva un cupo por 5 minutos (estado RESERVADO).
  * - Verifica que la disponibilidad exista y esté PUBLICADA
@@ -112,6 +135,11 @@ export async function reservarTurnoTemporal(
   try {
     // 7. Transacción: crear turno + auditoría
     const resultado = await prisma.$transaction(async (tx) => {
+      // US-009 CA2: la jornada pudo suspenderse después del chequeo inicial.
+      if (!(await jornadaSiguePublicada(tx, BigInt(disponibilidadId)))) {
+        throw new ErrorJornadaSuspendida(MSG_JORNADA_SUSPENDIDA);
+      }
+
       const turno = await tx.turno.create({
         data: {
           pacienteId: pacienteIdBig,
@@ -151,6 +179,10 @@ export async function reservarTurnoTemporal(
       retenidoHasta,
     };
   } catch (error) {
+    // US-009 CA2: la jornada se suspendió mientras se reservaba.
+    if (error instanceof ErrorJornadaSuspendida) {
+      return { error: error.message };
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
@@ -188,6 +220,8 @@ export async function confirmarReservaDefinitiva(
       estado: true,
       retenidoHasta: true,
       creadoPor: true,
+      disponibilidadId: true, // US-009: para verificar que la jornada siga publicada
+      origenCancelacion: true, // US-009: para explicar una retención liberada
     },
   });
   if (!turno) {
@@ -195,6 +229,14 @@ export async function confirmarReservaDefinitiva(
   }
   if (turno.creadoPor !== usuarioId) {
     return { error: "No tenés permiso para confirmar este turno." };
+  }
+
+  // US-009: la retención fue liberada por la suspensión de la jornada.
+  if (
+    turno.estado === "CANCELADO" &&
+    turno.origenCancelacion === "suspension_jornada"
+  ) {
+    return { error: MSG_JORNADA_SUSPENDIDA };
   }
 
   // 2. Verificar que se pueda confirmar
@@ -209,13 +251,24 @@ export async function confirmarReservaDefinitiva(
   // 3. Confirmar: estado → CONFIRMADO, limpiar retenido_hasta
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.turno.update({
-        where: { id: turnoIdBig },
+      // US-009 CA2: no se confirma en una jornada suspendida.
+      if (!(await jornadaSiguePublicada(tx, turno.disponibilidadId))) {
+        throw new ErrorJornadaSuspendida(MSG_JORNADA_SUSPENDIDA);
+      }
+
+      // Si la suspensión liberó la retención, el turno ya no está RESERVADO.
+      const { count } = await tx.turno.updateMany({
+        where: { id: turnoIdBig, estado: "RESERVADO" },
         data: {
           estado: "CONFIRMADO",
           retenidoHasta: null,
         },
       });
+      if (count === 0) {
+        throw new ErrorJornadaSuspendida(
+          "La retención ya no está vigente. Volvé a buscar un horario.",
+        );
+      }
 
       // Auditar
       await tx.auditoria.create({
@@ -231,6 +284,10 @@ export async function confirmarReservaDefinitiva(
 
     return { exito: true };
   } catch (error) {
+    // US-009 CA2: la jornada se suspendió o la retención se liberó.
+    if (error instanceof ErrorJornadaSuspendida) {
+      return { error: error.message };
+    }
     console.error("Error confirmando turno:", error);
     return { error: "Error interno al confirmar el turno." };
   }
