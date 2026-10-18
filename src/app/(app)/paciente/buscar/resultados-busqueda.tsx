@@ -12,7 +12,6 @@ const horarioClase =
 type Resultado = {
   fechas: string[];
   horariosPorFecha: Record<string, HorarioConsulta[]>;
-  citaMismaEspecialidad: boolean;
   haySuperposiciones: boolean;
 };
 
@@ -136,21 +135,6 @@ export function ResultadosBusqueda({
           </div>
         )}
       </section>
-
-      {resultado.citaMismaEspecialidad && (
-        <div className="sigsam-notice warning" role="status">
-          <span className="sigsam-notice-symbol" aria-hidden="true">
-            !
-          </span>
-          <div>
-            <strong>Ya hay una cita futura de esta especialidad</strong>
-            <p>
-              Revisá los turnos de {beneficiarioNombre} antes de elegir otro
-              horario.
-            </p>
-          </div>
-        </div>
-      )}
 
       {fechaEnCarga ? (
         <HorariosSkeleton

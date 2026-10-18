@@ -4,6 +4,7 @@ import type {
   EstadoTurnoAgenda,
   FiltrosAgenda,
   JornadaAgenda,
+  ResultadoAgenda,
   TurnoAgenda,
 } from "./tipos";
 
@@ -143,23 +144,106 @@ export function evaluarInicioAtencion(
       motivo: `Todavía no llegó el horario de inicio (${turno.hora} hs).`,
     };
   }
+  if (turno.resultado === "ATENDIDO") {
+    return {
+      puede: false,
+      motivo: MSG.CONSULTA_YA_ATENDIDA,
+    };
+  }
+  if (turno.resultado === "AUSENTE") {
+    return {
+      puede: false,
+      motivo: MSG.CONSULTA_MARCADA_AUSENTE,
+    };
+  }
   return { puede: true, motivo: "" };
 }
 
 /**
- * CA4 (US-013): el paciente puede cancelar una cita confirmada cuando faltan
- * 24 horas o más para su inicio. `inicio` es el ISO de `inicioTurno()`.
+ * CA4 (US-013) y CA1 (US-014): el paciente o tutor puede cancelar una cita
+ * confirmada, sin atención registrada, cuando faltan 24 horas o más para su
+ * inicio (plazo inclusive). `inicio` es el ISO de `inicioTurno()`.
  */
 export function puedeCancelarTurno(
-  turno: { estado: EstadoTurnoAgenda; inicio: string },
+  turno: {
+    estado: EstadoTurnoAgenda;
+    inicio: string;
+    resultado: ResultadoAgenda;
+  },
   ahora: Date = new Date(),
 ): { puede: boolean; motivo: string } {
   if (turno.estado !== "CONFIRMADO") {
     return { puede: false, motivo: MSG.CANCELACION_ESTADO };
   }
+  if (turno.resultado !== "SIN_REGISTRAR") {
+    return { puede: false, motivo: MSG.CANCELACION_RESULTADO };
+  }
   const restante = new Date(turno.inicio).getTime() - ahora.getTime();
   if (restante < PLAZO_CANCELACION_MS) {
     return { puede: false, motivo: MSG.CANCELACION_PLAZO };
+  }
+  return { puede: true, motivo: "" };
+}
+
+/** Hora de sala (HH:MM) de un instante absoluto. */
+function horaSala(instante: Date): string {
+  return new Intl.DateTimeFormat("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: ZONA_SALA,
+  }).format(instante);
+}
+
+/** Instante de fin previsto del turno: inicio + duración. */
+export function finTurno(inicio: string, duracionMin: number): Date {
+  return new Date(new Date(inicio).getTime() + duracionMin * 60 * 1000);
+}
+
+/**
+ * CA2, CA3 y CA4 (US-016): la ausencia se registra sobre una cita confirmada,
+ * de jornada no suspendida, sin resultado previo, recién después del fin
+ * previsto del turno. Reutilizada por la pantalla y por la acción de servidor
+ * para que la habilitación del botón y la validación real nunca diverjan.
+ */
+export function evaluarRegistroAusencia(
+  turno: {
+    estado: EstadoTurnoAgenda;
+    resultado: ResultadoAgenda;
+    inicio: string;
+    duracionMin: number;
+  },
+  jornada: JornadaAgenda | undefined,
+  ahora: Date = new Date(),
+): { puede: boolean; motivo: string } {
+  if (turno.estado === "RESERVADO") {
+    return {
+      puede: false,
+      motivo: "Es una retención temporal, no una cita confirmada.",
+    };
+  }
+  if (turno.estado !== "CONFIRMADO") {
+    return { puede: false, motivo: "La cita está cancelada." };
+  }
+  if (jornada?.estado === "SUSPENDIDA") {
+    return {
+      puede: false,
+      motivo:
+        "La jornada está suspendida; la cita requiere resolución administrativa.",
+    };
+  }
+  if (turno.resultado !== "SIN_REGISTRAR") {
+    return {
+      puede: false,
+      motivo: "La cita ya tiene un resultado de atención registrado.",
+    };
+  }
+  const fin = finTurno(turno.inicio, turno.duracionMin);
+  if (ahora < fin) {
+    return {
+      puede: false,
+      motivo: `La ausencia se registra cuando termina el turno (${horaSala(fin)} hs).`,
+    };
   }
   return { puede: true, motivo: "" };
 }

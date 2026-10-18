@@ -1,17 +1,31 @@
 "use client"
-
-import { useState, useActionState } from "react"
+ 
+import { useEffect, useState, useActionState } from "react"
 import { registrarMenor, buscarTutorPorDni } from "@/app/actions/pacientes"
-
-export function FormNuevoMenor() {
+ 
+type Props = {
+  /** Primera fecha de nacimiento permitida (todavía menor de 18). YYYY-MM-DD */
+  fechaMinima: string
+  /** Hoy en la sala: no se permiten fechas futuras. YYYY-MM-DD */
+  fechaMaxima: string
+}
+ 
+export function FormNuevoMenor({ fechaMinima, fechaMaxima }: Props) {
   const [state, formAction, isPending] = useActionState(registrarMenor, null)
   
   // Estados para el buscador del tutor
   const [dniBusqueda, setDniBusqueda] = useState("")
+  // DNI del menor: se descartan letras y símbolos mientras se escribe.
+  const [dniMenor, setDniMenor] = useState("")
+ 
+  // Al registrar con éxito el formulario se limpia; el DNI es controlado y se limpia acá.
+  useEffect(() => {
+    if (state?.success) setDniMenor("")
+  }, [state])
   const [tutorEncontrado, setTutorEncontrado] = useState<{ id: string; nombreCompleto: string } | null>(null)
   const [errorBuscador, setErrorBuscador] = useState("")
   const [buscando, setBuscando] = useState(false)
-
+ 
   const handleBuscarTutor = async () => {
     if (!dniBusqueda) return
     setBuscando(true)
@@ -27,7 +41,7 @@ export function FormNuevoMenor() {
     }
     setBuscando(false)
   }
-
+ 
   return (
     <form action={formAction} className="space-y-6 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
       
@@ -54,7 +68,7 @@ export function FormNuevoMenor() {
             {buscando ? "Buscando..." : "Buscar"}
           </button>
         </div>
-
+ 
         {errorBuscador && <p className="text-red-500 text-sm mt-2">{errorBuscador}</p>}
         
         {tutorEncontrado && (
@@ -65,34 +79,48 @@ export function FormNuevoMenor() {
           </div>
         )}
       </div>
-
+ 
       {/* SECCIÓN 2: Datos del Menor */}
       <div className="pt-2">
         <h3 className="text-lg font-semibold mb-4">2. Datos del Menor</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
-            <input name="nombreCompleto" required type="text" className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500" />
+            <label htmlFor="menor-nombre" className="block text-sm font-medium text-gray-700 mb-1">Nombre/s *</label>
+            <input id="menor-nombre" name="nombre" required type="text" maxLength={120} autoComplete="off" className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">DNI del Menor</label>
-            <input name="dni" required type="text" className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500" />
+            <label htmlFor="menor-apellido" className="block text-sm font-medium text-gray-700 mb-1">Apellido/s *</label>
+            <input id="menor-apellido" name="apellido" required type="text" maxLength={120} autoComplete="off" className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
-            <input name="fechaNacimiento" required type="date" className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500" />
+            <label htmlFor="menor-dni" className="block text-sm font-medium text-gray-700 mb-1">DNI del Menor *</label>
+            <input
+              id="menor-dni"
+              name="dni"
+              required
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={8}
+              pattern="\d{6,8}"
+              title="Solo números, entre 6 y 8 dígitos."
+              value={dniMenor}
+              onChange={(e) => setDniMenor(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-gray-500 text-xs mt-1">Solo números, entre 6 y 8 dígitos, sin puntos.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono (Contacto)</label>
-            <input name="telefono" required type="text" className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500" />
+            <label htmlFor="menor-fecha" className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento *</label>
+            <input id="menor-fecha" name="fechaNacimiento" required type="date" min={fechaMinima} max={fechaMaxima} className="w-full border border-gray-300 rounded-md p-2 outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
       </div>
-
+ 
       {/* Feedback del Server Action */}
       {state?.error && <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">{state.error}</div>}
       {state?.success && <div className="p-3 bg-green-50 text-green-700 rounded-md text-sm">{state.message}</div>}
-
+ 
       <button 
         type="submit" 
         disabled={isPending || !tutorEncontrado}

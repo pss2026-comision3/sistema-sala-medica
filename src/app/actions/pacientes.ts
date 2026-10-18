@@ -316,24 +316,61 @@ export async function altaPacienteAdulto(
 }
 
 
+// CA1 (US-003): el tutor tiene que ser una cuenta Paciente adulta y activa.
+const MSG_TUTOR = {
+  NO_ENCONTRADO: "No se encontró ningún paciente con ese DNI.",
+  ES_MENOR: "Ese paciente es menor de 18 años y no puede ser tutor.",
+  SIN_CUENTA: "Ese paciente no tiene una cuenta en el sistema y no puede ser tutor.",
+  DESACTIVADA: "La cuenta de ese paciente está desactivada y no puede ser tutor.",
+  NO_ES_PACIENTE: "Esa persona no tiene una cuenta de Paciente y no puede ser tutor.",
+} as const
+
+type PacienteParaTutor = {
+  fechaNacimiento: Date
+  persona: { usuario: { activo: boolean; rol: string } | null }
+}
+
+/** Devuelve el motivo por el que el paciente no puede ser tutor, o null si puede. */
+function motivoNoPuedeSerTutor(paciente: PacienteParaTutor, hoy: string): string | null {
+  if (!esAdulto(aFechaIso(paciente.fechaNacimiento), hoy)) return MSG_TUTOR.ES_MENOR
+  const usuario = paciente.persona.usuario
+  if (!usuario) return MSG_TUTOR.SIN_CUENTA
+  if (usuario.rol !== "PACIENTE") return MSG_TUTOR.NO_ES_PACIENTE
+  if (!usuario.activo) return MSG_TUTOR.DESACTIVADA
+  return null
+}
+
 // Acción 1: Buscar tutor por DNI para el frontend
 export async function buscarTutorPorDni(dni: string) {
+  await requireRole("ADMIN")
+
   try {
-    const paciente = await prisma.paciente.findFirst({
-      where: { dni },
-      include: { persona: true } // Traemos los datos de Persona para mostrar el nombre
+    // Puede haber más de un paciente con el mismo DNI (excepción de US-002 CA3).
+    const pacientes = await prisma.paciente.findMany({
+      where: { dni: dni.trim() },
+      include: {
+        persona: { include: { usuario: { select: { activo: true, rol: true } } } },
+      },
+      orderBy: { personaId: "asc" },
     })
 
-    if (!paciente) {
-      return { success: false, error: "No se encontró ningún paciente con ese DNI." }
+    if (pacientes.length === 0) {
+      return { success: false, error: MSG_TUTOR.NO_ENCONTRADO }
+    }
+
+    const hoy = hoyEnLaSala()
+    const valido = pacientes.find((p) => motivoNoPuedeSerTutor(p, hoy) === null)
+    if (!valido) {
+      // Ninguno sirve: se informa el motivo del primero.
+      return { success: false, error: motivoNoPuedeSerTutor(pacientes[0], hoy) }
     }
 
     return { 
       success: true, 
       tutor: {
-        id: paciente.personaId.toString(), // Convertimos BigInt a string
-        nombreCompleto: paciente.persona.nombreCompleto,
-        dni: paciente.dni
+        id: valido.personaId.toString(), // Convertimos BigInt a string
+        nombreCompleto: valido.persona.nombreCompleto,
+        dni: valido.dni
       }
     }
   } catch (error) {
@@ -344,17 +381,70 @@ export async function buscarTutorPorDni(dni: string) {
 
 // Acción 2: Registrar al menor
 export async function registrarMenor(prevState: any, formData: FormData) {
-  const nombreCompleto = formData.get("nombreCompleto") as string
-  const dni = formData.get("dni") as string
+  await requireRole("ADMIN")
+
+  const nombre = String(formData.get("nombre") ?? "").trim()
+  const apellido = String(formData.get("apellido") ?? "").trim()
+  const dni = String(formData.get("dni") ?? "").trim()
   const fechaNacimiento = formData.get("fechaNacimiento") as string
-  const telefono = formData.get("telefono") as string
   const tutorId = formData.get("tutorId") as string
 
   if (!tutorId) {
     return { success: false, error: "Es obligatorio vincular a un tutor válido." }
   }
 
+  if (!nombre || !apellido) {
+    return { success: false, error: "Completá el nombre y el apellido del menor." }
+  }
+
+  // Mismo formato que el alta de adultos: "Nombre Apellido" en persona.nombre_completo.
+  const nombreCompleto = `${nombre} ${apellido}`
+  if (nombreCompleto.length > 255) {
+    return { success: false, error: MSG.ALTA_NOMBRE_LARGO }
+  }
+
+  // DNI del menor: solo dígitos, entre 6 y 8 (sin puntos ni letras).
+  if (!/^\d{6,8}$/.test(dni)) {
+    return { success: false, error: "Ingresá el DNI solo con números, entre 6 y 8 dígitos." }
+  }
+
+  // CA1 / CA5: la fecha debe ser válida, no futura, y de alguien que todavía
+  // no cumplió 18 años (mismo umbral y hora de la sala que el alta de adultos).
+  if (!esFechaValida(fechaNacimiento ?? "")) {
+    return { success: false, error: MSG.ALTA_FECHA_INVALIDA }
+  }
+  const hoy = hoyEnLaSala()
+  if (fechaNacimiento > hoy) {
+    return { success: false, error: MSG.ALTA_FECHA_FUTURA }
+  }
+  if (esAdulto(fechaNacimiento, hoy)) {
+    return {
+      success: false,
+      error:
+        "La persona ya cumplió 18 años. Registrala como paciente adulto desde Alta asistida.",
+    }
+  }
+
   try {
+    // CA2: el menor usa los datos de contacto del tutor, así que se copia su teléfono.
+    const tutor = await prisma.paciente.findUnique({
+      where: { personaId: BigInt(tutorId) },
+      select: {
+        telefono: true,
+        fechaNacimiento: true,
+        persona: { select: { usuario: { select: { activo: true, rol: true } } } },
+      },
+    })
+    if (!tutor) {
+      return { success: false, error: "El tutor seleccionado no existe. Buscalo de nuevo." }
+    }
+    // CA1: se vuelve a controlar al guardar (pudo cambiar desde la búsqueda).
+    const motivoTutor = motivoNoPuedeSerTutor(tutor, hoy)
+    if (motivoTutor) {
+      return { success: false, error: motivoTutor }
+    }
+    const telefono = tutor.telefono
+
     const nuevaPersona = await prisma.persona.create({
       data: {
         nombreCompleto,

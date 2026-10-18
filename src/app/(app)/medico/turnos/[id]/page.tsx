@@ -1,10 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { ETIQUETA_ESTADO_CITA } from "@/lib/agenda/etiquetas";
-import { etiquetaFecha, evaluarInicioAtencion } from "@/lib/agenda/reglas";
+import { RegistrarAusenciaButton } from "@/components/agenda/RegistrarAusenciaButton";
+import {
+  ETIQUETA_ESTADO_CITA,
+  ETIQUETA_RESULTADO_ATENCION,
+} from "@/lib/agenda/etiquetas";
+import {
+  etiquetaFecha,
+  evaluarInicioAtencion,
+  evaluarRegistroAusencia,
+} from "@/lib/agenda/reglas";
 import { obtenerTurnoMedico } from "@/lib/agenda/servicio-agenda";
 import { requireRole } from "@/lib/auth/guards";
+import { obtenerConsultaClinicaTurno } from "@/lib/turnos/consulta-clinica";
+import { ConsultaMedicaForm } from "./consulta-medica-form";
+import { ConsultaDetalleView } from "./consulta-detalle-view";
 
 export default async function FichaCitaPage(
   props: PageProps<"/medico/turnos/[id]">,
@@ -12,7 +23,7 @@ export default async function FichaCitaPage(
   const sesion = await requireRole("MEDICO");
   const { id } = await props.params;
 
-  // CA3: solo citas propias. Una cita ajena no existe para este médico.
+  // CA3 y CA5: solo citas propias. Una cita ajena no existe para este médico.
   const encontrado = await obtenerTurnoMedico({
     medicoId: sesion.usuarioId,
     turnoId: id,
@@ -22,6 +33,13 @@ export default async function FichaCitaPage(
   const { turno, jornada } = encontrado;
   const confirmada = turno.estado === "CONFIRMADO";
   const inicio = evaluarInicioAtencion(turno, jornada);
+  const ausencia = evaluarRegistroAusencia(turno, jornada);
+
+  // Consulta guardada (si existe)
+  const consulta = await obtenerConsultaClinicaTurno({
+    turnoId: id,
+    medicoUsuarioId: sesion.usuarioId,
+  });
 
   return (
     <>
@@ -77,27 +95,44 @@ export default async function FichaCitaPage(
             )}
           </section>
 
+          {/* Sección de resultado de atención (US-016) */}
           <section className="sigsam-card" style={{ marginTop: "16px" }}>
-            <h2>Notas clínicas</h2>
-            {/* [MOCK-US010] Las notas clínicas se implementan en US-017. */}
-            <p className="sigsam-muted">Disponibles al implementar US-017.</p>
+            <h2>Resultado de atención</h2>
+            <p>
+              <strong>Resultado actual:</strong>{" "}
+              <span className="sigsam-pill">
+                {ETIQUETA_RESULTADO_ATENCION[turno.resultado]}
+              </span>
+            </p>
+            <RegistrarAusenciaButton
+              turnoId={turno.id}
+              puede={ausencia.puede}
+              motivo={ausencia.motivo}
+            />
           </section>
 
-          <section className="sigsam-card" style={{ marginTop: "16px" }}>
-            <h2>Iniciar atención</h2>
-            <p>
-              {inicio.puede
-                ? "La cita cumple las condiciones para iniciar la atención."
-                : inicio.motivo}
-            </p>
-            {/* [MOCK-US010] El inicio real de la atención se implementa en US-017. */}
-            <button type="button" className="sigsam-btn" disabled>
-              Iniciar atención
-            </button>
-            <p className="sigsam-muted" style={{ marginTop: "8px" }}>
-              Se habilita al implementar US-017.
-            </p>
-          </section>
+          {/* Sección clínica (US-017) */}
+          {consulta ? (
+            /* Si ya existe una consulta registrada, se muestra inmutable en solo lectura (CA4) */
+            <ConsultaDetalleView consulta={consulta} />
+          ) : inicio.puede ? (
+            /* Si la cita cumple las condiciones de CA1 y no está atendida, se ofrece el formulario */
+            <ConsultaMedicaForm turnoId={id} />
+          ) : (
+            /* Si no cumple las condiciones de atención (CA1), se muestra el motivo bloqueante */
+            <section className="sigsam-card" style={{ marginTop: "16px" }}>
+              <h2>Atención clínica</h2>
+              <p>{inicio.motivo}</p>
+              <button
+                type="button"
+                className="sigsam-btn"
+                disabled
+                style={{ minHeight: "44px" }}
+              >
+                Iniciar atención
+              </button>
+            </section>
+          )}
         </>
       )}
     </>

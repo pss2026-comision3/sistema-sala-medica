@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { FormEvent } from "react";
-import { useState } from "react";
 
 import {
   ETIQUETA_ESTADO_CITA,
@@ -11,7 +9,7 @@ import {
 } from "@/lib/agenda/etiquetas";
 import { etiquetaFecha } from "@/lib/agenda/reglas";
 import type { TurnoLista } from "@/lib/turnos/consulta-turnos";
-import { cancelarTurnoPaciente } from "@/app/actions/turnos-paciente";
+import { AccionesCancelacion } from "@/components/paciente/CancelarCitaDialog";
 import type { EstadoTurnoAgenda, ResultadoAgenda } from "@/lib/agenda/tipos";
 
 export type FiltrosTurnosVista = {
@@ -84,71 +82,14 @@ export function TurnosView({
   vacunas,
 }: Props) {
   const router = useRouter();
-  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
-  const [mensajeError, setMensajeError] = useState<string | null>(null);
-  const [cancelando, setCancelando] = useState<string | null>(null);
 
   const actualizarFiltro = (partial: Partial<FiltrosTurnosVista>) => {
     const nuevos = { ...filtros, ...partial };
     router.replace(construirUrl("/paciente/turnos", nuevos));
   };
 
-  const handleCancelar = async (
-    e: FormEvent<HTMLFormElement>,
-    turnoId: string,
-  ) => {
-    e.preventDefault();
-    setMensajeError(null);
-    setMensajeExito(null);
-    setCancelando(turnoId);
-    const form = e.currentTarget;
-    const motivo = (
-      form.elements.namedItem("motivo") as HTMLInputElement | null
-    )?.value;
-    const resultado = await cancelarTurnoPaciente({ turnoId, motivo });
-    setCancelando(null);
-    if ("error" in resultado) {
-      setMensajeError(resultado.error);
-      return;
-    }
-    setMensajeExito(resultado.mensaje);
-    router.refresh();
-    form.reset();
-  };
-
   return (
     <div>
-      {mensajeExito && (
-        <div
-          className="sigsam-notice success"
-          role="status"
-          style={{ marginBottom: 16 }}
-        >
-          <span className="sigsam-notice-symbol" aria-hidden="true">
-            ✓
-          </span>
-          <div>
-            <strong>Listo</strong>
-            <p style={{ margin: 0 }}>{mensajeExito}</p>
-          </div>
-        </div>
-      )}
-      {mensajeError && (
-        <div
-          className="sigsam-notice error"
-          role="alert"
-          style={{ marginBottom: 16 }}
-        >
-          <span className="sigsam-notice-symbol" aria-hidden="true">
-            !
-          </span>
-          <div>
-            <strong>Error</strong>
-            <p style={{ margin: 0 }}>{mensajeError}</p>
-          </div>
-        </div>
-      )}
-
       <div className="sigsam-card" style={{ marginBottom: 16 }}>
         <h2 style={{ marginTop: 0 }}>Beneficiario</h2>
         <div className="sigsam-field">
@@ -314,30 +255,24 @@ export function TurnosView({
                   Descargar factura
                 </Link>
               )}
-              {t.cancelable && (
-                <form
-                  onSubmit={(e) => handleCancelar(e, t.id)}
-                  style={{ display: "inline" }}
-                >
-                  <button
-                    type="submit"
-                    className="sigsam-btn"
-                    disabled={cancelando === t.id}
-                  >
-                    {cancelando === t.id ? "Cancelando…" : "Cancelar"}
-                  </button>
-                </form>
-              )}
+              <AccionesCancelacion
+                cita={{
+                  id: t.id,
+                  beneficiarioNombre: t.beneficiarioNombre,
+                  prestacion: t.prestacion,
+                  fecha: t.fecha,
+                  hora: t.hora,
+                  profesional: t.profesional,
+                  pendienteDeResolver: t.pendienteDeResolver,
+                  motivoSuspension: t.motivoSuspension,
+                }}
+                cancelable={t.cancelable}
+                cancelableMotivo={t.cancelableMotivo}
+                etiqueta="Cancelar"
+                mostrarNota={false}
+                mostrarMotivoNoCancelable={t.estado === "CONFIRMADO"}
+              />
             </div>
-            {!t.cancelable && t.estado === "CONFIRMADO" && (
-              <p className="sigsam-muted" style={{ marginTop: 8 }}>
-                {t.cancelableMotivo}
-              </p>
-            )}
-            <p className="sigsam-muted" style={{ marginTop: 8 }}>
-              Podés cancelar hasta 24 horas antes del inicio. Si falta menos
-              tiempo, contactá a la sala.
-            </p>
           </div>
         ))}
       </section>
