@@ -8,9 +8,9 @@ import {
   restablecerClavePorAdmin,
   type ResultadoRestablecimiento,
 } from "@/app/actions/auth";
-import { 
-  desactivarCuentaPersonal, 
-  reactivarCuentaPersonal // <- NUEVO: Importamos la acción de reactivar
+import {
+  desactivarCuentaPersonal,
+  reactivarCuentaPersonal, // <- NUEVO: Importamos la acción de reactivar
 } from "@/app/actions/cuentas";
 
 export type CuentaItem = {
@@ -22,12 +22,16 @@ export type CuentaItem = {
   claveTemporal: boolean;
 };
 
+// Motivos de desactivación genericos, no mandaron documentacion
+const MOTIVOS_DESACTIVACION = ["Motivo 1", "Motivo 2", "Motivo 3", "Otro"];
+
 type Props = {
   cuentasIniciales: CuentaItem[];
 };
 
 export function AdminCuentasTable({ cuentasIniciales }: Props) {
   const [busqueda, setBusqueda] = useState("");
+  const [opcionMotivo, setOpcionMotivo] = useState("");
   const [cuentaParaReset, setCuentaParaReset] = useState<CuentaItem | null>(
     null,
   );
@@ -41,8 +45,10 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
   // NUEVO: Estados para el modal de reactivación
   const [cuentaParaReactivar, setCuentaParaReactivar] =
     useState<CuentaItem | null>(null);
-  const [stateReactivar, actionReactivar, isPendingReactivar] =
-    useActionState(reactivarCuentaPersonal, { success: false });
+  const [stateReactivar, actionReactivar, isPendingReactivar] = useActionState(
+    reactivarCuentaPersonal,
+    { success: false },
+  );
 
   const [resultado, setResultado] =
     useState<ResultadoRestablecimiento["credenciales"]>(undefined);
@@ -94,6 +100,7 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
   // Cerrar el modal de desactivar y recargar si fue exitoso
   function handleCerrarModalDesactivar() {
     setCuentaParaDesactivar(null);
+    setOpcionMotivo("");
     if (stateDesactivar.success) {
       window.location.reload();
     }
@@ -333,7 +340,10 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                             {!esUltimoAdmin && (
                               <button
                                 type="button"
-                                onClick={() => setCuentaParaDesactivar(cuenta)}
+                                onClick={() => {
+                                  setCuentaParaDesactivar(cuenta);
+                                  setOpcionMotivo("");
+                                }}
                                 className="sigsam-btn danger small"
                               >
                                 Desactivar
@@ -465,15 +475,42 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                 />
 
                 <div className="sigsam-field" style={{ marginBottom: "20px" }}>
-                  <label htmlFor="motivo">Motivo de la desactivación *</label>
-                  <input
-                    type="text"
-                    id="motivo"
-                    name="motivo"
+                  <label htmlFor="opcionMotivo">
+                    Motivo de la desactivación *
+                  </label>
+
+                  <select
+                    id="opcionMotivo"
+                    value={opcionMotivo}
+                    onChange={(e) => setOpcionMotivo(e.target.value)}
                     required
-                    placeholder="Ej. Fin de contrato, reemplazo, etc."
+                    name={opcionMotivo !== "Otro" ? "motivo" : undefined}
                     aria-invalid={!!stateDesactivar.errors?.motivo}
-                  />
+                  >
+                    <option value="" disabled>
+                      Seleccioná un motivo...
+                    </option>
+                    {MOTIVOS_DESACTIVACION.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Se podria hacer un control mejor pero es suficiente por ahora */}
+                  {opcionMotivo === "Otro" && (
+                    <div style={{ marginTop: "12px" }}>
+                      <input
+                        type="text"
+                        id="motivoCustom"
+                        name="motivo"
+                        required
+                        placeholder="Escribí el motivo específico..."
+                        aria-invalid={!!stateDesactivar.errors?.motivo}
+                      />
+                    </div>
+                  )}
+
                   {stateDesactivar.errors?.motivo && (
                     <span
                       className="sigsam-alert-error"
