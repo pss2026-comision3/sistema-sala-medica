@@ -8,14 +8,14 @@ import { cargarBeneficiarios } from "@/lib/turnos/buscar-horarios";
 
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ turnoId: string; adjuntoId: string }> },
+  { params }: { params: Promise<{ id: string; adjuntoId: string }> },
 ) {
   const sesion = await getSession();
   if (!sesion || sesion.rol !== "PACIENTE") {
     return new NextResponse("No autorizado", { status: 401 });
   }
 
-  const { turnoId: turnoIdRaw, adjuntoId: adjuntoIdRaw } = await params;
+  const { id: turnoIdRaw, adjuntoId: adjuntoIdRaw } = await params;
 
   let turnoId: bigint;
   let adjuntoId: bigint;

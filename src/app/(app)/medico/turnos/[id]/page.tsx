@@ -14,6 +14,7 @@ import {
 import { obtenerTurnoMedico } from "@/lib/agenda/servicio-agenda";
 import { requireRole } from "@/lib/auth/guards";
 import { obtenerConsultaClinicaTurno } from "@/lib/turnos/consulta-clinica";
+import { obtenerAdjuntosConsultaTurno } from "@/lib/turnos/adjuntos-clinicos";
 import { ConsultaMedicaForm } from "./consulta-medica-form";
 import { ConsultaDetalleView } from "./consulta-detalle-view";
 
@@ -40,6 +41,14 @@ export default async function FichaCitaPage(
     turnoId: id,
     medicoUsuarioId: sesion.usuarioId,
   });
+
+  // Adjuntos de la consulta (si existe)
+  const adjuntos = consulta
+    ? ((await obtenerAdjuntosConsultaTurno({
+        turnoId: id,
+        medicoUsuarioId: sesion.usuarioId,
+      })) ?? [])
+    : [];
 
   return (
     <>
@@ -114,7 +123,11 @@ export default async function FichaCitaPage(
           {/* Sección clínica (US-017) */}
           {consulta ? (
             /* Si ya existe una consulta registrada, se muestra inmutable en solo lectura (CA4) */
-            <ConsultaDetalleView consulta={consulta} />
+            <ConsultaDetalleView
+              consulta={consulta}
+              adjuntos={adjuntos}
+              turnoId={id}
+            />
           ) : inicio.puede ? (
             /* Si la cita cumple las condiciones de CA1 y no está atendida, se ofrece el formulario */
             <ConsultaMedicaForm turnoId={id} />
