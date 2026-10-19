@@ -288,6 +288,12 @@ Estados: `Aceptada` · `Reemplazada` · `Propuesta`.
   - La clave primaria de `consulta` es `turno_id`, garantizando que una consulta inicial no se duplica (CA3).
   - Solo el médico titular tiene acceso clínico (`notFound()` ante accesos no autorizados y 403 para `ADMIN`, CA5).
 
+## D-22 — Adjuntos de consulta en filesystem privado e inmutables
+
+- **Estado:** Aceptada (2026-10-19)
+- **Decisión:** Los adjuntos de consulta (US-SIG-019) se almacenan en el **filesystem privado del servidor** (`storage/adjuntos/consulta/<turnoId>/<uuid>.<ext>`), fuera de `public/`, con la ruta relativa en `adjunto.ruta_privada`. El nombre descriptivo del usuario se persiste en `adjunto.nombre` y no participa del path. Se admiten únicamente PDF/JPG/PNG de hasta 10 MB, validados por MIME, extensión y firma mágica antes de persistir. La carga es exclusiva del médico autor de la consulta; el archivo se sirve mediante Route Handlers con autorización (descarga para el autor, visualización en línea para paciente/tutor vigente, sin descarga clínica). Los adjuntos no se editan ni eliminan; los errores se aclaran con correcciones y archivos adicionales. El modelo `Adjunto` existente no requiere migración.
+- **Motivo:** Cumplimiento de CA1 a CA5 de US-SIG-019, D-02 (sin Supabase Storage) y preservación del secreto clínico.
+
 ---
 
 ## Cómo agregar una decisión
