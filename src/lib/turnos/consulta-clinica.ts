@@ -15,6 +15,14 @@ export type ResultadoRegistroConsulta =
   | { exito: true; consultaId: string; mensaje: string }
   | { exito: false; error: string };
 
+export interface CorreccionViewData {
+  id: string;
+  motivo: string;
+  texto: string;
+  creadaEn: string;
+  autorNombre: string;
+}
+
 export interface ConsultaClinicaViewData {
   turnoId: string;
   autorId: string;
@@ -27,6 +35,7 @@ export interface ConsultaClinicaViewData {
   observaciones: string | null;
   certificado: string | null;
   creadaEn: string; // ISO 8601
+  correcciones?: CorreccionViewData[];
 }
 
 /**
@@ -59,6 +68,14 @@ export async function obtenerConsultaClinicaTurno({
           },
         },
       },
+      correcciones: {
+        orderBy: {
+          creadaEn: "asc",
+        },
+        include: {
+          autor: { include: { usuario: { include: { persona: true } } } },
+        },
+      },
     },
   });
 
@@ -81,5 +98,13 @@ export async function obtenerConsultaClinicaTurno({
     observaciones: consulta.observaciones,
     certificado: consulta.certificado,
     creadaEn: consulta.creadaEn.toISOString(),
+    correcciones:
+      consulta.correcciones?.map((corr: any) => ({
+        id: corr.id.toString(),
+        motivo: corr.motivo,
+        texto: corr.texto,
+        creadaEn: corr.creadaEn.toISOString(),
+        autorNombre: corr.autor.usuario.persona.nombreCompleto,
+      })) || [],
   };
 }

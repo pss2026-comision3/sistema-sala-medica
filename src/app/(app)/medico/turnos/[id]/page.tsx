@@ -124,7 +124,10 @@ export default async function FichaCitaPage(
           {consulta ? (
             /* Si ya existe una consulta registrada, se muestra inmutable en solo lectura (CA4) */
             <ConsultaDetalleView
-              consulta={consulta}
+              consulta={{
+                ...consulta,
+                esAutor: true,
+              }}
               adjuntos={adjuntos}
               turnoId={id}
             />
