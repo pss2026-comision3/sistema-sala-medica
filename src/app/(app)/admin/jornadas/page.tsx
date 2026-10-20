@@ -1,14 +1,23 @@
+import { listarCitasPendientesDeResolver } from "@/app/actions/resolucion-citas";
 import { listarMedicosSuspension } from "@/app/actions/suspension";
+import { ResolverCitasPanel } from "@/components/agenda/ResolverCitasPanel";
 import { SuspenderJornadaPanel } from "@/components/agenda/suspender-jornada-panel";
+import { hoySala } from "@/lib/agenda/reglas";
 import { requireRole } from "@/lib/auth/guards";
 
 /**
  * US-009 CA1: Administración puede suspender la jornada de cualquier médico.
- * La resolución de las citas afectadas (cancelar o reprogramar) es de US-015.
+ * US-SIG-015 CA3/CA4/CA6: la resolución individual de las citas afectadas
+ * (cancelar o reprogramar) se gestiona en `ResolverCitasPanel`, más abajo.
+ * Las citas pendientes se cargan acá: al suspender o resolver se revalida
+ * esta ruta y la lista llega actualizada sin recargar.
  */
 export default async function AdminJornadasPage() {
   await requireRole("ADMIN");
-  const medicos = await listarMedicosSuspension();
+  const [medicos, citasPendientes] = await Promise.all([
+    listarMedicosSuspension(),
+    listarCitasPendientesDeResolver(),
+  ]);
 
   return (
     <>
@@ -24,6 +33,7 @@ export default async function AdminJornadasPage() {
       </div>
 
       <SuspenderJornadaPanel modo="admin" medicos={medicos} />
+      <ResolverCitasPanel citas={citasPendientes} hoy={hoySala()} />
     </>
   );
 }

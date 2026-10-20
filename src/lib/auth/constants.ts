@@ -90,6 +90,7 @@ export const MSG = {
     "No se pudo completar la alta: el correo ya está en uso y el registro elegido ya tiene una cuenta.",
   CANCELACION_PLAZO:
     "Faltan menos de 24 horas para el inicio. Contactá a la sala para gestionarla presencialmente.",
+  CANCELACION_INICIADA: "Esta cita ya empezó: no se puede cancelar.",
   CANCELACION_NO_ENCONTRADO:
     "El turno solicitado no existe o ya no está disponible para cancelar.",
   CANCELACION_ESTADO: "Solo se pueden cancelar citas confirmadas.",
@@ -131,4 +132,10 @@ export const AUDITORIA = {
   RESULTADO_AUSENCIA_MEDICA: "Registro de ausencia médica",
   RESULTADO_AUSENCIA_VACUNACION: "Registro de ausencia en vacunatorio",
   REGISTRO_CONSULTA_MEDICA: "Registro de consulta médica",
+  RESOLUCION_CANCELACION_SUSPENSION:
+    "Cancelación administrativa de cita afectada por suspensión",
+  RESOLUCION_REPROGRAMACION_SUSPENSION:
+    "Reprogramación administrativa de cita afectada por suspensión",
+  RESERVA_PRESENCIAL: "Reserva presencial por personal autorizado",
+  CANCELACION_PRESENCIAL: "Cancelación presencial por personal autorizado",
 } as const;

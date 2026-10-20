@@ -16,13 +16,18 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
     { href: "/admin/pacientes", label: "Pacientes" },
     { href: "/admin/agenda", label: "Agenda" },
     { href: "/admin/jornadas", label: "Jornadas" },
+    { href: "/turnos/presenciales", label: "Turnos presenciales" },
     { href: "/admin/parametros", label: "Parámetros" },
   ],
   MEDICO: [
     { href: "/medico", label: "Agenda" },
     { href: "/medico/disponibilidad", label: "Disponibilidad" },
+    { href: "/turnos/presenciales", label: "Turnos presenciales" },
   ],
-  ENFERMERIA: [{ href: "/enfermeria", label: "Inicio" }],
+  ENFERMERIA: [
+    { href: "/enfermeria", label: "Inicio" },
+    { href: "/turnos/presenciales", label: "Turnos presenciales" },
+  ],
   PACIENTE: [
     { href: "/paciente", label: "Inicio" },
     { href: "/paciente/buscar", label: "Buscar turno" },
