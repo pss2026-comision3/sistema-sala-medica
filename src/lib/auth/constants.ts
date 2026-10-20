@@ -88,6 +88,13 @@ export const MSG = {
     "Ese registro corresponde a una persona menor de 18 años y no puede tener cuenta propia.",
   ALTA_CONFLICTO:
     "No se pudo completar la alta: el correo ya está en uso y el registro elegido ya tiene una cuenta.",
+  OBRA_SOCIAL_NOMBRE_REQUERIDO: "Ingresá el nombre de la obra social.",
+  OBRA_SOCIAL_NOMBRE_LARGO: "El nombre admite hasta 255 caracteres.",
+  OBRA_SOCIAL_NOMBRE_DUPLICADO: "Ya existe una obra social con ese nombre.",
+  OBRA_SOCIAL_NO_ENCONTRADA: "La obra social solicitada no existe.",
+  OBRA_SOCIAL_CREADA: "Obra social creada con éxito.",
+  OBRA_SOCIAL_NOMBRE_ACTUALIZADO: "Nombre actualizado con éxito.",
+  OBRA_SOCIAL_ESTADO_ACTUALIZADO: "Estado actualizado con éxito.",
   CANCELACION_PLAZO:
     "Faltan menos de 24 horas para el inicio. Contactá a la sala para gestionarla presencialmente.",
   CANCELACION_NO_ENCONTRADO:
@@ -136,6 +143,9 @@ export const AUDITORIA = {
   CONFIGURACION_MEDICO: "Configuración de duración y arancel médico",
   CONFIGURACION_VACUNA: "Configuración de arancel de vacuna",
   ALTA_PACIENTE: "Alta de paciente adulto",
+  ALTA_OBRA_SOCIAL: "Alta de obra social",
+  EDICION_OBRA_SOCIAL: "Edición de obra social",
+  ESTADO_OBRA_SOCIAL: "Cambio de estado de obra social",
   RESERVA_TURNO: "Reserva de turno",
   CONFIRMACION_TURNO: "Confirmación de turno",
   CANCELACION_EXPIRACION: "Cancelación por expiración de retención",
