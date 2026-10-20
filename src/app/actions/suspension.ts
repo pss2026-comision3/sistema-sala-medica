@@ -17,11 +17,7 @@ import {
   evaluarSuspensionJornada,
   validarMotivo,
 } from "@/lib/agenda/suspension";
-import {
-  crearAvisosSuspension,
-  suspenderRecordatorios,
-  type AvisoSuspension,
-} from "@/lib/notificaciones/suspension";
+import { crearAvisoSuspension } from "@/lib/notificaciones/avisos";
 
 /*
  * US-SIG-009 — Suspender una jornada médica ante un imprevisto (RF-10).
@@ -530,14 +526,14 @@ export async function suspenderJornada(input: {
       const idsAfectadas = afectadas.map((t) => t.id);
 
       // 5. CA5: se suspenden sus recordatorios pendientes.
-      const recordatoriosSuspendidos = await suspenderRecordatorios(
+      /*const recordatoriosSuspendidos = await suspenderRecordatorios(
         tx,
         idsAfectadas,
         ahora,
-      );
+      );*/
 
-      // 6. CA4: aviso por email + aviso interno a cada paciente/tutor.
-      const avisos: AvisoSuspension[] = [];
+      // 6. CA4: aviso interno a cada paciente/tutor (CA2 de US-031).
+      let avisosGenerados = 0;
       let sinDestinatario = 0;
       for (const turno of afectadas) {
         const destino = destinatarioDe(turno);
@@ -545,20 +541,14 @@ export async function suspenderJornada(input: {
           sinDestinatario++;
           continue;
         }
-        avisos.push({
+        
+        await crearAvisoSuspension(tx, {
           turnoId: turno.id,
-          destinatarioId: destino.id,
-          emailDestino: destino.email,
-          cuerpo: cuerpoAvisoSuspension({
-            beneficiario: turno.paciente.persona.nombreCompleto,
-            prestacion: medico.especialidad,
-            fechaLegible,
-            hora: horaTexto(turno.hora),
-            profesional: medico.nombre,
-          }),
+          usuarioId: destino.id,
+          resumen: `Atención afectada: tu turno de ${medico.especialidad} del ${fechaLegible} a las ${horaTexto(turno.hora)} hs requiere resolución administrativa porque el médico suspendió la jornada.`,
         });
+        avisosGenerados++;
       }
-      const avisosGenerados = await crearAvisosSuspension(tx, avisos, ahora);
 
       // 7. Bitácora (RF-21). Si opera Administración queda identificada.
       await tx.auditoria.create({
@@ -577,7 +567,6 @@ export async function suspenderJornada(input: {
             motivo: motivo.motivo,
             citasAfectadas: idsAfectadas.map((id) => id.toString()),
             retencionesLiberadas,
-            recordatoriosSuspendidos,
             avisosGenerados,
             sinDestinatario,
           }),
@@ -587,7 +576,7 @@ export async function suspenderJornada(input: {
       return {
         citasAfectadas: afectadas.length,
         retencionesLiberadas,
-        recordatoriosSuspendidos,
+        recordatoriosSuspendidos: 0,
         avisosGenerados,
         sinDestinatario,
       };

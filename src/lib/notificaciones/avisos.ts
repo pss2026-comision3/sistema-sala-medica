@@ -1,73 +1,106 @@
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
- * Superficie compartida de avisos por email de los turnos.
+ * Superficie compartida de avisos internos de los turnos (US-031).
  *
- * Acá solo se dejan **escritas** las filas de `evento_email`; el envío real del
- * correo y la bandeja interna pertenecen a US-031/US-032/US-033. Un evento con
- * `canceladoEn` distinto de null nunca debe enviarse: así el recordatorio
- * pendiente de una cita cancelada (US-014 CA4, US-032 CA2) no se dispara.
- *
- * Expone operaciones que reciben el cliente de transacción para que puedan
- * ejecutarse junto con el cambio de estado del turno, sin dejar efectos
- * parciales si algo falla.
+ * Escribe las notificaciones directamente en la bandeja del usuario (`AvisoInterno`).
+ * Expone operaciones que reciben el cliente de transacción (`tx`) para que puedan
+ * ejecutarse de forma segura junto con el cambio de estado del turno.
  */
 
-export const ASUNTO_CANCELACION = "SIGSAM - Cancelación de turno";
+export const EVENTO_CANCELACION = "Cancelación de turno";
+export const EVENTO_CONFIRMACION = "Turno confirmado";
+export const EVENTO_REPROGRAMACION = "Turno reprogramado";
+export const EVENTO_SUSPENSION = "Atención afectada";
 
 /**
- * Clave idempotente del aviso de cancelación de un turno. Reintentar la misma
- * operación no multiplica notificaciones (US-031 CA4).
- */
-export function claveEventoCancelacion(turnoId: bigint): string {
-  return `turno:${turnoId.toString()}:cancelacion`;
-}
-
-/**
- * Anula los recordatorios pendientes del turno (US-014 CA4, US-032 CA2).
- * Devuelve cuántos quedaron anulados.
- */
-export async function anularRecordatoriosPendientes(
-  tx: Prisma.TransactionClient,
-  turnoId: bigint,
-  ahora: Date,
-): Promise<number> {
-  const { count } = await tx.eventoEmail.updateMany({
-    where: {
-      turnoId,
-      tipoEvento: "RECORDATORIO",
-      canceladoEn: null,
-    },
-    data: { canceladoEn: ahora },
-  });
-  return count;
-}
-
-/**
- * Escribe el aviso interno/email de cancelación de un turno. El cuerpo incluye
- * solo datos necesarios de la cita (sin diagnóstico ni archivos clínicos,
- * US-031 CA5).
+ * Escribe el aviso interno de cancelación de un turno en la bandeja del usuario.
+ * El resumen incluye solo datos necesarios de la cita (sin diagnósticos, US-031 CA5).
  */
 export async function crearAvisoCancelacion(
   tx: Prisma.TransactionClient,
   datos: {
     turnoId: bigint;
-    destinatarioId: bigint;
-    emailDestino: string;
-    cuerpo: string;
-    ahora: Date;
+    usuarioId: bigint; // El ID del usuario que va a recibir el aviso en su bandeja
+    resumen: string;   // El cuerpo del mensaje
   },
 ): Promise<void> {
-  await tx.eventoEmail.create({
+  await tx.avisoInterno.create({
     data: {
-      destinatarioId: datos.destinatarioId,
+      usuarioId: datos.usuarioId,
       turnoId: datos.turnoId,
-      tipoEvento: "CANCELACION",
-      claveEvento: claveEventoCancelacion(datos.turnoId),
-      emailDestinoSnapshot: datos.emailDestino,
-      asunto: ASUNTO_CANCELACION,
-      cuerpo: datos.cuerpo,
-      programadoEn: datos.ahora,
+      evento: EVENTO_CANCELACION,
+      resumen: datos.resumen,
+      leido: false,
     },
   });
 }
+
+/**
+ * Escribe el aviso interno de confirmación de un turno.
+ */
+export async function crearAvisoConfirmacion(
+  tx: Prisma.TransactionClient,
+  datos: {
+    turnoId: bigint;
+    usuarioId: bigint;
+    resumen: string;
+  },
+): Promise<void> {
+  await tx.avisoInterno.create({
+    data: {
+      usuarioId: datos.usuarioId,
+      turnoId: datos.turnoId,
+      evento: EVENTO_CONFIRMACION,
+      resumen: datos.resumen,
+      leido: false,
+    },
+  });
+}
+
+/**
+ * Escribe el aviso interno cuando se suspende una jornada médica (CA2).
+ */
+export async function crearAvisoSuspension(
+  tx: Prisma.TransactionClient,
+  datos: {
+    turnoId: bigint;
+    usuarioId: bigint;
+    resumen: string;
+  },
+): Promise<void> {
+  await tx.avisoInterno.create({
+    data: {
+      usuarioId: datos.usuarioId,
+      turnoId: datos.turnoId,
+      evento: EVENTO_SUSPENSION,
+      resumen: datos.resumen,
+      leido: false,
+    },
+  });
+}
+
+/**
+ * Escribe el aviso interno de una reprogramación conjunta (CA3).
+ */
+export async function crearAvisoReprogramacion(
+  tx: Prisma.TransactionClient,
+  datos: {
+    turnoId: bigint;
+    usuarioId: bigint;
+    resumen: string;
+  },
+): Promise<void> {
+  await tx.avisoInterno.create({
+    data: {
+      usuarioId: datos.usuarioId,
+      turnoId: datos.turnoId,
+      evento: EVENTO_REPROGRAMACION,
+      resumen: datos.resumen,
+      leido: false,
+    },
+  });
+}
+
+// (Podés agregar funciones similares acá para suspensión o reprogramación 
+// a medida que tus compañeros las necesiten).
