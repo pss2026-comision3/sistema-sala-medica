@@ -20,6 +20,12 @@
 - Ocultar el botón si el médico que visualiza la ficha no es el autor original de la consulta.
 - **Anotación de Maquetado (UI/UX):** Chequear el wireframe correspondiente para replicar el layout, pero *descartar* cualquier funcionalidad extra que figure en el diseño y no esté en los Criterios de Aceptación (ej. ignorar botones de adjuntos de archivos en correcciones).
 
-### 4. Impacto en el Paciente (Dependencia con US-SIG-020)
+### 4. Frontend (Buscador Histórico de Consultas Propias)
+- **Nueva funcionalidad de acceso rápido:** Crear una vista/página nueva (ej. `/medico/historial-consultas`) exclusiva para el médico.
+- Hacer un listado/buscador que recupere todas las consultas donde `autorId` coincida con el médico logueado.
+- Al seleccionar o expandir una consulta del listado, reutilizar y renderizar el componente `ConsultaDetalleView`. 
+- Esto permite ver la nota original, el diagnóstico, el historial de correcciones y utilizar la opción de "Agregar aclaración" de forma rápida sin tener que navegar al turno específico en la agenda.
+
+### 5. Impacto en el Paciente (Dependencia con US-SIG-020)
 - **Aviso:** Actualmente el paciente solo puede ver los datos *administrativos* de sus turnos pasados. La vista de la información clínica ("Mi historia") no existe y debe desarrollarse desde cero.
 - Por lo tanto, la visualización de estas correcciones del lado del paciente **queda fuera del alcance de esta us** y será implementada cuando se desarrolle la US-SIG-020.
