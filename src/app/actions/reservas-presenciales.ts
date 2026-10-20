@@ -19,10 +19,7 @@ import {
   inicioTurno,
 } from "@/lib/agenda/reglas";
 import { puedeCancelarPresencial } from "@/lib/agenda/reservas";
-import {
-  anularRecordatoriosPendientes,
-  crearAvisoCancelacion,
-} from "@/lib/notificaciones/avisos";
+import { crearAvisoCancelacion } from "@/lib/notificaciones/avisos";
 import { cargarCatalogoMedico } from "@/lib/turnos/buscar-horarios";
 import {
   SELECCION_HABILITACION,
@@ -502,14 +499,14 @@ export async function cancelarCitaPresencial(input: {
           persona: {
             select: {
               nombreCompleto: true,
-              usuario: { select: { id: true, email: true, activo: true } },
+              usuario: { select: { id: true, activo: true } },
             },
           },
           tutor: {
             select: {
               persona: {
                 select: {
-                  usuario: { select: { id: true, email: true, activo: true } },
+                  usuario: { select: { id: true, activo: true } },
                 },
               },
             },
@@ -567,20 +564,17 @@ export async function cancelarCitaPresencial(input: {
       });
       if (count === 0) throw new Error(MSG.CANCELACION_ESTADO);
 
-      await anularRecordatoriosPendientes(tx, turnoId, ahora);
-
+      // Aviso interno al paciente o a su tutor (US-031: sin emails externos).
       if (destino) {
         await crearAvisoCancelacion(tx, {
           turnoId,
-          destinatarioId: destino.id,
-          emailDestino: destino.email,
-          cuerpo: [
+          usuarioId: destino.id,
+          resumen: [
             `Se canceló presencialmente el turno de ${beneficiario}.`,
             `Prestación: ${prestacion}.`,
             `Fecha: ${fecha} a las ${hora} hs.`,
             `Profesional: ${profesional}.`,
           ].join(" "),
-          ahora,
         });
       }
 

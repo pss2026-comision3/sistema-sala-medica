@@ -62,7 +62,7 @@ Preguntas relacionadas: P-11, P-20, P-21, P-22, P-23, P-24, P-26, P-27, P-37, P-
 | **Operador registrado (CA2)** | `turno.creado_por` guarda la cuenta del Médico/Enfermería/Admin que operó, no la del paciente. Cada acción además deja una fila en `auditoria` con el rol del operador. |
 | **Paciente habilitado (CA1)** | `evaluarHabilitacionPaciente` en `src/lib/agenda/presencial.ts`. Un adulto está habilitado con su propia cuenta `PACIENTE` activa (US-002 CA5); un menor, con un tutor principal vigente, es decir, adulto con cuenta `PACIENTE` activa (US-003 CA2, mismo criterio que `motivoNoPuedeSerTutor`). En la búsqueda los no habilitados aparecen marcados con el motivo: se les pueden cancelar citas, pero no reservar. |
 | **Límite por especialidad (CA2/CA4)** | `buscarCitaVigenteEspecialidad` en `src/lib/turnos/presencial.ts`: misma regla que `cargarCitasVigentesEspecialidad` del autoservicio, más el estado de la jornada y una exclusión. Si la cita vigente está pendiente de resolución, el mensaje lo dice y deriva a Administración. En la reprogramación se excluye la cita reemplazada (CA4), pero cualquier otro turno vigente de la especialidad la bloquea. |
-| **Avisos (CA3/CA4/CA6)** | Reutiliza `anularRecordatoriosPendientes` y `crearAvisoCancelacion` de `src/lib/notificaciones/avisos.ts`. Importante: esto **no envía un email real ni muestra nada en la cuenta del paciente** — ver sección 8. |
+| **Avisos (CA3/CA4/CA6)** | Reutiliza `crearAvisoCancelacion` y `crearAvisoReprogramacion` de `src/lib/notificaciones/avisos.ts` (US-031). El aviso queda en `aviso_interno` y lo ve el paciente, o su tutor si es menor, en `/paciente/avisos`. Sin emails externos (regla de negocio) — ver sección 8. |
 | **Vacunación fuera de alcance** | Ningún archivo nuevo toca `Vacuna`, `LoteVacuna` ni `vacunatorio.ts`. |
 
 ---
@@ -128,7 +128,17 @@ En `reservarCitaPresencial` y `reprogramarCitaAfectada` las dos cosas se reempla
 
 ## 8. Sobre los avisos (CA3/CA4/CA6, "se generan los avisos correspondientes")
 
-Cada cancelación o reprogramación de esta US escribe una fila en la tabla `evento_email` (vía `crearAvisoCancelacion`). **No existe ninguna integración de envío real de correo, ni una bandeja dentro de la cuenta del paciente que la muestre.** Esto no es un faltante de la US-015: el propio comentario de `src/lib/notificaciones/avisos.ts` dice que el envío real y la bandeja interna son de **US-SIG-031/032/033** (Sprint 2, sin implementar; ver `docs/PLAN-US-015.md` §2 de este mismo documento no aplica, consultar el historial de la conversación o `feature/us-031-avisos-email`, que todavía no tiene trabajo propio). Hoy, verificar que "se avisó" solo se puede hacer mirando la tabla `evento_email` con `npm run db:studio`.
+**Regla de negocio: el sistema no envía emails externos; todo aviso es interno.** Los avisos se guardan en la tabla `aviso_interno` y el destinatario los ve en su bandeja, `/paciente/avisos` (US-031).
+
+| Acción de esta US | Función | Evento en la bandeja | Turno asociado |
+| --- | --- | --- | --- |
+| Cancelación presencial (CA2) | `crearAvisoCancelacion` | "Cancelación de turno" | el cancelado |
+| Cancelación con motivo de una cita suspendida (CA3/CA6) | `crearAvisoCancelacion` | "Cancelación de turno" | el cancelado |
+| Reprogramación (CA4) | `crearAvisoReprogramacion` | "Turno reprogramado" | el **nuevo** (para que apunte a la cita vigente) |
+
+- El destinatario es la cuenta activa del paciente o, si es un menor sin cuenta, la de su tutor. Si no hay ninguna cuenta activa, no se crea aviso y la auditoría registra `sinDestinatario: true`.
+- Ya no se escribe en `evento_email`, y los recordatorios por email dejaron de existir (`anularRecordatoriosPendientes` se eliminó en la US-031).
+- Para verificar que "se avisó", entrá con la cuenta del paciente → **Avisos**, o mirá la tabla `aviso_interno` con `npm run db:studio`.
 
 ---
 
@@ -157,7 +167,7 @@ Cada cancelación o reprogramación de esta US escribe una fila en la tabla `eve
 **Preparación común:** un médico con una jornada PUBLICADA futura con al menos una cita CONFIRMADA; esa jornada suspendida desde `/admin/jornadas` (para CA3/CA4/CA6); un paciente adulto dado de alta aparte (para CA1/CA2).
 
 ### CA3 — Cancelar con motivo
-1. Camino feliz: cancelar con motivo desde `/admin/jornadas` → el turno pasa a `CANCELADO`, desaparece de la lista, queda un `evento_email` y una fila en `auditoria`.
+1. Camino feliz: cancelar con motivo desde `/admin/jornadas` → el turno pasa a `CANCELADO`, desaparece de la lista, queda una fila en `aviso_interno` (el paciente ve "Cancelación de turno" en **Avisos**) y una fila en `auditoria`.
 2. Motivo vacío → error, no cancela.
 3. Dos pestañas: la misma cita cancelada en una y después en la otra → la segunda dice "Esta cita ya se resolvió o ya tiene un resultado registrado."
 3b. Suspender una jornada en el panel de arriba → sus citas aparecen en "Citas pendientes de resolución" sin recargar la página.
@@ -204,4 +214,3 @@ Cada cancelación o reprogramación de esta US escribe una fila en la tabla `eve
 - Vacunación completa de CA1, CA2 y CA5 — depende de US-SIG-022 y US-SIG-023 (Sprint 3).
 - `reservarTurnoTemporal` (US-012) sigue con el chequeo por minuto exacto y el parseo de rango que da `NaN` (sección 7). No es de esta US.
 - Carrera del límite por especialidad: el límite se valida antes de la transacción, así que dos reservas simultáneas del mismo paciente y la misma especialidad en jornadas distintas podrían pasar las dos. Se dejó afuera por su baja probabilidad.
-- Envío real de avisos y bandeja interna — US-SIG-031/032/033 (Sprint 2, sin empezar salvo una rama sin commits propios).

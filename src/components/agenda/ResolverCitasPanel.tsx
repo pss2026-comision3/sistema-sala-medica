@@ -269,7 +269,8 @@ function DialogoCancelar({
           required
         />
         <span className="hint">
-          Se le avisa al paciente por email y queda en la bitácora.
+          Se le avisa al paciente en su bandeja de Avisos y queda en la
+          bitácora.
         </span>
       </div>
 

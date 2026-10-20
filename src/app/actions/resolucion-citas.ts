@@ -23,8 +23,8 @@ import {
   validarMotivoResolucion,
 } from "@/lib/agenda/resolucion";
 import {
-  anularRecordatoriosPendientes,
   crearAvisoCancelacion,
+  crearAvisoReprogramacion,
 } from "@/lib/notificaciones/avisos";
 import { cargarCatalogoMedico } from "@/lib/turnos/buscar-horarios";
 import {
@@ -111,14 +111,14 @@ const SELECCION_CITA = {
       persona: {
         select: {
           nombreCompleto: true,
-          usuario: { select: { id: true, email: true, activo: true } },
+          usuario: { select: { id: true, activo: true } },
         },
       },
       tutor: {
         select: {
           persona: {
             select: {
-              usuario: { select: { id: true, email: true, activo: true } },
+              usuario: { select: { id: true, activo: true } },
             },
           },
         },
@@ -257,21 +257,18 @@ export async function cancelarCitaAfectada(input: {
         throw new ErrorResolucion(MSG_RESOLUCION.CITA_YA_RESUELTA);
       }
 
-      await anularRecordatoriosPendientes(tx, turnoId, ahora);
-
+      // Aviso interno al paciente o a su tutor (US-031: sin emails externos).
       if (destino) {
         await crearAvisoCancelacion(tx, {
           turnoId,
-          destinatarioId: destino.id,
-          emailDestino: destino.email,
-          cuerpo: cuerpoAvisoCancelacionResolucion({
+          usuarioId: destino.id,
+          resumen: cuerpoAvisoCancelacionResolucion({
             beneficiario,
             prestacion,
             fechaLegible,
             hora,
             motivo: motivo.motivo,
           }),
-          ahora,
         });
       }
 
@@ -613,14 +610,12 @@ export async function reprogramarCitaAfectada(input: {
         },
       });
 
-      await anularRecordatoriosPendientes(tx, turnoId, ahora);
-
+      // Aviso interno sobre el turno nuevo, para que apunte a la cita vigente.
       if (destino) {
-        await crearAvisoCancelacion(tx, {
-          turnoId,
-          destinatarioId: destino.id,
-          emailDestino: destino.email,
-          cuerpo: cuerpoAvisoReprogramacion({
+        await crearAvisoReprogramacion(tx, {
+          turnoId: nuevoTurno.id,
+          usuarioId: destino.id,
+          resumen: cuerpoAvisoReprogramacion({
             beneficiario,
             prestacion,
             fechaLegible: fechaOriginalLegible,
@@ -629,7 +624,6 @@ export async function reprogramarCitaAfectada(input: {
             nuevaHora: input.nuevaHora,
             nuevoProfesional,
           }),
-          ahora,
         });
       }
 
