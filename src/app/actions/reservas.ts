@@ -9,6 +9,7 @@ import {
   puedeConfirmarReserva,
   RETENCION_MINUTOS,
 } from "@/lib/agenda/reservas";
+import { crearAvisoConfirmacion } from "@/lib/notificaciones/avisos";
 
 export type ResultadoReserva =
   { exito: true; turnoId: string; retenidoHasta: Date } | { error: string };
@@ -222,6 +223,17 @@ export async function confirmarReservaDefinitiva(
       creadoPor: true,
       disponibilidadId: true, // US-009: para verificar que la jornada siga publicada
       origenCancelacion: true, // US-009: para explicar una retención liberada
+      hora: true,
+      tipo: true,
+      vacuna: { select: { nombre: true } },
+      disponibilidad: {
+        select: {
+          fecha: true,
+          profesional: {
+            select: { medico: { select: { especialidad: { select: { nombre: true } } } } },
+          },
+        },
+      },
     },
   });
   if (!turno) {
@@ -269,6 +281,19 @@ export async function confirmarReservaDefinitiva(
           "La retención ya no está vigente. Volvé a buscar un horario.",
         );
       }
+
+      // CA1 (US-031): generar el aviso interno de confirmación.
+      const fechaFormat = turno.disponibilidad.fecha.toISOString().slice(0, 10);
+      const horaFormat = turno.hora.toISOString().slice(11, 16);
+      const prestacion = turno.tipo === "VACUNACION"
+        ? (turno.vacuna?.nombre ?? "Vacunación")
+        : (turno.disponibilidad.profesional.medico?.especialidad?.nombre ?? "Consulta médica");
+
+      await crearAvisoConfirmacion(tx, {
+        turnoId: turno.id,
+        usuarioId: BigInt(sesion.usuarioId),
+        resumen: `Tu turno para ${prestacion} el ${fechaFormat} a las ${horaFormat} hs ha sido confirmado.`,
+      });
 
       // Auditar
       await tx.auditoria.create({

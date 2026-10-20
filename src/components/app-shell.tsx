@@ -28,6 +28,7 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
     { href: "/paciente/buscar", label: "Buscar turno" },
     { href: "/paciente/confirmar", label: "Confirmar cita" },
     { href: "/paciente/turnos", label: "Mis turnos" },
+    { href: "/paciente/avisos", label: "Avisos" },
   ],
 };
 

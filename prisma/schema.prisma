@@ -121,6 +121,7 @@ model Usuario {
   comprobantesGenerados       ComprobanteTurno[]
   eventosComoDestinatario     EventoEmail[]
   auditorias                  Auditoria[]
+  avisosInternos              AvisoInterno[]
 
   @@map("usuario")
 }
@@ -306,6 +307,7 @@ model Turno {
   comprobantes        ComprobanteTurno[]
   eventosEmail        EventoEmail[]
   movimientoStock     MovimientoStock?
+  avisoInternos       AvisoInterno[]
 
   @@index([pacienteId, estado])
   @@index([disponibilidadId, estado])
@@ -483,4 +485,22 @@ model Auditoria {
   @@index([actorId, creadoEn])
   @@index([entidad, referenciaId])
   @@map("auditoria")
+}
+
+///Aviso interno para la bandeja de notificaciones del usuario (US-031, US-033).
+model AvisoInterno {
+  id        BigInt   @id @default(autoincrement())
+  usuarioId BigInt   @map("usuario_id")
+  turnoId   BigInt?  @map("turno_id")
+  evento    String   @db.VarChar(120) // Ej: "Turno confirmado", "Jornada suspendida"
+  resumen   String   @db.Text
+  leido     Boolean  @default(false)
+  creadoEn  DateTime @default(now()) @map("creado_en") @db.Timestamptz(6)
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+  turno   Turno?  @relation(fields: [turnoId], references: [id])
+
+  @@index([usuarioId, creadoEn])
+  @@index([turnoId])
+  @@map("aviso_interno")
 }
