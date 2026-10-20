@@ -150,6 +150,12 @@ export type FormState = {
   errors?: Record<string, string[]>;
 };
 
+/**
+ * Permite al médico agregar correcciones a una consulta ya registrada
+ * @param prevState
+ * @param formData
+ * @returns
+ */
 export async function agregarCorreccion(
   prevState: FormState,
   formData: FormData,
@@ -230,4 +236,43 @@ export async function agregarCorreccion(
     success: true,
     message: "La corrección se guardó y anexó correctamente a la consulta.",
   };
+}
+
+/**
+ * Obtiene el historial de consultas de un médico.
+ * @param medicoUsuarioId
+ * @returns
+ * @todo Implementar paginación y filtros de búsqueda para mejorar la eficiencia y usabilidad.
+ */
+export async function obtenerResumenConsultasMedico(medicoUsuarioId: string) {
+  const consultas = await prisma.consulta.findMany({
+    where: {
+      autorId: BigInt(medicoUsuarioId),
+    },
+    orderBy: {
+      creadaEn: "desc",
+    },
+    select: {
+      turnoId: true,
+      creadaEn: true,
+      turno: {
+        select: {
+          paciente: {
+            select: {
+              dni: true,
+              persona: { select: { nombreCompleto: true } },
+            },
+          },
+        },
+      },
+    },
+    take: 50,
+  });
+
+  return consultas.map((c) => ({
+    turnoId: c.turnoId.toString(),
+    creadaEn: c.creadaEn.toISOString(),
+    pacienteNombre: c.turno.paciente.persona.nombreCompleto,
+    pacienteDni: c.turno.paciente.dni,
+  }));
 }
