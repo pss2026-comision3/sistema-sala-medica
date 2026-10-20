@@ -11,6 +11,7 @@ import {
   validarCitaAptaParaConsulta,
 } from "@/lib/turnos/resultado-atencion";
 import type { ResultadoRegistroConsulta } from "@/lib/turnos/consulta-clinica";
+import { esquemaAgregarCorreccion } from "@/lib/validations/consultas";
 
 export async function registrarConsultaMedicaAction(
   formData: FormData,
@@ -141,4 +142,92 @@ export async function registrarConsultaMedicaAction(
       error: "Ocurrió un error inesperado al registrar la consulta médica.",
     };
   }
+}
+
+export type FormState = {
+  success: boolean;
+  message?: string;
+  errors?: Record<string, string[]>;
+};
+
+export async function agregarCorreccion(
+  prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const medico = await requireRole("MEDICO");
+
+  const datosForm = {
+    turnoId: formData.get("turnoId") as string,
+    motivo: formData.get("motivo") as string,
+    texto: formData.get("texto") as string,
+  };
+
+  const validacion = esquemaAgregarCorreccion.safeParse(datosForm);
+
+  if (!validacion.success) {
+    return {
+      success: false,
+      errors: validacion.error.flatten().fieldErrors,
+      message: "Por favor, completá todos los campos requeridos.",
+    };
+  }
+
+  const { turnoId, motivo, texto } = validacion.data;
+  const idObjetivo = BigInt(turnoId);
+
+  try {
+    // Buscamos la consulta original para validar la autoría (CA1)
+    const consultaOriginal = await prisma.consulta.findUnique({
+      where: { turnoId: idObjetivo },
+      select: { autorId: true },
+    });
+
+    if (!consultaOriginal) {
+      return {
+        success: false,
+        message: "La consulta original a la que intentás acceder no existe.",
+      };
+    }
+
+    // Verificamos que el usuario logueado sea el autor original (CA1)
+    if (consultaOriginal.autorId !== BigInt(medico.usuarioId)) {
+      return {
+        success: false,
+        message:
+          "Acceso denegado: solo el médico autor de la consulta puede agregarle correcciones.",
+      };
+    }
+
+    // Mutación: Creamos el registro de corrección (CA2, CA4, CA5)
+    await prisma.correccion.create({
+      data: {
+        consultaTurnoId: idObjetivo,
+        autorId: BigInt(medico.usuarioId),
+        texto: texto,
+        motivo: motivo,
+      },
+    });
+
+    await prisma.auditoria.create({
+      data: {
+        actorId: BigInt(medico.usuarioId),
+        accion: "Incorporar corrección a consulta",
+        entidad: "correccion",
+        referenciaId: idObjetivo,
+      },
+    });
+  } catch (error) {
+    console.error("Error al agregar corrección:", error);
+    return {
+      success: false,
+      message: "Ocurrió un error interno al intentar guardar la corrección.",
+    };
+  }
+
+  revalidatePath(`/medico/turnos/${turnoId}`);
+
+  return {
+    success: true,
+    message: "La corrección se guardó y anexó correctamente a la consulta.",
+  };
 }
