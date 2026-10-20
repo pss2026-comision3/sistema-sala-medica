@@ -114,7 +114,13 @@ export default async function FichaCitaPage(
           {/* Sección clínica (US-017) */}
           {consulta ? (
             /* Si ya existe una consulta registrada, se muestra inmutable en solo lectura (CA4) */
-            <ConsultaDetalleView consulta={consulta} />
+            <ConsultaDetalleView
+              consulta={{
+                ...consulta,
+                turnoId: id,
+                esAutor: true,
+              }}
+            />
           ) : inicio.puede ? (
             /* Si la cita cumple las condiciones de CA1 y no está atendida, se ofrece el formulario */
             <ConsultaMedicaForm turnoId={id} />
