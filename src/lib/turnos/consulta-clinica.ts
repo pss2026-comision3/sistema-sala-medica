@@ -52,6 +52,11 @@ export async function obtenerConsultaClinicaTurno({
     include: {
       autor: {
         include: {
+          correcciones: {
+            orderBy: {
+              creadaEn: "asc",
+            },
+          },
           usuario: {
             include: {
               persona: true,
