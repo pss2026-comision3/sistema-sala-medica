@@ -4,10 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { inicioTurno, puedeCancelarTurno } from "@/lib/agenda/reglas";
 import { AUDITORIA, MSG } from "@/lib/auth/constants";
 import { requireRole } from "@/lib/auth/guards";
-import {
-  anularRecordatoriosPendientes,
-  crearAvisoCancelacion,
-} from "@/lib/notificaciones/avisos";
+import {crearAvisoCancelacion} from "@/lib/notificaciones/avisos";
 import { cargarBeneficiarios } from "@/lib/turnos/buscar-horarios";
 
 export async function cancelarTurnoPaciente(input: {
@@ -104,19 +101,17 @@ export async function cancelarTurnoPaciente(input: {
         throw new Error(MSG.CANCELACION_ESTADO);
       }
 
-      // CA4: se anula el recordatorio pendiente y se notifica la cancelación.
-      await anularRecordatoriosPendientes(tx, turnoId, ahora);
+      // CA4: se notifica la cancelación mediante un aviso interno.
+      // (Se eliminó anularRecordatoriosPendientes porque ya no usamos la tabla EventoEmail).
       await crearAvisoCancelacion(tx, {
         turnoId,
-        destinatarioId: usuarioId,
-        emailDestino: sesion.email,
-        cuerpo: [
+        usuarioId, // Usamos el ID del usuario directamente (la firma nueva)
+        resumen: [
           `Se canceló el turno de ${beneficiarioNombre}.`,
           `Prestación: ${prestacion}.`,
           `Fecha: ${fecha} a las ${hora} hs.`,
           `Profesional: ${profesional}.`,
         ].join(" "),
-        ahora,
       });
 
       await tx.auditoria.create({

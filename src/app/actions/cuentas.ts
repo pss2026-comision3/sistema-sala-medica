@@ -36,7 +36,7 @@ export async function crearCuentaPersonal(
 ): Promise<FormState> {
   const admin = await requireRole("ADMIN");
 
-  // TODO: Generar una clave temporal aleatoria.
+  // TODO: Generar una clave temporal aleatoria y enviarla al mail o mostrarla en pantalla.
   const claveTemporal = "password123";
 
   const datosForm = {
@@ -398,7 +398,7 @@ export async function reactivarCuentaPersonal(
   }
 
   // Refresca los datos en la página actual
-  revalidatePath("/admin"); 
+  revalidatePath("/admin");
 
   return {
     success: true,

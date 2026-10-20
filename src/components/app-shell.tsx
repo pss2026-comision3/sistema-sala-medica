@@ -18,6 +18,7 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
     { href: "/admin/jornadas", label: "Jornadas" },
     { href: "/turnos/presenciales", label: "Turnos presenciales" },
     { href: "/admin/parametros", label: "Parámetros" },
+    { href: "/admin/obras-sociales", label: "Obras sociales" },
   ],
   MEDICO: [
     { href: "/medico", label: "Agenda" },
@@ -33,6 +34,7 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
     { href: "/paciente/buscar", label: "Buscar turno" },
     { href: "/paciente/confirmar", label: "Confirmar cita" },
     { href: "/paciente/turnos", label: "Mis turnos" },
+    { href: "/paciente/avisos", label: "Avisos" },
   ],
 };
 

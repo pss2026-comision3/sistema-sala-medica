@@ -88,6 +88,13 @@ export const MSG = {
     "Ese registro corresponde a una persona menor de 18 años y no puede tener cuenta propia.",
   ALTA_CONFLICTO:
     "No se pudo completar la alta: el correo ya está en uso y el registro elegido ya tiene una cuenta.",
+  OBRA_SOCIAL_NOMBRE_REQUERIDO: "Ingresá el nombre de la obra social.",
+  OBRA_SOCIAL_NOMBRE_LARGO: "El nombre admite hasta 255 caracteres.",
+  OBRA_SOCIAL_NOMBRE_DUPLICADO: "Ya existe una obra social con ese nombre.",
+  OBRA_SOCIAL_NO_ENCONTRADA: "La obra social solicitada no existe.",
+  OBRA_SOCIAL_CREADA: "Obra social creada con éxito.",
+  OBRA_SOCIAL_NOMBRE_ACTUALIZADO: "Nombre actualizado con éxito.",
+  OBRA_SOCIAL_ESTADO_ACTUALIZADO: "Estado actualizado con éxito.",
   CANCELACION_PLAZO:
     "Faltan menos de 24 horas para el inicio. Contactá a la sala para gestionarla presencialmente.",
   CANCELACION_INICIADA: "Esta cita ya empezó: no se puede cancelar.",
@@ -114,6 +121,18 @@ export const MSG = {
     "No se puede registrar la consulta: la cita fue marcada como ausente.",
   CONSULTA_SIN_PERMISO:
     "Tu rol no tiene permiso para documentar consultas médicas.",
+  ADJUNTO_NOMBRE_REQUERIDO: "El nombre descriptivo del archivo es obligatorio.",
+  ADJUNTO_NOMBRE_LARGO: "El nombre descriptivo admite hasta 255 caracteres.",
+  ADJUNTO_ARCHIVO_REQUERIDO: "Seleccioná un archivo para adjuntar.",
+  ADJUNTO_TIPO_INVALIDO: "Solo se permiten archivos PDF, JPG o PNG.",
+  ADJUNTO_TAMANO_EXCEDIDO: "El archivo supera los 10 MB permitidos.",
+  ADJUNTO_ARCHIVO_CORRUPTO: "El archivo no coincide con el formato declarado.",
+  ADJUNTO_CONSULTA_NO_DISPONIBLE:
+    "La consulta no existe o no tenés autorización para adjuntar archivos.",
+  ADJUNTO_EXITO: "Documento adjuntado con éxito.",
+  ADJUNTO_ERROR_GUARDADO: "No se pudo guardar el archivo. Intentá nuevamente.",
+  ADJUNTO_SIN_PERMISO:
+    "Tu rol no tiene permiso para adjuntar documentos a consultas.",
 } as const;
 
 export const AUDITORIA = {
@@ -125,6 +144,9 @@ export const AUDITORIA = {
   CONFIGURACION_MEDICO: "Configuración de duración y arancel médico",
   CONFIGURACION_VACUNA: "Configuración de arancel de vacuna",
   ALTA_PACIENTE: "Alta de paciente adulto",
+  ALTA_OBRA_SOCIAL: "Alta de obra social",
+  EDICION_OBRA_SOCIAL: "Edición de obra social",
+  ESTADO_OBRA_SOCIAL: "Cambio de estado de obra social",
   RESERVA_TURNO: "Reserva de turno",
   CONFIRMACION_TURNO: "Confirmación de turno",
   CANCELACION_EXPIRACION: "Cancelación por expiración de retención",
@@ -138,4 +160,5 @@ export const AUDITORIA = {
     "Reprogramación administrativa de cita afectada por suspensión",
   RESERVA_PRESENCIAL: "Reserva presencial por personal autorizado",
   CANCELACION_PRESENCIAL: "Cancelación presencial por personal autorizado",
+  REGISTRO_ADJUNTO_CONSULTA: "Registro de adjunto de consulta",
 } as const;

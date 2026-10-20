@@ -5,12 +5,31 @@ import { etiquetaFecha } from "@/lib/agenda/reglas";
 import { requireRole } from "@/lib/auth/guards";
 import { cargarBeneficiarios } from "@/lib/turnos/buscar-horarios";
 import { obtenerCitaPaciente } from "@/lib/turnos/consulta-turnos";
+import { obtenerAdjuntosConsultaPaciente } from "@/lib/turnos/adjuntos-clinicos";
 import {
   ETIQUETA_ESTADO_CITA,
   ETIQUETA_RESULTADO_ATENCION,
 } from "@/lib/agenda/etiquetas";
 import type { EstadoTurnoAgenda, ResultadoAgenda } from "@/lib/agenda/tipos";
 import { AccionesCancelacion } from "@/components/paciente/CancelarCitaDialog";
+
+function formatearTamano(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatearFecha(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("es-AR", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "America/Argentina/Buenos_Aires",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
 
 export default async function FichaCitaPage(props: {
   params: Promise<{ id: string }>;
@@ -22,11 +41,23 @@ export default async function FichaCitaPage(props: {
   // CA5 (US-013): la cita solo existe si pertenece a un beneficiario autorizado
   // (el titular o un menor con vínculo de tutor vigente).
   let cita = null;
+  let beneficiarioId: string | null = null;
   for (const beneficiario of beneficiarios) {
     cita = await obtenerCitaPaciente(id, beneficiario.id);
-    if (cita) break;
+    if (cita) {
+      beneficiarioId = beneficiario.id;
+      break;
+    }
   }
   if (!cita) notFound();
+
+  const adjuntos =
+    beneficiarioId !== null
+      ? await obtenerAdjuntosConsultaPaciente({
+          turnoId: id,
+          pacientePersonaId: beneficiarioId,
+        })
+      : [];
 
   const cobro =
     cita.situacionCobro === "COBRADA"
@@ -143,6 +174,62 @@ export default async function FichaCitaPage(props: {
           <p>Esta cita no tiene factura disponible.</p>
         )}
       </section>
+      <section className="sigsam-card" style={{ marginTop: 12 }}>
+        <h2>Documentación adjunta</h2>
+        {adjuntos.length === 0 ? (
+          <p>Esta consulta no tiene documentos adjuntos.</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {adjuntos.map((adjunto) => {
+              const url = `/api/paciente/turnos/${cita.id}/adjuntos/${adjunto.id}/archivo`;
+              return (
+                <li
+                  key={adjunto.id}
+                  style={{
+                    borderBottom: "1px solid var(--color-line, #d7e2e4)",
+                    padding: "10px 0",
+                  }}
+                >
+                  <p style={{ margin: "0 0 4px" }}>
+                    <strong>{adjunto.nombre}</strong>
+                  </p>
+                  <p
+                    className="sigsam-muted"
+                    style={{ margin: "0 0 8px", fontSize: "12px" }}
+                  >
+                    {formatearTamano(adjunto.tamanoBytes)} · Adjuntado el{" "}
+                    {formatearFecha(adjunto.creadoEn)}
+                  </p>
+                  {adjunto.mimeType.startsWith("image/") && (
+                    <div style={{ marginBottom: "8px" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={adjunto.nombre}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "240px",
+                          borderRadius: "6px",
+                          border: "1px solid var(--color-line, #d7e2e4)",
+                        }}
+                      />
+                    </div>
+                  )}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="sigsam-link"
+                  >
+                    Ver archivo
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
       <section className="sigsam-card" style={{ marginTop: 12 }}>
         <h2>Acciones</h2>
         <AccionesCancelacion
