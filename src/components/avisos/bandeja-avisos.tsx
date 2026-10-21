@@ -164,7 +164,7 @@ export function BandejaAvisos({
           {/* Listado de tarjetas de aviso */}
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {avisosPaginados.map((a) => (
-              <AvisoItem key={a.id} aviso={a} rol={rol} onLeer={onLeer} />
+              <AvisoItem key={a.id} aviso={a} rol={rol} onLeerAction={onLeer} />
             ))}
           </ul>
 

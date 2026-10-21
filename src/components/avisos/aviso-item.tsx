@@ -8,16 +8,16 @@ import { marcarAvisoLeidoAction } from "@/app/actions/avisos";
 type Props = {
   aviso: AvisoInternoViewData;
   rol: string;
-  onLeer: (id: string) => void;
+  onLeerAction?: (id: string) => void;
 };
 
-export function AvisoItem({ aviso, rol, onLeer }: Props) {
+export function AvisoItem({ aviso, rol, onLeerAction }: Props) {
   const [isPending, startTransition] = useTransition();
 
   function handleMarcar() {
     startTransition(async () => {
       await marcarAvisoLeidoAction(aviso.id);
-      onLeer(aviso.id);
+      onLeerAction?.(aviso.id);
     });
   }
 
