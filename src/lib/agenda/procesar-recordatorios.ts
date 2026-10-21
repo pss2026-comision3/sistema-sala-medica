@@ -13,9 +13,6 @@ export async function procesarRecordatorios() {
   // Esto asegura que no enviemos múltiples correos para el mismo turno en cronjobs sucesivos.
   const ventanaInicio = new Date(ahora.getTime() + 24 * 60 * 60 * 1000); 
   const ventanaFin = new Date(ventanaInicio.getTime() + 60 * 1000); // +1 min
-  // Cambiá temporalmente el 24 por un 0 y sumá 5 minutos:
-  //const ventanaInicio = new Date(ahora.getTime() + 5 * 60 * 1000); 
-  //const ventanaFin = new Date(ventanaInicio.getTime() + 60 * 1000); // +1 min
 
   // Buscar los turnos elegibles (CA1, CA2)[cite: 20]
   const turnosCandidatos = await prisma.turno.findMany({
