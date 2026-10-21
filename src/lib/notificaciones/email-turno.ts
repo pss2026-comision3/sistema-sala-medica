@@ -4,6 +4,7 @@ import { inicioTurno } from "@/lib/agenda/reglas";
 import {
   emailCancelacion,
   emailConfirmacion,
+  emailRecordatorio,
   emailSuspension,
   type DatosCita,
 } from "@/lib/email/templates";
@@ -23,7 +24,7 @@ import {
  * - IntentoEmail: un registro por intento (EXITO / FALLIDO) con el error.
  */
 
-export type TipoAvisoEmail = "CONFIRMACION" | "CANCELACION" | "SUSPENSION";
+export type TipoAvisoEmail = "CONFIRMACION" | "CANCELACION" | "SUSPENSION" | "RECORDATORIO";
 
 const SELECT_USUARIO = {
   select: { id: true, email: true, activo: true },
@@ -35,6 +36,7 @@ async function cargarTurno(db: Prisma.TransactionClient, turnoId: bigint) {
     select: {
       id: true,
       estado: true,
+      resultado: true,
       hora: true,
       tipo: true,
       vacuna: { select: { nombre: true } },
@@ -90,15 +92,14 @@ export async function destinatarioDeTurno(
 function sigueVigente(tipo: TipoAvisoEmail, t: TurnoMail): boolean {
   switch (tipo) {
     case "CONFIRMACION":
-      return (
-        t.estado === "CONFIRMADO" && t.disponibilidad.estado === "PUBLICADA"
-      );
+      return t.estado === "CONFIRMADO" && t.disponibilidad.estado === "PUBLICADA";
     case "CANCELACION":
       return t.estado === "CANCELADO";
     case "SUSPENSION":
-      return (
-        t.estado === "CONFIRMADO" && t.disponibilidad.estado === "SUSPENDIDA"
-      );
+      return t.estado === "CONFIRMADO" && t.disponibilidad.estado === "SUSPENDIDA";
+    case "RECORDATORIO": // NUEVO
+      // CA2: que la cita siga confirmada, sin resultado y agenda abierta
+      return t.estado === "CONFIRMADO" && t.resultado === "SIN_REGISTRAR" && t.disponibilidad.estado === "PUBLICADA";
   }
 }
 
@@ -126,6 +127,8 @@ function construirMensaje(tipo: TipoAvisoEmail, d: DatosCita) {
       return emailCancelacion(d);
     case "SUSPENSION":
       return emailSuspension(d);
+    case "RECORDATORIO": 
+      return emailRecordatorio(d);
   }
 }
 

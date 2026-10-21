@@ -86,3 +86,14 @@ export function emailSuspension(c: DatosCita): MensajeEmail {
 
 // CA3: reprogramación = cancelación del turno anterior + confirmación del nuevo.
 // Se envían como dos mails (uno por evento), cada uno con su fecha.
+
+
+//CA4: recordatorio de turno a enviar 24hs antes de la cita. Se envía solo si el turno sigue confirmado y sin resultado.
+export function emailRecordatorio(c: DatosCita): MensajeEmail {
+  const titulo = "Recordatorio de turno próximo";
+  return {
+    subject: `Recordatorio de turno - ${formatearFecha(c.fecha)}`,
+    text: `${titulo}\n\nTe recordamos que tenés un turno en 24 horas.\n\n${textoCita(c)}\n\nVer detalle: ${c.detalleUrl}`,
+    html: layout(titulo, `<p>Te recordamos que tenés un turno programado en 24 horas.</p>${filaCita(c)}`, c.detalleUrl),
+  };
+}
