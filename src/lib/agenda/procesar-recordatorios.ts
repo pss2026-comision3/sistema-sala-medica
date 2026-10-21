@@ -5,9 +5,10 @@ import { notificarPorEmail, destinatarioDeTurno } from "@/lib/notificaciones/ema
 export async function procesarRecordatorios() {
   const ahora = new Date();
   
-  // Rango de búsqueda: Citas entre 24 horas y 25 horas hacia el futuro.
-  const ventanaInicio = new Date(ahora.getTime() + 24 * 60 * 60 * 1000); 
-  const ventanaFin = new Date(ventanaInicio.getTime() + 60 * 60 * 1000); 
+// 24 horas (regla de negocio) - 3 horas de desfasaje de Argentina (UTC-3) = 21 horas reales.
+  // Busca turnos guardados entre 21 y 22 horas de distancia absoluta.
+  const ventanaInicio = new Date(ahora.getTime() + 21 * 60 * 60 * 1000); 
+  const ventanaFin = new Date(ventanaInicio.getTime() + 60 * 60 * 1000);
 
   // 1. Buscar los turnos elegibles cumpliendo las reglas de negocio (US-SIG-032)
   const turnosCandidatos = await prisma.turno.findMany({
