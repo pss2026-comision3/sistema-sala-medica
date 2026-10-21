@@ -10,6 +10,7 @@ import {
   RETENCION_MINUTOS,
 } from "@/lib/agenda/reservas";
 import { crearAvisoConfirmacion } from "@/lib/notificaciones/avisos";
+import { notificarPorEmail } from "@/lib/notificaciones/email-turno";
 
 export type ResultadoReserva =
   { exito: true; turnoId: string; retenidoHasta: Date } | { error: string };
@@ -306,6 +307,9 @@ export async function confirmarReservaDefinitiva(
         },
       });
     });
+
+    // Llamada para enviar el email (fire-and-forget)
+    notificarPorEmail("CONFIRMACION", turnoIdBig);
 
     return { exito: true };
   } catch (error) {
