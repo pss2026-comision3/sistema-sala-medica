@@ -2,29 +2,24 @@ import { prisma } from "@/lib/db/prisma";
 import { crearAvisoRecordatorio } from "@/lib/notificaciones/avisos";
 import { notificarPorEmail, destinatarioDeTurno } from "@/lib/notificaciones/email-turno";
 
-/**
- * Motor principal para la US-SIG-032.
- * Debe ejecutarse periódicamente (ej: cada minuto) mediante un CRON.
- */
 export async function procesarRecordatorios() {
   const ahora = new Date();
   
-  // Rango de búsqueda: Citas que empiezan entre exactamente 24 horas y 24 horas + 1 minuto.
-  // Esto asegura que no enviemos múltiples correos para el mismo turno en cronjobs sucesivos.
+  // Rango de búsqueda: Citas entre 24 horas y 25 horas hacia el futuro.
   const ventanaInicio = new Date(ahora.getTime() + 24 * 60 * 60 * 1000); 
-  const ventanaFin = new Date(ventanaInicio.getTime() + 60 * 1000); // +1 min
+  const ventanaFin = new Date(ventanaInicio.getTime() + 60 * 60 * 1000); 
 
-  // Buscar los turnos elegibles (CA1, CA2)[cite: 20]
+  // 1. Buscar los turnos elegibles cumpliendo las reglas de negocio (US-SIG-032)
   const turnosCandidatos = await prisma.turno.findMany({
     where: {
-      estado: "CONFIRMADO", // CA2[cite: 20]
-      resultado: "SIN_REGISTRAR", // CA2[cite: 20]
+      estado: "CONFIRMADO", 
+      resultado: "SIN_REGISTRAR", 
       hora: {
         gte: ventanaInicio,
         lt: ventanaFin
       },
       disponibilidad: {
-        estado: "PUBLICADA" // CA2 (agenda abierta)[cite: 20]
+        estado: "PUBLICADA" 
       }
     },
     include: {
@@ -40,12 +35,12 @@ export async function procesarRecordatorios() {
     }
   });
 
+  console.log(`[CRON Recordatorios] Procesando ${turnosCandidatos.length} turnos para la ventana de 24hs.`);
+
   for (const turno of turnosCandidatos) {
-    // 1. Obtener el destinatario válido (adulto o tutor vigente) (CA3)[cite: 20]
     const destino = await destinatarioDeTurno(prisma, turno.id);
-    
     if (!destino) {
-      console.warn(`[Recordatorio] Turno ${turno.id}: sin destinatario activo.`);
+      console.warn(`[CRON Recordatorios] Turno ${turno.id}: Ignorado (sin destinatario)`);
       continue;
     }
 
@@ -55,10 +50,9 @@ export async function procesarRecordatorios() {
       ? (turno.vacuna?.nombre ?? "Vacunación")
       : (turno.disponibilidad.profesional.medico?.especialidad?.nombre ?? "Consulta médica");
 
-try {
+    try {
       // 2. Transacción: Insertar aviso interno
       await prisma.$transaction(async (tx) => {
-        // CA1: Aviso interno
         await crearAvisoRecordatorio(tx, {
           turnoId: turno.id,
           usuarioId: destino.usuarioId,
@@ -66,11 +60,11 @@ try {
         });
       });
 
-      // 3. Disparar Email (fire-and-forget)
+      // 3. Disparar Email
       notificarPorEmail("RECORDATORIO", turno.id);
 
     } catch (e) {
-      console.error(`[Recordatorio] Error procesando turno ${turno.id}:`, e);
+      console.error(`[CRON Recordatorios] Error procesando turno ${turno.id}:`, e);
     }
   }
 }
