@@ -18,6 +18,7 @@ import {
   validarMotivo,
 } from "@/lib/agenda/suspension";
 import { crearAvisoSuspension } from "@/lib/notificaciones/avisos";
+import { notificarPorEmail } from "@/lib/notificaciones/email-turno";
 
 /*
  * US-SIG-009 — Suspender una jornada médica ante un imprevisto (RF-10).
@@ -461,6 +462,7 @@ export async function suspenderJornada(input: {
   const medico = datosMedico(previa);
   const fechaLegible = etiquetaFecha(fecha);
   const revisadas = new Set(input.citasRevisadas ?? []);
+  const turnosParaEmail: bigint[] = [];
 
   let resumen: ResumenSuspension;
   try {
@@ -548,6 +550,7 @@ export async function suspenderJornada(input: {
           resumen: `Atención afectada: tu turno de ${medico.especialidad} del ${fechaLegible} a las ${horaTexto(turno.hora)} hs requiere resolución administrativa porque el médico suspendió la jornada.`,
         });
         avisosGenerados++;
+        turnosParaEmail.push(turno.id);
       }
 
       // 7. Bitácora (RF-21). Si opera Administración queda identificada.
@@ -585,6 +588,10 @@ export async function suspenderJornada(input: {
     if (error instanceof ErrorSuspension) return { error: error.message };
     console.error("Error suspendiendo jornada:", error);
     return { error: MSG_SUSPENSION.ERROR_INTERNO };
+  }
+
+  for (const id of turnosParaEmail) {
+    notificarPorEmail("SUSPENSION", id);
   }
 
   revalidatePath("/medico");

@@ -6,6 +6,7 @@ import { AUDITORIA, MSG } from "@/lib/auth/constants";
 import { requireRole } from "@/lib/auth/guards";
 import {crearAvisoCancelacion} from "@/lib/notificaciones/avisos";
 import { cargarBeneficiarios } from "@/lib/turnos/buscar-horarios";
+import { notificarPorEmail } from "@/lib/notificaciones/email-turno";
 
 export async function cancelarTurnoPaciente(input: {
   turnoId: string;
@@ -129,6 +130,10 @@ export async function cancelarTurnoPaciente(input: {
         },
       });
     });
+
+    // Llamada para enviar el email
+    notificarPorEmail("CANCELACION", turnoId);
+
     return { exito: true, mensaje: MSG.CANCELACION_EXITO };
   } catch (error) {
     console.error("Error cancelando turno:", error);
