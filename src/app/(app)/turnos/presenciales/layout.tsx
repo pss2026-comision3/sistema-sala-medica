@@ -9,7 +9,9 @@ import { requireSession } from "@/lib/auth/guards";
  */
 export default async function TurnosPresencialesLayout({
   children,
-}: LayoutProps<"/turnos/presenciales">) {
+}: {
+  children: React.ReactNode;
+}) {
   const sesion = await requireSession();
   if (sesion.claveTemporal) redirect("/cambiar-clave");
   if (!["MEDICO", "ENFERMERIA", "ADMIN"].includes(sesion.rol)) {

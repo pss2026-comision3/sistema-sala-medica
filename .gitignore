@@ -45,6 +45,8 @@ next-env.d.ts
 
 # local documentation / temp files
 USs Completo.docx.md
+docs/Plan de Demo*.md
 
 # Archivos clínicos privados (US-SIG-019)
 /storage/
+
