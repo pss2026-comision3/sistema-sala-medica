@@ -14,6 +14,29 @@ export const EVENTO_CANCELACION = "Cancelación de turno";
 export const EVENTO_CONFIRMACION = "Turno confirmado";
 export const EVENTO_REPROGRAMACION = "Turno reprogramado";
 export const EVENTO_SUSPENSION = "Atención afectada";
+export const EVENTO_RECORDATORIO = "Recordatorio de turno";
+
+/**
+ * Escribe el aviso interno de recordatorio previo a la cita.
+ */
+export async function crearAvisoRecordatorio(
+  tx: Prisma.TransactionClient,
+  datos: {
+    turnoId: bigint;
+    usuarioId: bigint;
+    resumen: string;
+  },
+): Promise<void> {
+  await tx.avisoInterno.create({
+    data: {
+      usuarioId: datos.usuarioId,
+      turnoId: datos.turnoId,
+      evento: EVENTO_RECORDATORIO,
+      resumen: datos.resumen,
+      leido: false,
+    },
+  });
+}
 
 /**
  * Escribe el aviso interno de cancelación de un turno en la bandeja del usuario.
