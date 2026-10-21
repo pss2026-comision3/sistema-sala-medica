@@ -8,7 +8,7 @@ import { ETIQUETA_ROL, INICIO_POR_ROL } from "@/lib/auth/constants";
 import type { SesionActual } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/logout-button";
 
-type NavItem = { href: string; label: string };
+type NavItem = { href: string; label: string; esAvisos?: true };
 
 const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
   ADMIN: [
@@ -19,23 +19,26 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
     { href: "/turnos/presenciales", label: "Turnos presenciales" },
     { href: "/admin/parametros", label: "Parámetros" },
     { href: "/admin/obras-sociales", label: "Obras sociales" },
+    { href: "/admin/avisos", label: "Avisos", esAvisos: true },
   ],
   MEDICO: [
     { href: "/medico", label: "Agenda" },
     { href: "/medico/disponibilidad", label: "Disponibilidad" },
     { href: "/turnos/presenciales", label: "Turnos presenciales" },
     { href: "/medico/correcciones", label: "Correcciones" },
+    { href: "/medico/avisos", label: "Avisos", esAvisos: true },
   ],
   ENFERMERIA: [
     { href: "/enfermeria", label: "Inicio" },
     { href: "/turnos/presenciales", label: "Turnos presenciales" },
+    { href: "/enfermeria/avisos", label: "Avisos", esAvisos: true },
   ],
   PACIENTE: [
     { href: "/paciente", label: "Inicio" },
     { href: "/paciente/buscar", label: "Buscar turno" },
     { href: "/paciente/confirmar", label: "Confirmar cita" },
     { href: "/paciente/turnos", label: "Mis turnos" },
-    { href: "/paciente/avisos", label: "Avisos" },
+    { href: "/paciente/avisos", label: "Avisos", esAvisos: true },
   ],
 };
 
@@ -48,10 +51,11 @@ const NOMBRE_ROL: Record<SesionActual["rol"], string> = {
 
 type Props = {
   sesion: SesionActual;
+  avisosNoLeidos?: number;
   children: ReactNode;
 };
 
-export function AppShell({ sesion, children }: Props) {
+export function AppShell({ sesion, avisosNoLeidos, children }: Props) {
   const pathname = usePathname();
   const items = NAV_POR_ROL[sesion.rol];
   const inicio = INICIO_POR_ROL[sesion.rol];
@@ -88,6 +92,15 @@ export function AppShell({ sesion, children }: Props) {
               >
                 <span className="sigsam-nav-dot" aria-hidden="true" />
                 {it.label}
+                {it.esAvisos && (avisosNoLeidos ?? 0) > 0 && (
+                  <span
+                    className="sigsam-badge warning"
+                    aria-label={`${avisosNoLeidos} sin leer`}
+                    style={{ marginLeft: "6px" }}
+                  >
+                    {(avisosNoLeidos ?? 0) > 99 ? "99+" : avisosNoLeidos}
+                  </span>
+                )}
               </Link>
             );
           })}

@@ -1,4 +1,6 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma, Rol } from "@/generated/prisma/client";
+import { prisma } from "@/lib/db/prisma";
+import { destinatarioDeTurno } from "@/lib/notificaciones/email-turno";
 
 /**
  * Superficie compartida de avisos internos de los turnos (US-031).
@@ -22,7 +24,7 @@ export async function crearAvisoCancelacion(
   datos: {
     turnoId: bigint;
     usuarioId: bigint; // El ID del usuario que va a recibir el aviso en su bandeja
-    resumen: string;   // El cuerpo del mensaje
+    resumen: string; // El cuerpo del mensaje
   },
 ): Promise<void> {
   await tx.avisoInterno.create({
@@ -102,5 +104,69 @@ export async function crearAvisoReprogramacion(
   });
 }
 
-// (Podés agregar funciones similares acá para suspensión o reprogramación 
+// (Podés agregar funciones similares acá para suspensión o reprogramación
 // a medida que tus compañeros las necesiten).
+
+export interface AvisoInternoViewData {
+  id: string; // BigInt serializado como string (Next.js no serializa BigInt)
+  turnoId: string | null;
+  evento: string;
+  resumen: string;
+  leido: boolean;
+  creadoEn: string; // ISO 8601
+  enlaceDisponible: boolean; // true si el usuario sigue teniendo acceso al turno vinculado (CA2, CA3)
+}
+
+/**
+ * Carga la bandeja del usuario con verificación de acceso al enlace (CA2, CA3).
+ *
+ * Para PACIENTE/MEDICO: verifica acceso al turno via destinatarioDeTurno().
+ * Para ADMIN/ENFERMERIA: no generan enlaces (turnoId = null en sus avisos).
+ *
+ * Serializa BigInt a string antes de retornar (Client Component safe).
+ */
+export async function obtenerBandejaAvisos({
+  usuarioId,
+  rol,
+}: {
+  usuarioId: bigint;
+  rol: Rol;
+}): Promise<AvisoInternoViewData[]> {
+  const avisos = await prisma.avisoInterno.findMany({
+    where: { usuarioId },
+    orderBy: { creadoEn: "desc" },
+  });
+
+  return Promise.all(
+    avisos.map(async (a) => {
+      let enlaceDisponible = false;
+      if (a.turnoId && (rol === "PACIENTE" || rol === "MEDICO")) {
+        // CA2, CA3: verificar que el usuario sigue teniendo acceso al turno.
+        // destinatarioDeTurno resuelve tutor vigente o paciente activo.
+        const dest = await destinatarioDeTurno(
+          prisma as unknown as Prisma.TransactionClient,
+          a.turnoId,
+        );
+        enlaceDisponible = dest?.usuarioId === usuarioId;
+      }
+      return {
+        id: a.id.toString(),
+        turnoId: a.turnoId?.toString() ?? null,
+        evento: a.evento,
+        resumen: a.resumen,
+        leido: a.leido,
+        creadoEn: a.creadoEn.toISOString(),
+        enlaceDisponible,
+      };
+    }),
+  );
+}
+
+/**
+ * Cuenta los avisos no leídos del usuario (para el badge del AppShell).
+ */
+export async function contarAvisosNoLeidos(usuarioId: bigint): Promise<number> {
+  return prisma.avisoInterno.count({
+    where: { usuarioId, leido: false },
+  });
+}

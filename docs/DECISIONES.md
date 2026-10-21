@@ -294,6 +294,12 @@ Estados: `Aceptada` · `Reemplazada` · `Propuesta`.
 - **Decisión:** Los adjuntos de consulta (US-SIG-019) se almacenan en el **filesystem privado del servidor** (`storage/adjuntos/consulta/<turnoId>/<uuid>.<ext>`), fuera de `public/`, con la ruta relativa en `adjunto.ruta_privada`. El nombre descriptivo del usuario se persiste en `adjunto.nombre` y no participa del path. Se admiten únicamente PDF/JPG/PNG de hasta 10 MB, validados por MIME, extensión y firma mágica antes de persistir. La carga es exclusiva del médico autor de la consulta; el archivo se sirve mediante Route Handlers con autorización (descarga para el autor, visualización en línea para paciente/tutor vigente, sin descarga clínica). Los adjuntos no se editan ni eliminan; los errores se aclaran con correcciones y archivos adicionales. El modelo `Adjunto` existente no requiere migración.
 - **Motivo:** Cumplimiento de CA1 a CA5 de US-SIG-019, D-02 (sin Supabase Storage) y preservación del secreto clínico.
 
+## D-23 — Bandeja de avisos internos unificada por usuario (US-SIG-033)
+
+- **Estado:** Propuesta
+- **Decisión:** La bandeja de avisos es una vista Server Component que lee `AvisoInterno` filtrada por `usuarioId`. El marcado como leído usa Server Actions con el mismo filtro. Los avisos son inmutables (solo `leido` cambia). El `AppShell` muestra un badge con el conteo calculado en SSR. No hay paginación en v1. La verificación del enlace a la cita reutiliza `destinatarioDeTurno()` de `email-turno.ts` (ya implementado en US-031) para garantizar CA2 y CA3. La garantía CA5 (email fallido no elimina aviso) proviene de la arquitectura de US-031 y no requiere código adicional.
+- **Motivo:** Cumplimiento de CA1 a CA5. La reutilización de `destinatarioDeTurno()` evita duplicar la lógica de resolución tutor/paciente activo.
+
 ---
 
 ## Cómo agregar una decisión

@@ -53,6 +53,7 @@ export default async function CorreccionesPage(props: {
                 turnoId: searchParams.turnoId as string,
                 esAutor: true,
               }}
+              turnoId={searchParams.turnoId as string}
             />
           ) : (
             <div

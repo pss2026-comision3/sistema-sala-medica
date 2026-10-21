@@ -133,6 +133,14 @@ export const MSG = {
   ADJUNTO_ERROR_GUARDADO: "No se pudo guardar el archivo. Intentá nuevamente.",
   ADJUNTO_SIN_PERMISO:
     "Tu rol no tiene permiso para adjuntar documentos a consultas.",
+  AVISOS_MARCADO_LEIDO: "Aviso marcado como leído.",
+  AVISOS_YA_LEIDO: "Este aviso ya estaba marcado como leído.",
+  AVISOS_TODOS_LEIDOS: "Todos los avisos fueron marcados como leídos.",
+  AVISOS_SIN_PENDIENTES: "No hay avisos sin leer.",
+  AVISOS_NO_ENCONTRADO: "El aviso no existe o no tenés acceso.",
+  AVISOS_ERROR_ACTUALIZAR:
+    "No se pudo actualizar el aviso. Intentá nuevamente.",
+  AVISOS_SIN_PERMISO: "Tu rol no tiene permiso para ver esta bandeja.",
 } as const;
 
 export const AUDITORIA = {
@@ -161,4 +169,5 @@ export const AUDITORIA = {
   RESERVA_PRESENCIAL: "Reserva presencial por personal autorizado",
   CANCELACION_PRESENCIAL: "Cancelación presencial por personal autorizado",
   REGISTRO_ADJUNTO_CONSULTA: "Registro de adjunto de consulta",
+  MARCAR_AVISOS_LEIDOS: "Marcado masivo de avisos como leídos",
 } as const;
