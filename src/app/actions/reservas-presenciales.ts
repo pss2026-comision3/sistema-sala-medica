@@ -19,7 +19,14 @@ import {
   inicioTurno,
 } from "@/lib/agenda/reglas";
 import { puedeCancelarPresencial } from "@/lib/agenda/reservas";
-import { crearAvisoCancelacion } from "@/lib/notificaciones/avisos";
+import {
+  crearAvisoCancelacion,
+  crearAvisoConfirmacion,
+} from "@/lib/notificaciones/avisos";
+import {
+  destinatarioDeTurno,
+  notificarPorEmail,
+} from "@/lib/notificaciones/email-turno";
 import { cargarCatalogoMedico } from "@/lib/turnos/buscar-horarios";
 import {
   SELECCION_HABILITACION,
@@ -360,6 +367,18 @@ export async function reservarCitaPresencial(input: {
         },
       });
 
+      // Aviso interno de confirmación al paciente o a su tutor (US-031),
+      // igual que la confirmación del autoservicio.
+      const destino = await destinatarioDeTurno(tx, nuevo.id);
+      if (destino) {
+        const prestacion = medico.especialidad?.nombre ?? "Consulta médica";
+        await crearAvisoConfirmacion(tx, {
+          turnoId: nuevo.id,
+          usuarioId: destino.usuarioId,
+          resumen: `Tu turno para ${prestacion} el ${fecha} a las ${input.hora} hs ha sido confirmado.`,
+        });
+      }
+
       await tx.auditoria.create({
         data: {
           actorId: operadorId,
@@ -377,6 +396,9 @@ export async function reservarCitaPresencial(input: {
 
       return nuevo;
     });
+
+    // Email de confirmación (US-031): después de la transacción, sin esperar.
+    notificarPorEmail("CONFIRMACION", turno.id);
 
     revalidarPantallas();
     return {
@@ -564,7 +586,7 @@ export async function cancelarCitaPresencial(input: {
       });
       if (count === 0) throw new Error(MSG.CANCELACION_ESTADO);
 
-      // Aviso interno al paciente o a su tutor (US-031: sin emails externos).
+      // Aviso interno al paciente o a su tutor (US-031).
       if (destino) {
         await crearAvisoCancelacion(tx, {
           turnoId,
@@ -599,6 +621,9 @@ export async function cancelarCitaPresencial(input: {
     console.error("Error cancelando cita presencial:", error);
     return { error: "Error interno al cancelar el turno." };
   }
+
+  // Email de cancelación (US-031): después de la transacción, sin esperar.
+  notificarPorEmail("CANCELACION", turnoId);
 
   revalidarPantallas();
   return {

@@ -62,7 +62,7 @@ Preguntas relacionadas: P-11, P-20, P-21, P-22, P-23, P-24, P-26, P-27, P-37, P-
 | **Operador registrado (CA2)** | `turno.creado_por` guarda la cuenta del Médico/Enfermería/Admin que operó, no la del paciente. Cada acción además deja una fila en `auditoria` con el rol del operador. |
 | **Paciente habilitado (CA1)** | `evaluarHabilitacionPaciente` en `src/lib/agenda/presencial.ts`. Un adulto está habilitado con su propia cuenta `PACIENTE` activa (US-002 CA5); un menor, con un tutor principal vigente, es decir, adulto con cuenta `PACIENTE` activa (US-003 CA2, mismo criterio que `motivoNoPuedeSerTutor`). En la búsqueda los no habilitados aparecen marcados con el motivo: se les pueden cancelar citas, pero no reservar. |
 | **Límite por especialidad (CA2/CA4)** | `buscarCitaVigenteEspecialidad` en `src/lib/turnos/presencial.ts`: misma regla que `cargarCitasVigentesEspecialidad` del autoservicio, más el estado de la jornada y una exclusión. Si la cita vigente está pendiente de resolución, el mensaje lo dice y deriva a Administración. En la reprogramación se excluye la cita reemplazada (CA4), pero cualquier otro turno vigente de la especialidad la bloquea. |
-| **Avisos (CA3/CA4/CA6)** | Reutiliza `crearAvisoCancelacion` y `crearAvisoReprogramacion` de `src/lib/notificaciones/avisos.ts` (US-031). El aviso queda en `aviso_interno` y lo ve el paciente, o su tutor si es menor, en `/paciente/avisos`. Sin emails externos (regla de negocio) — ver sección 8. |
+| **Avisos (CA2/CA3/CA4/CA6)** | Mismo esquema que el resto del sistema (US-031). Dentro de la transacción, un aviso interno (`crearAvisoConfirmacion`, `crearAvisoCancelacion` o `crearAvisoReprogramacion` de `src/lib/notificaciones/avisos.ts`) que el paciente, o su tutor si es menor, ve en `/paciente/avisos`. Después de la transacción, el email con `notificarPorEmail` de `src/lib/notificaciones/email-turno.ts`. Ver sección 8. |
 | **Vacunación fuera de alcance** | Ningún archivo nuevo toca `Vacuna`, `LoteVacuna` ni `vacunatorio.ts`. |
 
 ---
@@ -128,17 +128,21 @@ En `reservarCitaPresencial` y `reprogramarCitaAfectada` las dos cosas se reempla
 
 ## 8. Sobre los avisos (CA3/CA4/CA6, "se generan los avisos correspondientes")
 
-**Regla de negocio: el sistema no envía emails externos; todo aviso es interno.** Los avisos se guardan en la tabla `aviso_interno` y el destinatario los ve en su bandeja, `/paciente/avisos` (US-031).
+Cada acción de esta US genera dos avisos, como el resto del sistema (US-031):
 
-| Acción de esta US | Función | Evento en la bandeja | Turno asociado |
+1. Un **aviso interno**, dentro de la misma transacción. Se guarda en `aviso_interno` y el destinatario lo ve en su bandeja, `/paciente/avisos`.
+2. Un **email**, disparado con `notificarPorEmail(tipo, turnoId)` **después** de que la transacción terminó bien. Es *fire-and-forget*: nunca lanza ni revierte la operación. Si falla, se reintenta una vez; cada intento queda en `evento_email` / `intento_email`.
+
+| Acción de esta US | Aviso interno (bandeja) | Email | Turno asociado al aviso |
 | --- | --- | --- | --- |
-| Cancelación presencial (CA2) | `crearAvisoCancelacion` | "Cancelación de turno" | el cancelado |
-| Cancelación con motivo de una cita suspendida (CA3/CA6) | `crearAvisoCancelacion` | "Cancelación de turno" | el cancelado |
-| Reprogramación (CA4) | `crearAvisoReprogramacion` | "Turno reprogramado" | el **nuevo** (para que apunte a la cita vigente) |
+| Reserva presencial (CA1/CA2) | `crearAvisoConfirmacion` → "Turno confirmado" | `CONFIRMACION` | el nuevo |
+| Cancelación presencial (CA2) | `crearAvisoCancelacion` → "Cancelación de turno" | `CANCELACION` | el cancelado |
+| Cancelación con motivo de una cita suspendida (CA3/CA6) | `crearAvisoCancelacion` → "Cancelación de turno" | `CANCELACION` | el cancelado |
+| Reprogramación (CA4) | `crearAvisoReprogramacion` → "Turno reprogramado" | `CANCELACION` del original + `CONFIRMACION` del nuevo (como define `src/lib/email/templates.ts`) | el **nuevo** (para que apunte a la cita vigente) |
 
-- El destinatario es la cuenta activa del paciente o, si es un menor sin cuenta, la de su tutor. Si no hay ninguna cuenta activa, no se crea aviso y la auditoría registra `sinDestinatario: true`.
-- Ya no se escribe en `evento_email`, y los recordatorios por email dejaron de existir (`anularRecordatoriosPendientes` se eliminó en la US-031).
-- Para verificar que "se avisó", entrá con la cuenta del paciente → **Avisos**, o mirá la tabla `aviso_interno` con `npm run db:studio`.
+- El destinatario es la cuenta activa del paciente o, si es un menor sin cuenta, la de su tutor. Si no hay ninguna cuenta activa, no se crea el aviso interno, no se manda email y la auditoría registra `sinDestinatario: true`.
+- El envío requiere las variables `SMTP_*` (y opcionalmente `MAIL_FROM`) en `.env`. Para la demo, `EMAIL_OVERRIDE_TO` manda todos los mails a una sola casilla. Sin SMTP la operación igual funciona: el intento queda `FALLIDO` en `intento_email`.
+- Para verificar: entrá con la cuenta del paciente → **Avisos**, revisá la casilla de email, o mirá `aviso_interno`, `evento_email` e `intento_email` con `npm run db:studio`.
 
 ---
 

@@ -26,6 +26,7 @@ import {
   crearAvisoCancelacion,
   crearAvisoReprogramacion,
 } from "@/lib/notificaciones/avisos";
+import { notificarPorEmail } from "@/lib/notificaciones/email-turno";
 import { cargarCatalogoMedico } from "@/lib/turnos/buscar-horarios";
 import {
   buscarCitaVigenteEspecialidad,
@@ -257,7 +258,7 @@ export async function cancelarCitaAfectada(input: {
         throw new ErrorResolucion(MSG_RESOLUCION.CITA_YA_RESUELTA);
       }
 
-      // Aviso interno al paciente o a su tutor (US-031: sin emails externos).
+      // Aviso interno al paciente o a su tutor (US-031).
       if (destino) {
         await crearAvisoCancelacion(tx, {
           turnoId,
@@ -291,6 +292,9 @@ export async function cancelarCitaAfectada(input: {
     console.error("Error cancelando cita afectada:", error);
     return { error: MSG_RESOLUCION.ERROR_INTERNO };
   }
+
+  // Email de cancelación (US-031): después de la transacción, sin esperar.
+  notificarPorEmail("CANCELACION", turnoId);
 
   revalidarPantallas();
   return {
@@ -533,8 +537,9 @@ export async function reprogramarCitaAfectada(input: {
   const destino = destinatarioDe(cita);
   const horaNuevaDate = new Date(`1970-01-01T${input.nuevaHora}:00Z`);
 
+  let nuevoTurnoId: bigint;
   try {
-    await prisma.$transaction(async (tx) => {
+    nuevoTurnoId = await prisma.$transaction(async (tx) => {
       // Bloquea la jornada destino (mismo patrón que `reservarTurnoTemporal` /
       // `suspenderJornada`): una suspensión concurrente de esa jornada espera
       // a este lock y queda vista después, nunca se confirma sobre ella.
@@ -642,12 +647,19 @@ export async function reprogramarCitaAfectada(input: {
           }),
         },
       });
+
+      return nuevoTurno.id;
     });
   } catch (error) {
     if (error instanceof ErrorResolucion) return { error: error.message };
     console.error("Error reprogramando cita afectada:", error);
     return { error: MSG_RESOLUCION.ERROR_INTERNO };
   }
+
+  // Emails (US-031): la reprogramación se avisa como cancelación del turno
+  // anterior + confirmación del nuevo, cada uno con su fecha.
+  notificarPorEmail("CANCELACION", turnoId);
+  notificarPorEmail("CONFIRMACION", nuevoTurnoId);
 
   revalidarPantallas();
   return {
