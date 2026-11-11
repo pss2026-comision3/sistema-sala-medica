@@ -58,16 +58,21 @@ export async function GET(
   }
 
   const archivo = adjunto.rutaPrivada;
-  const abs = path.isAbsolute(archivo)
+  let abs = path.isAbsolute(archivo)
     ? archivo
     : path.join(process.cwd(), archivo);
 
   let contenido: Buffer<ArrayBuffer>;
   try {
     contenido = await fs.readFile(abs);
-  } catch (error) {
-    console.error(error);
-    return new NextResponse("Sin archivo", { status: 409 });
+  } catch {
+    try {
+      abs = path.join("/tmp", archivo);
+      contenido = await fs.readFile(abs);
+    } catch (error) {
+      console.error("Error al leer archivo adjunto:", error);
+      return new NextResponse("Sin archivo", { status: 409 });
+    }
   }
 
   const download = new URL(request.url).searchParams.get("download") === "1";

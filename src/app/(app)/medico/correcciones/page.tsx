@@ -1,5 +1,9 @@
 import { requireRole } from "@/lib/auth/guards";
 import { obtenerConsultaClinicaTurno } from "@/lib/turnos/consulta-clinica";
+import {
+  obtenerAdjuntosConsultaTurno,
+  type AdjuntoClinicoViewData,
+} from "@/lib/turnos/adjuntos-clinicos";
 import { ConsultaDetalleView } from "../turnos/[id]/consulta-detalle-view";
 import { obtenerResumenConsultasMedico } from "@/app/actions/consultas";
 import { HistorialSidebar } from "@/components/medico/historial-sidebar";
@@ -15,11 +19,20 @@ export default async function CorreccionesPage(props: {
   );
 
   let consultaDetalle = null;
+  let adjuntos: AdjuntoClinicoViewData[] = [];
   if (searchParams.turnoId) {
-    consultaDetalle = await obtenerConsultaClinicaTurno({
-      turnoId: searchParams.turnoId,
-      medicoUsuarioId: sesion.usuarioId.toString(),
-    });
+    const [detalle, adj] = await Promise.all([
+      obtenerConsultaClinicaTurno({
+        turnoId: searchParams.turnoId,
+        medicoUsuarioId: sesion.usuarioId.toString(),
+      }),
+      obtenerAdjuntosConsultaTurno({
+        turnoId: searchParams.turnoId,
+        medicoUsuarioId: sesion.usuarioId.toString(),
+      }),
+    ]);
+    consultaDetalle = detalle;
+    adjuntos = adj ?? [];
   }
 
   return (
@@ -53,6 +66,7 @@ export default async function CorreccionesPage(props: {
                 turnoId: searchParams.turnoId as string,
                 esAutor: true,
               }}
+              adjuntos={adjuntos}
               turnoId={searchParams.turnoId as string}
             />
           ) : (
@@ -64,8 +78,25 @@ export default async function CorreccionesPage(props: {
                 minHeight: "300px",
                 textAlign: "center",
                 backgroundColor: "#f9fafa",
+                padding: "32px",
               }}
-            ></div>
+            >
+              <div>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    color: "var(--color-ink, #18323a)",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Ninguna consulta seleccionada
+                </h3>
+                <p className="sigsam-muted" style={{ margin: 0 }}>
+                  Elegí una consulta de la lista de la izquierda para revisar sus
+                  detalles y agregar correcciones.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -88,16 +88,25 @@ export async function adjuntarDocumentoConsultaAction(
   }
 
   // 5. Persistir el archivo en el filesystem privado.
+  // En Vercel Serverless, process.cwd() es de solo lectura; /tmp es el directorio con permisos de escritura.
   const extension = extensionPorMime(mime);
   const relativePath = `storage/adjuntos/consulta/${turnoIdRaw}/${randomUUID()}${extension}`;
-  const absolutePath = path.join(process.cwd(), relativePath);
+  const baseDir = process.env.VERCEL ? "/tmp" : process.cwd();
+  const absolutePath = path.join(baseDir, relativePath);
 
   try {
     await mkdir(path.dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, buffer);
   } catch (error) {
-    console.error("Error al escribir adjunto de consulta:", error);
-    return { exito: false, error: MSG.ADJUNTO_ERROR_GUARDADO };
+    console.error("Error al escribir adjunto en directorio principal:", error);
+    try {
+      const fallbackPath = path.join("/tmp", relativePath);
+      await mkdir(path.dirname(fallbackPath), { recursive: true });
+      await writeFile(fallbackPath, buffer);
+    } catch (fallbackError) {
+      console.error("Fallback en /tmp también falló:", fallbackError);
+      return { exito: false, error: MSG.ADJUNTO_ERROR_GUARDADO };
+    }
   }
 
   // 6. Registrar la fila en la base y la auditoría en una transacción.

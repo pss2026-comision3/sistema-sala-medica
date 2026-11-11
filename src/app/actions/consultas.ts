@@ -129,6 +129,9 @@ export async function registrarConsultaMedicaAction(
 
     revalidatePath(`/medico/turnos/${turnoIdRaw}`);
     revalidatePath("/medico");
+    revalidatePath("/medico/correcciones");
+    revalidatePath("/admin/agenda");
+    revalidatePath("/paciente/historial");
 
     return {
       exito: true,
@@ -231,6 +234,8 @@ export async function agregarCorreccion(
   }
 
   revalidatePath(`/medico/turnos/${turnoId}`);
+  revalidatePath("/medico/correcciones");
+  revalidatePath("/paciente/historial");
 
   return {
     success: true,
@@ -269,7 +274,16 @@ export async function obtenerResumenConsultasMedico(medicoUsuarioId: string) {
     take: 50,
   });
 
-  return consultas.map((c) => ({
+  // Asegurar que cada consulta aparezca exactamente una sola vez (BUG-012)
+  const mapa = new Map<string, (typeof consultas)[0]>();
+  for (const c of consultas) {
+    const idStr = c.turnoId.toString();
+    if (!mapa.has(idStr)) {
+      mapa.set(idStr, c);
+    }
+  }
+
+  return Array.from(mapa.values()).map((c) => ({
     turnoId: c.turnoId.toString(),
     creadaEn: c.creadaEn.toISOString(),
     pacienteNombre: c.turno.paciente.persona.nombreCompleto,

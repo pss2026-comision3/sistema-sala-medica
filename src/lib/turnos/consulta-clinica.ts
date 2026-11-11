@@ -99,7 +99,7 @@ export async function obtenerConsultaClinicaTurno({
     certificado: consulta.certificado,
     creadaEn: consulta.creadaEn.toISOString(),
     correcciones:
-      consulta.correcciones?.map((corr: any) => ({
+      consulta.correcciones?.map((corr) => ({
         id: corr.id.toString(),
         motivo: corr.motivo,
         texto: corr.texto,

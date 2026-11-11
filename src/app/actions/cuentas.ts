@@ -4,12 +4,12 @@ import {
   esquemaCuentaPersonal,
   esquemaDesactivarCuenta,
 } from "@/lib/validations/cuentas";
-import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth/guards";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
-import { Rol } from "@/generated/prisma/client";
+import { Prisma, Rol } from "@/generated/prisma/client";
 import { revalidatePath } from "next/cache";
+import { hoySala } from "@/lib/agenda/reglas";
 /*
  * Este archivo contiene acciones del lado del servidor relacionadas con la creacion de cuentas internas.
  */
@@ -114,8 +114,11 @@ export async function crearCuentaPersonal(
         },
       });
     });
-  } catch (error: any) {
-    if (error.code === "P2002") {
+  } catch (error: unknown) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
       return {
         success: false,
         message: "Ese correo electrónico ya está registrado en el sistema.",
@@ -132,6 +135,7 @@ export async function crearCuentaPersonal(
     };
   }
 
+  revalidatePath("/admin");
   return {
     success: true,
     message: "La cuenta de personal se creó correctamente.",
@@ -202,12 +206,25 @@ export async function desactivarCuentaPersonal(
 
         if (turnosPendientes.length > 0) {
           const idsTurnos = turnosPendientes
-            .map((t) => t.id.toString())
+            .map((t) => `#${t.id}`)
             .join(", ");
           motivosBloqueo.push(
             `El médico tiene turnos pendientes de resolución (IDs: ${idsTurnos}).`,
           );
         }
+
+        // Cancelamos las retenciones temporales sobre disponibilidad del médico (CA5)
+        await tx.turno.updateMany({
+          where: {
+            disponibilidad: { profesionalId: idObjetivo },
+            estado: "RESERVADO",
+          },
+          data: {
+            estado: "CANCELADO",
+            motivoCancelacion: "Cuenta del profesional desactivada",
+            canceladoEn: new Date(),
+          },
+        });
       }
 
       // CA4: Control de Enfermería (última cuenta con vacunas pendientes)
@@ -235,31 +252,48 @@ export async function desactivarCuentaPersonal(
       // CA3: Control de Pacientes / Tutores
       const tutorados = await tx.paciente.findMany({
         where: { tutorId: usuario.personaId },
+        include: { persona: true },
       });
       if (tutorados.length > 0) {
-        const nombresTutorados = tutorados.map((t) => t.dni).join(", ");
+        const nombresTutorados = tutorados
+          .map((t) => `${t.persona.nombreCompleto} (DNI: ${t.dni})`)
+          .join(", ");
         motivosBloqueo.push(
-          `Es tutor de los pacientes con DNI: ${nombresTutorados}. Reasignalos primero.`,
+          `Es tutor de los pacientes: ${nombresTutorados}. Reasignalos primero.`,
         );
       }
 
       // Verificamos si tiene turnos futuros
       const ahora = new Date();
+      const hoyStr = hoySala(ahora);
+      const hoyDate = new Date(`${hoyStr}T00:00:00.000Z`);
       const turnosFuturosPaciente = await tx.turno.findMany({
         where: {
           pacienteId: usuario.personaId,
           estado: "CONFIRMADO",
           disponibilidad: {
-            fecha: { gte: ahora },
+            fecha: { gte: hoyDate },
           },
         },
+        include: {
+          disponibilidad: true,
+        },
       });
-      if (turnosFuturosPaciente.length > 0) {
-        const idsTurnos = turnosFuturosPaciente
-          .map((t) => t.id.toString())
+
+      const turnosBloqueantes = turnosFuturosPaciente.filter((t) => {
+        const fechaStr = t.disponibilidad.fecha.toISOString().slice(0, 10);
+        if (fechaStr > hoyStr) return true;
+        const horaTurno = t.hora.toISOString().slice(11, 16);
+        const horaActual = ahora.toISOString().slice(11, 16);
+        return horaTurno >= horaActual || t.resultado === "SIN_REGISTRAR";
+      });
+
+      if (turnosBloqueantes.length > 0) {
+        const idsTurnos = turnosBloqueantes
+          .map((t) => `#${t.id}`)
           .join(", ");
         motivosBloqueo.push(
-          `El paciente tiene turnos futuros confirmados (IDs: ${idsTurnos}). Cancelalos antes de desactivar.`,
+          `El paciente tiene turnos confirmados pendientes (${idsTurnos}). Cancelalos antes de desactivar.`,
         );
       }
 
@@ -296,13 +330,14 @@ export async function desactivarCuentaPersonal(
         },
       });
     });
-  } catch (error: any) {
-    const msg = error.message;
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "";
 
     if (msg === "NO_EXISTE") {
       return {
         success: false,
         message: "La cuenta no existe o ya estaba desactivada.",
+        errors: { usuarioId: [usuarioId] },
       };
     }
 
@@ -320,21 +355,15 @@ export async function desactivarCuentaPersonal(
       };
     }
 
-    if (msg === "NO_EXISTE") {
-      return {
-        success: false,
-        message: "La cuenta no existe o ya estaba desactivada.",
-        errors: { usuarioId: [usuarioId] },
-      };
-    }
-
     console.error("Error al desactivar cuenta:", error);
     return {
       success: false,
       message: "Ocurrió un error interno al intentar desactivar la cuenta.",
+      errors: { usuarioId: [usuarioId] },
     };
   }
 
+  revalidatePath("/admin");
   return {
     success: true,
     message: "La cuenta fue desactivada y sus sesiones cerradas.",
@@ -382,8 +411,8 @@ export async function reactivarCuentaPersonal(
         },
       });
     });
-  } catch (error: any) {
-    if (error.message === "ESTADO_INVALIDO") {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "ESTADO_INVALIDO") {
       return {
         success: false,
         message: "La cuenta no existe o ya se encuentra activa.",

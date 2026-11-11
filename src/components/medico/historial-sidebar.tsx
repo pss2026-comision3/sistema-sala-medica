@@ -68,7 +68,7 @@ export function HistorialSidebar({ historial, turnoSeleccionadoId }: Props) {
             className="sigsam-muted"
             style={{ fontSize: "14px", textAlign: "center", marginTop: "20px" }}
           >
-            No se encontraron consultas para "{busqueda}".
+            No se encontraron consultas para &quot;{busqueda}&quot;.
           </p>
         ) : (
           historialFiltrado.map((item) => {
