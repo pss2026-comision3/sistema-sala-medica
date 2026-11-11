@@ -45,9 +45,24 @@ export async function crearObraSocial(
     return { error: mensajeValidacion(validacion.error) };
   }
 
+  const nombreNormalizado = validacion.data.nombre.trim();
+
+  // CA2: El nombre es único entre entidades activas e inactivas, ignorando mayúsculas y espacios externos.
+  const existente = await prisma.obraSocial.findFirst({
+    where: {
+      nombre: {
+        equals: nombreNormalizado,
+        mode: "insensitive",
+      },
+    },
+  });
+  if (existente) {
+    return { error: MSG.OBRA_SOCIAL_NOMBRE_DUPLICADO };
+  }
+
   try {
     const obraSocial = await prisma.obraSocial.create({
-      data: { nombre: validacion.data.nombre },
+      data: { nombre: nombreNormalizado },
     });
 
     await registrarAuditoria({
@@ -93,7 +108,9 @@ export async function actualizarNombreObraSocial(
     return { error: MSG.OBRA_SOCIAL_NO_ENCONTRADA };
   }
 
-  if (obraSocialAnterior.nombre === validacion.data.nombre) {
+  const nombreNormalizado = validacion.data.nombre.trim();
+
+  if (obraSocialAnterior.nombre === nombreNormalizado) {
     return {
       exito: true,
       mensaje: MSG.OBRA_SOCIAL_NOMBRE_ACTUALIZADO,
@@ -105,10 +122,24 @@ export async function actualizarNombreObraSocial(
     };
   }
 
+  // CA2: Unicidad insensible a mayúsculas descartando la misma entidad
+  const duplicado = await prisma.obraSocial.findFirst({
+    where: {
+      id: { not: id },
+      nombre: {
+        equals: nombreNormalizado,
+        mode: "insensitive",
+      },
+    },
+  });
+  if (duplicado) {
+    return { error: MSG.OBRA_SOCIAL_NOMBRE_DUPLICADO };
+  }
+
   try {
     const obraSocial = await prisma.obraSocial.update({
       where: { id },
-      data: { nombre: validacion.data.nombre },
+      data: { nombre: nombreNormalizado },
     });
 
     await registrarAuditoria({
