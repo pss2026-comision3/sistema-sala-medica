@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Pencil, Plus, Power, RotateCcw, X } from "lucide-react";
+import { Check, Pencil, Plus, Power, RotateCcw, Search, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import {
@@ -21,10 +21,13 @@ function ordenar(obrasSociales: ObraSocialItem[]): ObraSocialItem[] {
 export function ObrasSocialesView({ iniciales }: Props) {
   const [obrasSociales, setObrasSociales] = useState(() => ordenar(iniciales));
   const [nuevoNombre, setNuevoNombre] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<"TODAS" | "ACTIVAS" | "INACTIVAS">("TODAS");
   const [edicionId, setEdicionId] = useState<string | null>(null);
   const [nombreEditado, setNombreEditado] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [obraSocialParaDesactivar, setObraSocialParaDesactivar] = useState<ObraSocialItem | null>(null);
   const [pendiente, iniciarTransicion] = useTransition();
 
   function actualizarLista(obraSocialActualizada: ObraSocialItem) {
@@ -96,14 +99,14 @@ export function ObrasSocialesView({ iniciales }: Props) {
     });
   }
 
-  function handleCambiarEstado(obraSocial: ObraSocialItem) {
+  function ejecutarCambioEstado(obraSocial: ObraSocialItem, nuevoEstado: boolean) {
     setError(null);
     setMensaje(null);
 
     iniciarTransicion(async () => {
       const resultado = await cambiarEstadoObraSocial({
         id: obraSocial.id,
-        activa: !obraSocial.activa,
+        activa: nuevoEstado,
       });
       if ("error" in resultado) {
         mostrarError(resultado.error);
@@ -114,6 +117,29 @@ export function ObrasSocialesView({ iniciales }: Props) {
       mostrarExito(resultado.mensaje);
     });
   }
+
+  function handleSolicitarCambioEstado(obraSocial: ObraSocialItem) {
+    if (obraSocial.activa) {
+      // CA4: Desactivar exige confirmación explícita
+      setObraSocialParaDesactivar(obraSocial);
+    } else {
+      // CA5: Reactivar vuelve a habilitar inmediatamente
+      ejecutarCambioEstado(obraSocial, true);
+    }
+  }
+
+  // Filtrado y búsqueda (CA1)
+  const termino = busqueda.trim().toLowerCase();
+  const obrasSocialesFiltradas = obrasSociales.filter((os) => {
+    const coincideNombre = os.nombre.toLowerCase().includes(termino);
+    const coincideEstado =
+      filtroEstado === "TODAS"
+        ? true
+        : filtroEstado === "ACTIVAS"
+          ? os.activa
+          : !os.activa;
+    return coincideNombre && coincideEstado;
+  });
 
   return (
     <section className="sigsam-card">
@@ -147,6 +173,7 @@ export function ObrasSocialesView({ iniciales }: Props) {
         </div>
       )}
 
+      {/* Formulario de alta (CA2) */}
       <form
         onSubmit={handleCrear}
         style={{
@@ -180,10 +207,81 @@ export function ObrasSocialesView({ iniciales }: Props) {
         </button>
       </form>
 
+      {/* Controles de Búsqueda y Filtro por estado (CA1) */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 16,
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          margin: "20px 0 16px 0",
+          padding: "16px 0",
+          borderTop: "1px solid var(--color-line, #d7e2e4)",
+          borderBottom: "1px solid var(--color-line, #d7e2e4)",
+        }}
+      >
+        <div className="sigsam-field" style={{ flex: "1 1 260px", maxWidth: 420 }}>
+          <label htmlFor="buscar-obra-social">
+            Buscar obra social o prepaga (CA1)
+          </label>
+          <div style={{ position: "relative" }}>
+            <input
+              id="buscar-obra-social"
+              type="text"
+              placeholder="Buscar por nombre..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              autoComplete="off"
+              style={{ paddingLeft: 36 }}
+            />
+            <Search
+              size={16}
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--color-ink-muted, #5a737a)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="sigsam-field" style={{ flex: "0 0 220px" }}>
+          <label htmlFor="filtro-estado-obra-social">Filtrar por estado</label>
+          <select
+            id="filtro-estado-obra-social"
+            value={filtroEstado}
+            onChange={(e) =>
+              setFiltroEstado(e.target.value as "TODAS" | "ACTIVAS" | "INACTIVAS")
+            }
+          >
+            <option value="TODAS">Todas ({obrasSociales.length})</option>
+            <option value="ACTIVAS">
+              Solo activas ({obrasSociales.filter((o) => o.activa).length})
+            </option>
+            <option value="INACTIVAS">
+              Solo inactivas ({obrasSociales.filter((o) => !o.activa).length})
+            </option>
+          </select>
+        </div>
+      </div>
+
+      {/* Listado de Obras Sociales */}
       <div style={{ overflowX: "auto" }}>
         {obrasSociales.length === 0 ? (
           <div className="sigsam-empty">
             <p>Todavía no hay obras sociales en el catálogo.</p>
+          </div>
+        ) : obrasSocialesFiltradas.length === 0 ? (
+          <div className="sigsam-empty">
+            <p>
+              No se encontraron obras sociales que coincidan con la búsqueda o el
+              filtro seleccionado.
+            </p>
           </div>
         ) : (
           <table
@@ -217,7 +315,7 @@ export function ObrasSocialesView({ iniciales }: Props) {
               </tr>
             </thead>
             <tbody>
-              {obrasSociales.map((obraSocial) => (
+              {obrasSocialesFiltradas.map((obraSocial) => (
                 <tr
                   key={obraSocial.id}
                   style={{
@@ -333,7 +431,7 @@ export function ObrasSocialesView({ iniciales }: Props) {
                           className={`sigsam-btn small ${obraSocial.activa ? "danger" : "secondary"}`}
                           type="button"
                           disabled={pendiente}
-                          onClick={() => handleCambiarEstado(obraSocial)}
+                          onClick={() => handleSolicitarCambioEstado(obraSocial)}
                           aria-label={`${obraSocial.activa ? "Desactivar" : "Activar"} ${obraSocial.nombre}`}
                         >
                           {obraSocial.activa ? (
@@ -352,6 +450,84 @@ export function ObrasSocialesView({ iniciales }: Props) {
           </table>
         )}
       </div>
+
+      {/* Modal de confirmación obligatoria para Desactivar (CA4) */}
+      {obraSocialParaDesactivar && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="desactivar-os-titulo"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            background: "rgba(10, 30, 36, 0.6)",
+          }}
+          onClick={() => !pendiente && setObraSocialParaDesactivar(null)}
+        >
+          <div
+            className="sigsam-card"
+            style={{
+              width: "min(100%, 460px)",
+              boxShadow: "0 20px 65px rgba(0, 0, 0, 0.25)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sigsam-eyebrow">Catálogo</div>
+            <h2 id="desactivar-os-titulo" style={{ fontSize: "20px", marginTop: "4px" }}>
+              Desactivar obra social
+            </h2>
+            <p
+              className="sigsam-muted"
+              style={{ marginTop: "12px", marginBottom: "16px", fontSize: "14px", lineHeight: "1.5" }}
+            >
+              ¿Confirmás la desactivación de <strong>{obraSocialParaDesactivar.nombre}</strong>?
+            </p>
+            <div
+              className="sigsam-notice warning"
+              style={{ marginBottom: "20px" }}
+            >
+              <span className="sigsam-notice-symbol" aria-hidden="true">
+                !
+              </span>
+              <div>
+                <strong>Aviso de cobertura</strong>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", lineHeight: "1.4" }}>
+                  Dejará de ofrecerse para nuevas selecciones de cobertura y nuevas
+                  reservas. Las afiliaciones existentes y turnos históricos se
+                  conservarán sin cambios (CA4).
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button
+                type="button"
+                className="sigsam-btn secondary"
+                onClick={() => setObraSocialParaDesactivar(null)}
+                disabled={pendiente}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="sigsam-btn danger"
+                onClick={() => {
+                  const target = obraSocialParaDesactivar;
+                  setObraSocialParaDesactivar(null);
+                  ejecutarCambioEstado(target, false);
+                }}
+                disabled={pendiente}
+              >
+                {pendiente ? "Desactivando..." : "Confirmar desactivación"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
