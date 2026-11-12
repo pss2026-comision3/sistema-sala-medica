@@ -25,7 +25,9 @@ export function ReportesView({
   fechaDesdeDefecto,
   reporteInicial,
 }: Props) {
-  const [tipoReporte, setTipoReporte] = useState<TipoReporte>("asistencia_recordatorios");
+  const [tipoReporte, setTipoReporte] = useState<TipoReporte>(
+    "asistencia_recordatorios",
+  );
   const [desde, setDesde] = useState(fechaDesdeDefecto);
   const [hasta, setHasta] = useState(fechaHoy);
   const [medicoId, setMedicoId] = useState("todos");
@@ -33,7 +35,9 @@ export function ReportesView({
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [resultado, setResultado] = useState<ResultadoReporteAsistencia | null>(reporteInicial);
+  const [resultado, setResultado] = useState<ResultadoReporteAsistencia | null>(
+    reporteInicial,
+  );
 
   // Item 2: Al elegir una especialidad, solo deben aparecer los médicos de ella
   const medicosFiltrados =
@@ -92,14 +96,25 @@ export function ReportesView({
       <div className="sigsam-page-head">
         <div>
           <div className="sigsam-eyebrow">SIGSAM</div>
-          <h1 style={{ fontSize: "28px", fontWeight: "800", margin: "0 0 6px" }}>Reportes</h1>
-          <p>Analizá la actividad de la sala y descargá un extracto de demostración.</p>
+          <h1
+            style={{ fontSize: "28px", fontWeight: "800", margin: "0 0 6px" }}
+          >
+            Reportes
+          </h1>
+          <p>
+            Analizá la actividad de la sala y descargá un extracto de
+            demostración.
+          </p>
         </div>
       </div>
 
       {/* Tarjeta de Filtros (Mockup) */}
       <section className="sigsam-card">
-        <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px" }}>Filtros</h2>
+        <h2
+          style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px" }}
+        >
+          Filtros
+        </h2>
 
         <form onSubmit={handleSubmit}>
           {/* Fila 1: Reporte *, Desde *, Hasta * */}
@@ -160,10 +175,10 @@ export function ReportesView({
                 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: "20px",
                 marginBottom: "20px",
+                alignItems: "start",
               }}
             >
-              {/* Filtro Médico */}
-              <div className="sigsam-field">
+              <div className="sigsam-field" style={{ minWidth: 0 }}>
                 <label htmlFor="medicoId">Médico</label>
                 <select
                   id="medicoId"
@@ -184,7 +199,7 @@ export function ReportesView({
               </div>
 
               {/* Filtro Especialidad */}
-              <div className="sigsam-field">
+              <div className="sigsam-field" style={{ minWidth: 0 }}>
                 <label htmlFor="especialidadId">
                   Especialidad {especialidadBloqueada && "(fijada por médico)"}
                 </label>
@@ -207,8 +222,17 @@ export function ReportesView({
                   ))}
                 </select>
                 {especialidadBloqueada && (
-                  <span className="sigsam-muted" style={{ fontSize: "12px", marginTop: "2px" }}>
-                    Especialidad fijada por el médico. Seleccioná &quot;Todos los médicos&quot; para cambiarla.
+                  <span
+                    className="sigsam-muted"
+                    style={{
+                      display: "block",
+                      fontSize: "12px",
+                      marginTop: "6px",
+                      lineHeight: "1.3",
+                    }}
+                  >
+                    Especialidad fijada por el médico. Seleccioná &quot;Todos
+                    los médicos&quot; para cambiarla.
                   </span>
                 )}
               </div>
