@@ -2,12 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { CATALOGO_REPORTES, type TipoReporte } from "@/lib/reportes/registry";
-import type { OpcionSelector, ResultadoReporteAsistencia } from "@/lib/reportes/tipos";
+import type {
+  MedicoOpcion,
+  OpcionSelector,
+  ResultadoReporteAsistencia,
+} from "@/lib/reportes/tipos";
 import { obtenerReporteAsistenciaAction } from "@/app/actions/reportes";
 import { VistaAsistenciaReporte } from "./vista-asistencia";
 
 interface Props {
-  medicos: OpcionSelector[];
+  medicos: MedicoOpcion[];
   especialidades: OpcionSelector[];
   fechaHoy: string;
   fechaDesdeDefecto: string;
@@ -30,6 +34,37 @@ export function ReportesView({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoReporteAsistencia | null>(reporteInicial);
+
+  // Item 2: Al elegir una especialidad, solo deben aparecer los médicos de ella
+  const medicosFiltrados =
+    especialidadId === "todos"
+      ? medicos
+      : medicos.filter((m) => m.especialidadId === especialidadId);
+
+  // Item 1: Al elegir un médico, la especialidad se fija automáticamente con la suya
+  const handleMedicoChange = (nuevoMedicoId: string) => {
+    setMedicoId(nuevoMedicoId);
+    if (nuevoMedicoId !== "todos") {
+      const med = medicos.find((m) => m.id === nuevoMedicoId);
+      if (med?.especialidadId) {
+        setEspecialidadId(med.especialidadId);
+      }
+    }
+  };
+
+  // Item 2: Al cambiar especialidad, si el médico seleccionado no pertenece a ella, se reinicia a 'todos'
+  const handleEspecialidadChange = (nuevaEspecialidadId: string) => {
+    setEspecialidadId(nuevaEspecialidadId);
+    if (nuevaEspecialidadId !== "todos") {
+      const med = medicos.find((m) => m.id === medicoId);
+      if (med && med.especialidadId !== nuevaEspecialidadId) {
+        setMedicoId("todos");
+      }
+    }
+  };
+
+  // Si hay un médico seleccionado, su especialidad única queda fijada y bloqueada
+  const especialidadBloqueada = medicoId !== "todos";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +152,7 @@ export function ReportesView({
             </div>
           </div>
 
-          {/* Fila 2: Filtros dinámicos específicos según el reporte seleccionado */}
+          {/* Fila 2: Filtros dinámicos específicos de Asistencia */}
           {tipoReporte === "asistencia_recordatorios" && (
             <div
               style={{
@@ -133,10 +168,14 @@ export function ReportesView({
                 <select
                   id="medicoId"
                   value={medicoId}
-                  onChange={(e) => setMedicoId(e.target.value)}
+                  onChange={(e) => handleMedicoChange(e.target.value)}
                 >
-                  <option value="todos">Todos los médicos</option>
-                  {medicos.map((m) => (
+                  <option value="todos">
+                    {especialidadId === "todos"
+                      ? "Todos los médicos"
+                      : "Todos los médicos de esta especialidad"}
+                  </option>
+                  {medicosFiltrados.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.nombre}
                     </option>
@@ -146,11 +185,19 @@ export function ReportesView({
 
               {/* Filtro Especialidad */}
               <div className="sigsam-field">
-                <label htmlFor="especialidadId">Especialidad</label>
+                <label htmlFor="especialidadId">
+                  Especialidad {especialidadBloqueada && "(fijada por médico)"}
+                </label>
                 <select
                   id="especialidadId"
                   value={especialidadId}
-                  onChange={(e) => setEspecialidadId(e.target.value)}
+                  disabled={especialidadBloqueada}
+                  onChange={(e) => handleEspecialidadChange(e.target.value)}
+                  title={
+                    especialidadBloqueada
+                      ? "Fijada automáticamente según el médico seleccionado"
+                      : undefined
+                  }
                 >
                   <option value="todos">Todas las especialidades</option>
                   {especialidades.map((esp) => (
@@ -159,6 +206,11 @@ export function ReportesView({
                     </option>
                   ))}
                 </select>
+                {especialidadBloqueada && (
+                  <span className="sigsam-muted" style={{ fontSize: "12px", marginTop: "2px" }}>
+                    Especialidad fijada por el médico. Seleccioná &quot;Todos los médicos&quot; para cambiarla.
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -186,9 +238,12 @@ export function ReportesView({
         </div>
       )}
 
-      {/* Resultados de US-035 */}
+      {/* Resultados de US-035 con reinicio de paginación por cambio de búsqueda */}
       {tipoReporte === "asistencia_recordatorios" && resultado && (
-        <VistaAsistenciaReporte resultado={resultado} />
+        <VistaAsistenciaReporte
+          key={`${resultado.periodo.desde}-${resultado.periodo.hasta}-${medicoId}-${especialidadId}`}
+          resultado={resultado}
+        />
       )}
     </div>
   );

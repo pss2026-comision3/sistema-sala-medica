@@ -4,6 +4,7 @@ import type {
   DetalleCitaReporte,
   EstadoRecordatorioItem,
   FiltrosReporteAsistencia,
+  MedicoOpcion,
   OpcionSelector,
   ResultadoReporteAsistencia,
 } from "./tipos";
@@ -216,13 +217,14 @@ export async function consultarReporteAsistencia(
 /**
  * Carga el catálogo de médicos habilitados para poblar el selector de filtros.
  */
-export async function obtenerMedicosParaFiltro(): Promise<OpcionSelector[]> {
+export async function obtenerMedicosParaFiltro(): Promise<MedicoOpcion[]> {
   const medicos = await prisma.medico.findMany({
     where: {
       usuario: { activo: true },
     },
     select: {
       usuarioId: true,
+      especialidadId: true,
       usuario: {
         select: {
           persona: { select: { nombreCompleto: true } },
@@ -239,6 +241,7 @@ export async function obtenerMedicosParaFiltro(): Promise<OpcionSelector[]> {
   return medicos.map((m) => ({
     id: m.usuarioId.toString(),
     nombre: m.usuario.persona.nombreCompleto,
+    especialidadId: m.especialidadId ? m.especialidadId.toString() : null,
   }));
 }
 

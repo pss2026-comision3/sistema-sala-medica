@@ -59,3 +59,10 @@ export interface OpcionSelector {
   id: string;
   nombre: string;
 }
+
+export interface MedicoOpcion {
+  id: string;
+  nombre: string;
+  especialidadId: string | null;
+}
+

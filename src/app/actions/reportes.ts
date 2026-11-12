@@ -8,6 +8,7 @@ import {
 } from "@/lib/reportes/asistencia-recordatorios";
 import type {
   FiltrosReporteAsistencia,
+  MedicoOpcion,
   OpcionSelector,
   ResultadoReporteAsistencia,
 } from "@/lib/reportes/tipos";
@@ -50,7 +51,7 @@ export async function obtenerReporteAsistenciaAction(
 /**
  * Server Action para obtener los médicos habilitados para el filtro.
  */
-export async function obtenerMedicosFiltroAction(): Promise<OpcionSelector[]> {
+export async function obtenerMedicosFiltroAction(): Promise<MedicoOpcion[]> {
   try {
     await requireAlgunRol("ADMIN", "MEDICO");
     return await obtenerMedicosParaFiltro();
