@@ -1,12 +1,13 @@
 /**
  * Catálogo central de reportes del sistema SIGSAM.
  *
- * Actualmente registra únicamente el reporte de Asistencia, Ausencias y Recordatorios (US-SIG-035).
- * Los demás reportes planificados para el Sprint 3 (Ocupación US-034, Inventario US-036,
- * Cobros US-037) serán incorporados en este catálogo por sus respectivos responsables.
+ * Registra el reporte de Asistencia, Ausencias y Recordatorios (US-SIG-035) y
+ * el reporte de Inventario de vacunas (US-SIG-036). Los demás reportes
+ * planificados para el Sprint 3 (Ocupación US-034, Cobros US-037) serán
+ * incorporados en este catálogo por sus respectivos responsables.
  */
 
-export type TipoReporte = "asistencia_recordatorios";
+export type TipoReporte = "asistencia_recordatorios" | "inventario";
 
 export interface DefinicionReporte {
   id: TipoReporte;
@@ -22,6 +23,13 @@ export const CATALOGO_REPORTES: readonly DefinicionReporte[] = [
     descripcion:
       "Evalúa los resultados de atención (asistencia, ausentismo y citas sin registrar) y audita descriptivamente los recordatorios enviados.",
     rolesPermitidos: ["ADMIN", "MEDICO"],
+  },
+  {
+    id: "inventario",
+    titulo: "Inventario de vacunas y su evolución",
+    descripcion:
+      "Consulta existencias físicas por vacuna y lote, y reconstruye la evolución del stock en un período.",
+    rolesPermitidos: ["ADMIN"],
   },
   // Ejemplo de cómo se agregarían otros reportes en el futuro:
   // {

@@ -6,12 +6,14 @@ import {
   obtenerEspecialidadesParaFiltro,
   obtenerMedicosParaFiltro,
 } from "@/lib/reportes/asistencia-recordatorios";
+import { consultarReporteInventario } from "@/lib/reportes/inventario";
+import { obtenerOpcionesFiltroInventario } from "@/lib/vacunacion/inventario";
 import { ReportesView } from "./reportes-view";
 
 export const metadata: Metadata = {
   title: "Reportes | SIGSAM",
   description:
-    "Reportes administrativos de asistencia, ausentismo y recordatorios.",
+    "Reportes administrativos de asistencia, ausentismo, recordatorios e inventario de vacunas.",
 };
 
 /*
@@ -24,13 +26,21 @@ export default async function AdminReportesPage() {
   const hoy = hoySala();
   const hace30Dias = sumarDias(hoy, -30);
 
-  const [medicos, especialidades, reporteInicial] = await Promise.all([
+  const [
+    medicos,
+    especialidades,
+    reporteInicial,
+    opcionesInventario,
+    reporteInventarioInicial,
+  ] = await Promise.all([
     obtenerMedicosParaFiltro(),
     obtenerEspecialidadesParaFiltro(),
     consultarReporteAsistencia(
       { desde: hace30Dias, hasta: hoy },
       { usuarioId: sesion.usuarioId, rol: "ADMIN" },
     ),
+    obtenerOpcionesFiltroInventario(),
+    consultarReporteInventario({ desde: hace30Dias, hasta: hoy }),
   ]);
 
   return (
@@ -41,6 +51,8 @@ export default async function AdminReportesPage() {
         fechaHoy={hoy}
         fechaDesdeDefecto={hace30Dias}
         reporteInicial={reporteInicial}
+        opcionesInventario={opcionesInventario}
+        reporteInventarioInicial={reporteInventarioInicial}
       />
     </main>
   );

@@ -5,10 +5,17 @@ import { CATALOGO_REPORTES, type TipoReporte } from "@/lib/reportes/registry";
 import type {
   MedicoOpcion,
   OpcionSelector,
+  OpcionVacunaInventario,
   ResultadoReporteAsistencia,
+  ResultadoReporteInventario,
+  TipoMovimientoReporte,
 } from "@/lib/reportes/tipos";
-import { obtenerReporteAsistenciaAction } from "@/app/actions/reportes";
+import {
+  obtenerReporteAsistenciaAction,
+  obtenerReporteInventarioAction,
+} from "@/app/actions/reportes";
 import { VistaAsistenciaReporte } from "./vista-asistencia";
+import { VistaInventarioReporte } from "./vista-inventario";
 
 interface Props {
   medicos: MedicoOpcion[];
@@ -16,7 +23,18 @@ interface Props {
   fechaHoy: string;
   fechaDesdeDefecto: string;
   reporteInicial: ResultadoReporteAsistencia;
+  opcionesInventario: OpcionVacunaInventario[];
+  reporteInventarioInicial: ResultadoReporteInventario;
 }
+
+const TIPOS_MOVIMIENTO_FILTRO: {
+  valor: TipoMovimientoReporte;
+  etiqueta: string;
+}[] = [
+  { valor: "COMPRA", etiqueta: "Compras" },
+  { valor: "AJUSTE", etiqueta: "Ajustes" },
+  { valor: "APLICACION", etiqueta: "Aplicaciones" },
+];
 
 /*
  * Para agregar un nuevo tipo de reporte chequear Guia para agregar nuevos reportes
@@ -29,6 +47,8 @@ export function ReportesView({
   fechaHoy,
   fechaDesdeDefecto,
   reporteInicial,
+  opcionesInventario,
+  reporteInventarioInicial,
 }: Props) {
   const [tipoReporte, setTipoReporte] = useState<TipoReporte>(
     "asistencia_recordatorios",
@@ -37,12 +57,17 @@ export function ReportesView({
   const [hasta, setHasta] = useState(fechaHoy);
   const [medicoId, setMedicoId] = useState("todos");
   const [especialidadId, setEspecialidadId] = useState("todos");
+  const [vacunaId, setVacunaId] = useState("todas");
+  const [loteId, setLoteId] = useState("todos");
+  const [tipoMovimiento, setTipoMovimiento] = useState("todos");
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoReporteAsistencia | null>(
     reporteInicial,
   );
+  const [resultadoInventario, setResultadoInventario] =
+    useState<ResultadoReporteInventario | null>(reporteInventarioInicial);
 
   // Item 2: Al elegir una especialidad, solo deben aparecer los médicos de ella
   const medicosFiltrados =
@@ -75,10 +100,76 @@ export function ReportesView({
   // Si hay un médico seleccionado, su especialidad única queda fijada y bloqueada
   const especialidadBloqueada = medicoId !== "todos";
 
+  // Lotes disponibles según la vacuna elegida. Cuando no hay vacuna
+  // seleccionada se listan todos, etiquetados con el nombre de su vacuna.
+  const lotesDisponibles: {
+    id: string;
+    codigo: string;
+    vacunaNombre: string | null;
+  }[] =
+    vacunaId === "todas"
+      ? opcionesInventario.flatMap((vacuna) =>
+          vacuna.lotes.map((lote) => ({
+            id: lote.id,
+            codigo: lote.codigo,
+            vacunaNombre: vacuna.nombre,
+          })),
+        )
+      : (
+          opcionesInventario.find((vacuna) => vacuna.id === vacunaId)?.lotes ??
+          []
+        ).map((lote) => ({
+          id: lote.id,
+          codigo: lote.codigo,
+          vacunaNombre: null,
+        }));
+
+  const handleVacunaChange = (nuevaVacunaId: string) => {
+    setVacunaId(nuevaVacunaId);
+
+    if (nuevaVacunaId === "todas" || loteId === "todos") return;
+
+    const vacuna = opcionesInventario.find((v) => v.id === nuevaVacunaId);
+    const pertenece =
+      vacuna?.lotes.some((lote) => lote.id === loteId) ?? false;
+
+    if (!pertenece) {
+      setLoteId("todos");
+    }
+  };
+
+  const handleTipoReporteChange = (nuevoTipo: TipoReporte) => {
+    setTipoReporte(nuevoTipo);
+    setError(null);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
     startTransition(async () => {
+      if (tipoReporte === "inventario") {
+        const res = await obtenerReporteInventarioAction({
+          desde,
+          hasta,
+          vacunaId: vacunaId !== "todas" ? vacunaId : undefined,
+          loteId: loteId !== "todos" ? loteId : undefined,
+          tipo:
+            tipoMovimiento !== "todos"
+              ? (tipoMovimiento as TipoMovimientoReporte)
+              : undefined,
+        });
+
+        if (!res.exito) {
+          setError(res.error);
+          setResultadoInventario(null);
+        } else {
+          setResultadoInventario(res.datos);
+        }
+
+        return;
+      }
+
       const res = await obtenerReporteAsistenciaAction({
         desde,
         hasta,
@@ -137,7 +228,9 @@ export function ReportesView({
               <select
                 id="tipoReporte"
                 value={tipoReporte}
-                onChange={(e) => setTipoReporte(e.target.value as TipoReporte)}
+                onChange={(e) =>
+                  handleTipoReporteChange(e.target.value as TipoReporte)
+                }
               >
                 {CATALOGO_REPORTES.map((rep) => (
                   <option key={rep.id} value={rep.id}>
@@ -244,6 +337,71 @@ export function ReportesView({
             </div>
           )}
 
+          {/* Fila 2: Filtros dinámicos específicos de Inventario */}
+          {tipoReporte === "inventario" && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "20px",
+                marginBottom: "20px",
+                alignItems: "start",
+              }}
+            >
+              <div className="sigsam-field" style={{ minWidth: 0 }}>
+                <label htmlFor="vacunaId">Vacuna</label>
+                <select
+                  id="vacunaId"
+                  value={vacunaId}
+                  onChange={(e) => handleVacunaChange(e.target.value)}
+                >
+                  <option value="todas">Todas las vacunas</option>
+                  {opcionesInventario.map((vacuna) => (
+                    <option key={vacuna.id} value={vacuna.id}>
+                      {vacuna.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sigsam-field" style={{ minWidth: 0 }}>
+                <label htmlFor="loteId">Lote</label>
+                <select
+                  id="loteId"
+                  value={loteId}
+                  onChange={(e) => setLoteId(e.target.value)}
+                >
+                  <option value="todos">Todos los lotes</option>
+                  {lotesDisponibles.map((lote) => (
+                    <option key={lote.id} value={lote.id}>
+                      {lote.vacunaNombre
+                        ? `${lote.vacunaNombre} · ${lote.codigo}`
+                        : lote.codigo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sigsam-field" style={{ minWidth: 0 }}>
+                <label htmlFor="tipoMovimiento">
+                  Tipo (aplica al detalle)
+                </label>
+                <select
+                  id="tipoMovimiento"
+                  value={tipoMovimiento}
+                  onChange={(e) => setTipoMovimiento(e.target.value)}
+                >
+                  <option value="todos">Todos los tipos</option>
+                  {TIPOS_MOVIMIENTO_FILTRO.map((tipo) => (
+                    <option key={tipo.valor} value={tipo.valor}>
+                      {tipo.etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Botón Aplicar filtros */}
           <div style={{ marginTop: "12px" }}>
             <button
@@ -272,6 +430,14 @@ export function ReportesView({
         <VistaAsistenciaReporte
           key={`${resultado.periodo.desde}-${resultado.periodo.hasta}-${medicoId}-${especialidadId}`}
           resultado={resultado}
+        />
+      )}
+
+      {/* Resultados de US-036 */}
+      {tipoReporte === "inventario" && resultadoInventario && (
+        <VistaInventarioReporte
+          key={`${resultadoInventario.periodo.desde}-${resultadoInventario.periodo.hasta}-${vacunaId}-${loteId}-${tipoMovimiento}`}
+          resultado={resultadoInventario}
         />
       )}
     </div>
