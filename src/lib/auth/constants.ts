@@ -58,6 +58,18 @@ export const MSG = {
   MEDICO_NO_ENCONTRADO:
     "El profesional médico no fue encontrado o no está activo.",
   VACUNA_NO_ENCONTRADA: "El tipo de vacuna solicitado no fue encontrado.",
+  VACUNA_NOMBRE_REQUERIDO: "Ingresá el nombre de la vacuna.",
+  VACUNA_NOMBRE_LARGO: "El nombre de la vacuna admite hasta 120 caracteres.",
+  VACUNA_NOMBRE_DUPLICADO: "Ya existe una vacuna con ese nombre.",
+  VACUNA_DESCRIPCION_LARGA: "La descripción admite hasta 1000 caracteres.",
+  VACUNA_UMBRAL_INVALIDO:
+    "El umbral debe ser un número entero mayor o igual a 0.",
+  VACUNA_CREADA: "Vacuna creada con éxito.",
+  VACUNA_ACTUALIZADA: "Vacuna actualizada con éxito.",
+  VACUNA_ESTADO_ACTUALIZADO: "Estado de la vacuna actualizado con éxito.",
+  VACUNA_CON_STOCK:
+    "No se puede desactivar una vacuna con dosis disponibles.",
+  VACUNA_YA_ACTIVA: "La vacuna ya se encuentra activa.",
   ALTA_CAMPOS_REQUERIDOS:
     "Completá nombre, apellido, DNI, fecha de nacimiento, teléfono y correo.",
   ALTA_NOMBRE_LARGO:
@@ -155,6 +167,9 @@ export const AUDITORIA = {
   ALTA_OBRA_SOCIAL: "Alta de obra social",
   EDICION_OBRA_SOCIAL: "Edición de obra social",
   ESTADO_OBRA_SOCIAL: "Cambio de estado de obra social",
+  ALTA_VACUNA: "Alta de vacuna",
+  EDICION_VACUNA: "Edición de vacuna",
+  ESTADO_VACUNA: "Cambio de estado de vacuna",
   RESERVA_TURNO: "Reserva de turno",
   CONFIRMACION_TURNO: "Confirmación de turno",
   CANCELACION_EXPIRACION: "Cancelación por expiración de retención",
