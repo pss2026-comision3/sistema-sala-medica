@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { DetalleCitaReporte, ResultadoReporteAsistencia } from "@/lib/reportes/tipos";
+import type {
+  DetalleCitaReporte,
+  ResultadoReporteAsistencia,
+} from "@/lib/reportes/tipos";
 
 interface Props {
   resultado: ResultadoReporteAsistencia;
@@ -24,15 +27,25 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
   const citasVisibles = citas.slice(indiceInicio, indiceFin);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "28px", marginTop: "24px" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "28px",
+        marginTop: "24px",
+      }}
+    >
       {/* 1. Resumen de Asistencia y Ausentismo (CA2 y CA3) */}
       <section className="sigsam-card">
         <div style={{ marginBottom: "18px" }}>
-          <h2 style={{ fontSize: "19px", fontWeight: "700", margin: "0 0 4px" }}>
+          <h2
+            style={{ fontSize: "19px", fontWeight: "700", margin: "0 0 4px" }}
+          >
             Resumen de Resultados de Atención
           </h2>
           <p className="sigsam-muted" style={{ fontSize: "14px", margin: 0 }}>
-            Período evaluado: {periodo.desde} al {periodo.hasta} (turnos con horario finalizado)
+            Período evaluado: {periodo.desde} al {periodo.hasta} (turnos con
+            horario finalizado)
           </p>
         </div>
 
@@ -55,9 +68,16 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             }}
           >
             <div className="sigsam-eyebrow" style={{ color: "#0d5c58" }}>
-              Tasa de Asistencia (CA3)
+              Tasa de Asistencia
             </div>
-            <div style={{ fontSize: "28px", fontWeight: "800", color: "#0d5c58", margin: "4px 0" }}>
+            <div
+              style={{
+                fontSize: "28px",
+                fontWeight: "800",
+                color: "#0d5c58",
+                margin: "4px 0",
+              }}
+            >
               {asistencia.porcentajeAsistencia}
             </div>
             <div className="sigsam-muted" style={{ fontSize: "12px" }}>
@@ -77,7 +97,14 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             <div className="sigsam-eyebrow" style={{ color: "#1e7e34" }}>
               Atendidos
             </div>
-            <div style={{ fontSize: "28px", fontWeight: "800", color: "#1e7e34", margin: "4px 0" }}>
+            <div
+              style={{
+                fontSize: "28px",
+                fontWeight: "800",
+                color: "#1e7e34",
+                margin: "4px 0",
+              }}
+            >
               {asistencia.atendidos}
             </div>
             <div className="sigsam-muted" style={{ fontSize: "12px" }}>
@@ -97,7 +124,14 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             <div className="sigsam-eyebrow" style={{ color: "#bd2130" }}>
               Ausentes
             </div>
-            <div style={{ fontSize: "28px", fontWeight: "800", color: "#bd2130", margin: "4px 0" }}>
+            <div
+              style={{
+                fontSize: "28px",
+                fontWeight: "800",
+                color: "#bd2130",
+                margin: "4px 0",
+              }}
+            >
               {asistencia.ausentes}
             </div>
             <div className="sigsam-muted" style={{ fontSize: "12px" }}>
@@ -110,13 +144,22 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             style={{
               padding: "16px",
               borderRadius: "8px",
-              backgroundColor: asistencia.sinRegistrar > 0 ? "#fffbf0" : "#fafafa",
-              border: asistencia.sinRegistrar > 0 ? "1px solid #ffeeba" : "1px solid #e0e0e0",
+              backgroundColor:
+                asistencia.sinRegistrar > 0 ? "#fffbf0" : "#fafafa",
+              border:
+                asistencia.sinRegistrar > 0
+                  ? "1px solid #ffeeba"
+                  : "1px solid #e0e0e0",
             }}
           >
             <div
               className="sigsam-eyebrow"
-              style={{ color: asistencia.sinRegistrar > 0 ? "#856404" : "var(--color-muted)" }}
+              style={{
+                color:
+                  asistencia.sinRegistrar > 0
+                    ? "#856404"
+                    : "var(--color-muted)",
+              }}
             >
               Sin Registrar
             </div>
@@ -124,7 +167,8 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
               style={{
                 fontSize: "28px",
                 fontWeight: "800",
-                color: asistencia.sinRegistrar > 0 ? "#856404" : "var(--color-ink)",
+                color:
+                  asistencia.sinRegistrar > 0 ? "#856404" : "var(--color-ink)",
                 margin: "4px 0",
               }}
             >
@@ -150,12 +194,18 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
           }}
         >
           <div>
-            <strong style={{ color: "var(--color-ink)" }}>Turnos cancelados en el período:</strong>{" "}
+            <strong style={{ color: "var(--color-ink)" }}>
+              Turnos cancelados en el período:
+            </strong>{" "}
             <span style={{ fontWeight: "700" }}>{asistencia.cancelados}</span>
           </div>
           {asistencia.futurosExcluidos > 0 && (
             <div style={{ color: "var(--color-muted)" }}>
-              <span>ℹ️ <strong>{asistencia.futurosExcluidos}</strong> turnos con horario futuro en el período fueron excluidos del cálculo de ausentismo (CA1).</span>
+              <span>
+                ℹ️ <strong>{asistencia.futurosExcluidos}</strong> turnos con
+                horario futuro en el período fueron excluidos del cálculo de
+                ausentismo.
+              </span>
             </div>
           )}
         </div>
@@ -164,11 +214,14 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
       {/* 2. Auditoría de Recordatorios (CA4) */}
       <section className="sigsam-card">
         <div style={{ marginBottom: "18px" }}>
-          <h2 style={{ fontSize: "19px", fontWeight: "700", margin: "0 0 4px" }}>
+          <h2
+            style={{ fontSize: "19px", fontWeight: "700", margin: "0 0 4px" }}
+          >
             Auditoría de Recordatorios
           </h2>
           <p className="sigsam-muted" style={{ fontSize: "14px", margin: 0 }}>
-            Revisión operativa de las notificaciones automáticas (24 hs antes de la cita)
+            Revisión operativa de las notificaciones automáticas (24 hs antes de
+            la cita)
           </p>
         </div>
 
@@ -192,7 +245,14 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             <div className="sigsam-eyebrow" style={{ color: "#1e7e34" }}>
               Recordatorio Enviado
             </div>
-            <div style={{ fontSize: "24px", fontWeight: "800", color: "#1e7e34", margin: "2px 0" }}>
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: "800",
+                color: "#1e7e34",
+                margin: "2px 0",
+              }}
+            >
               {recordatorios.enviados}
             </div>
             <div className="sigsam-muted" style={{ fontSize: "12px" }}>
@@ -212,7 +272,14 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             <div className="sigsam-eyebrow" style={{ color: "#bd2130" }}>
               Recordatorio Fallido
             </div>
-            <div style={{ fontSize: "24px", fontWeight: "800", color: "#bd2130", margin: "2px 0" }}>
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: "800",
+                color: "#bd2130",
+                margin: "2px 0",
+              }}
+            >
               {recordatorios.fallidos}
             </div>
             <div className="sigsam-muted" style={{ fontSize: "12px" }}>
@@ -232,7 +299,14 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             <div className="sigsam-eyebrow" style={{ color: "#495057" }}>
               Reserva Tardía (&lt; 24 hs)
             </div>
-            <div style={{ fontSize: "24px", fontWeight: "800", color: "#495057", margin: "2px 0" }}>
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: "800",
+                color: "#495057",
+                margin: "2px 0",
+              }}
+            >
               {recordatorios.reservaTardia}
             </div>
             <div className="sigsam-muted" style={{ fontSize: "12px" }}>
@@ -240,55 +314,70 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
             </div>
           </div>
         </div>
-
-        {/* Leyenda aclaratoria obligatoria (CA4 e inferencias) */}
-        <div
-          style={{
-            padding: "12px 16px",
-            backgroundColor: "#f8f9fa",
-            borderRadius: "6px",
-            borderLeft: "4px solid #17a2b8",
-            fontSize: "13px",
-            color: "#333",
-            lineHeight: "1.5",
-          }}
-        >
-          <strong>Aclaración metodológica (CA4):</strong> La cuantificación de recordatorios es de
-          carácter técnico y descriptivo. El envío del correo electrónico constata la entrega al
-          servidor SMTP y no acredita lectura fehaciente por parte del paciente ni permite atribuir
-          causalidad sobre su asistencia o inasistencia.
-        </div>
       </section>
 
       {/* 3. Tabla Detalle de Citas Evaluadas con Paginación */}
       <section className="sigsam-card">
         <div style={{ marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "19px", fontWeight: "700", margin: "0 0 4px" }}>
+          <h2
+            style={{ fontSize: "19px", fontWeight: "700", margin: "0 0 4px" }}
+          >
             Detalle de Citas del Período ({totalCitas})
           </h2>
           <p className="sigsam-muted" style={{ fontSize: "14px", margin: 0 }}>
-            Listado discriminado de turnos con sus resultados y estados de notificación
+            Listado discriminado de turnos con sus resultados y estados de
+            notificación
           </p>
         </div>
 
         {totalCitas === 0 ? (
           <div className="sigsam-empty">
-            <p>No se encontraron citas en el período y filtros seleccionados.</p>
+            <p>
+              No se encontraron citas en el período y filtros seleccionados.
+            </p>
           </div>
         ) : (
           <div>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px", textAlign: "left" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: "14px",
+                  textAlign: "left",
+                }}
+              >
                 <thead>
-                  <tr style={{ borderBottom: "2px solid var(--color-line)", backgroundColor: "#f8fbfb" }}>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Fecha</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Hora</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Paciente</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Médico</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Especialidad</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Estado Cita</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Resultado</th>
-                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>Recordatorio</th>
+                  <tr
+                    style={{
+                      borderBottom: "2px solid var(--color-line)",
+                      backgroundColor: "#f8fbfb",
+                    }}
+                  >
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Fecha
+                    </th>
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Hora
+                    </th>
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Paciente
+                    </th>
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Médico
+                    </th>
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Especialidad
+                    </th>
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Estado Cita
+                    </th>
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Resultado
+                    </th>
+                    <th style={{ padding: "10px 14px", fontWeight: "700" }}>
+                      Recordatorio
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -300,16 +389,33 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
                         opacity: cita.estado === "CANCELADO" ? 0.7 : 1,
                       }}
                     >
-                      <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>{cita.fecha}</td>
-                      <td style={{ padding: "10px 14px", fontWeight: "600", whiteSpace: "nowrap" }}>{cita.hora} hs</td>
+                      <td
+                        style={{ padding: "10px 14px", whiteSpace: "nowrap" }}
+                      >
+                        {cita.fecha}
+                      </td>
+                      <td
+                        style={{
+                          padding: "10px 14px",
+                          fontWeight: "600",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {cita.hora} hs
+                      </td>
                       <td style={{ padding: "10px 14px" }}>{cita.paciente}</td>
                       <td style={{ padding: "10px 14px" }}>{cita.medico}</td>
-                      <td style={{ padding: "10px 14px" }}>{cita.especialidad}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {cita.especialidad}
+                      </td>
                       <td style={{ padding: "10px 14px" }}>
                         <EstadoTurnoBadge estado={cita.estado} />
                       </td>
                       <td style={{ padding: "10px 14px" }}>
-                        <ResultadoBadge resultado={cita.resultado} horarioTerminado={cita.horarioTerminado} />
+                        <ResultadoBadge
+                          resultado={cita.resultado}
+                          horarioTerminado={cita.horarioTerminado}
+                        />
                       </td>
                       <td style={{ padding: "10px 14px" }}>
                         <RecordatorioBadge estado={cita.estadoRecordatorio} />
@@ -336,11 +442,13 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
                 }}
               >
                 <div className="sigsam-muted">
-                  Mostrando citas <strong>{indiceInicio + 1}</strong> - <strong>{indiceFin}</strong> de{" "}
-                  <strong>{totalCitas}</strong>
+                  Mostrando citas <strong>{indiceInicio + 1}</strong> -{" "}
+                  <strong>{indiceFin}</strong> de <strong>{totalCitas}</strong>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
                   <button
                     type="button"
                     disabled={paginaSegura <= 1}
@@ -358,7 +466,9 @@ export function VistaAsistenciaReporte({ resultado }: Props) {
                   <button
                     type="button"
                     disabled={paginaSegura >= totalPaginas}
-                    onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+                    onClick={() =>
+                      setPagina((p) => Math.min(totalPaginas, p + 1))
+                    }
                     className="sigsam-btn secondary small"
                     style={{ padding: "4px 10px", fontSize: "12px" }}
                   >
@@ -487,7 +597,11 @@ function ResultadoBadge({
   );
 }
 
-function RecordatorioBadge({ estado }: { estado: DetalleCitaReporte["estadoRecordatorio"] }) {
+function RecordatorioBadge({
+  estado,
+}: {
+  estado: DetalleCitaReporte["estadoRecordatorio"];
+}) {
   switch (estado) {
     case "ENVIADO":
       return (
