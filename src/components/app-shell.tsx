@@ -1,15 +1,15 @@
 "use client";
-
+ 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-
+ 
 import { ETIQUETA_ROL, INICIO_POR_ROL } from "@/lib/auth/constants";
 import type { SesionActual } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/logout-button";
-
+ 
 type NavItem = { href: string; label: string; esAvisos?: true };
-
+ 
 const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
   ADMIN: [
     { href: "/admin", label: "Inicio" },
@@ -31,6 +31,7 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
   ENFERMERIA: [
     { href: "/enfermeria", label: "Inicio" },
     { href: "/enfermeria/vacunas", label: "Vacunas" },
+    { href: "/enfermeria/inventario", label: "Inventario" },
     { href: "/turnos/presenciales", label: "Turnos presenciales" },
     { href: "/enfermeria/avisos", label: "Avisos", esAvisos: true },
   ],
@@ -43,20 +44,20 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
     { href: "/paciente/avisos", label: "Avisos", esAvisos: true },
   ],
 };
-
+ 
 const NOMBRE_ROL: Record<SesionActual["rol"], string> = {
   ADMIN: "Administración",
   MEDICO: "Médico",
   ENFERMERIA: "Enfermería",
   PACIENTE: "Paciente",
 };
-
+ 
 type Props = {
   sesion: SesionActual;
   avisosNoLeidos?: number;
   children: ReactNode;
 };
-
+ 
 export function AppShell({ sesion, avisosNoLeidos, children }: Props) {
   const pathname = usePathname();
   const items = NAV_POR_ROL[sesion.rol];
@@ -70,7 +71,7 @@ export function AppShell({ sesion, avisosNoLeidos, children }: Props) {
           (it.href !== inicio && pathname.startsWith(it.href)),
       )
       .sort((a, b) => b.href.length - a.href.length)[0]?.label ?? etiquetaRol;
-
+ 
   return (
     <div className="sigsam-app-shell">
       <Link href={inicio} className="sigsam-brand" aria-label="SIGSAM">
