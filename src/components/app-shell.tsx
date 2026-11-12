@@ -30,6 +30,7 @@ const NAV_POR_ROL: Record<SesionActual["rol"], NavItem[]> = {
   ],
   ENFERMERIA: [
     { href: "/enfermeria", label: "Inicio" },
+    { href: "/enfermeria/vacunas", label: "Vacunas" },
     { href: "/turnos/presenciales", label: "Turnos presenciales" },
     { href: "/enfermeria/avisos", label: "Avisos", esAvisos: true },
   ],

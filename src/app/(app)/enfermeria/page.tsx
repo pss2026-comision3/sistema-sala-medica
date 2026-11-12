@@ -17,8 +17,9 @@ export default async function EnfermeriaInicioPage() {
           <div className="sigsam-eyebrow">SIGSAM</div>
           <h1>Hola, {sesion.nombre.split(" ")[0]}</h1>
           <p>
-            Registrá las ausencias del vacunatorio del día. La aplicación de
-            vacunas (US-025) se incorpora en el Sprint 3.
+            Registrá las ausencias del vacunatorio del día. El catálogo de
+            vacunas y las dosis disponibles por lote están en la sección
+            Vacunas.
           </p>
         </div>
       </div>
@@ -28,9 +29,8 @@ export default async function EnfermeriaInicioPage() {
         {turnos.length === 0 ? (
           <div className="sigsam-empty">
             <p>
-              No hay citas de vacunación para hoy. Las reservas del vacunatorio
-              (US-SIG-022 y US-SIG-023) se incorporan en el Sprint 3; en cuanto
-              existan, van a aparecer acá para registrar su ausencia.
+              No hay citas de vacunación para hoy. Cuando existan reservas del
+              vacunatorio, van a aparecer acá para registrar su ausencia.
             </p>
           </div>
         ) : (
