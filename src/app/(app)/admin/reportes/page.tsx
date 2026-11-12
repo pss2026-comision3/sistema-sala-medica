@@ -10,8 +10,14 @@ import { ReportesView } from "./reportes-view";
 
 export const metadata: Metadata = {
   title: "Reportes | SIGSAM",
-  description: "Reportes administrativos de asistencia, ausentismo y recordatorios.",
+  description:
+    "Reportes administrativos de asistencia, ausentismo y recordatorios.",
 };
+
+/*
+ * Para agregar un nuevo tipo de reporte chequear Guia para agregar nuevos reportes
+ * (Esta en esta mismo directorio de reportes)
+ */
 
 export default async function AdminReportesPage() {
   const sesion = await requireRole("ADMIN");

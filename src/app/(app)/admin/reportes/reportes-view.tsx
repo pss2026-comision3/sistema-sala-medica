@@ -18,6 +18,11 @@ interface Props {
   reporteInicial: ResultadoReporteAsistencia;
 }
 
+/*
+ * Para agregar un nuevo tipo de reporte chequear Guia para agregar nuevos reportes
+ * (Esta en esta mismo directorio de reportes)
+ */
+
 export function ReportesView({
   medicos,
   especialidades,
