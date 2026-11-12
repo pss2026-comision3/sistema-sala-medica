@@ -1,25 +1,25 @@
 import { Rol } from "@/generated/prisma/client";
-
+ 
 export const COOKIE_SESION = "sigsam_sesion";
-
+ 
 export const INACTIVIDAD_MS = 15 * 60 * 1000;
 export const TOQUE_MS = 60 * 1000;
 export const COOKIE_MAX_AGE_SEG = 12 * 60 * 60;
-
+ 
 export const INICIO_POR_ROL: Record<Rol, string> = {
   ADMIN: "/admin",
   MEDICO: "/medico",
   ENFERMERIA: "/enfermeria",
   PACIENTE: "/paciente",
 };
-
+ 
 export const ETIQUETA_ROL: Record<Rol, string> = {
   ADMIN: "Administrador",
   MEDICO: "Médico",
   ENFERMERIA: "Enfermería",
   PACIENTE: "Paciente",
 };
-
+ 
 export const MSG = {
   EMAIL_REQUERIDO: "Ingresá tu correo.",
   PASSWORD_REQUERIDO: "Ingresá tu contraseña.",
@@ -154,7 +154,7 @@ export const MSG = {
     "No se pudo actualizar el aviso. Intentá nuevamente.",
   AVISOS_SIN_PERMISO: "Tu rol no tiene permiso para ver esta bandeja.",
 } as const;
-
+ 
 export const AUDITORIA = {
   INICIO: "Inicio de sesión",
   CIERRE: "Cierre de sesión",
@@ -185,4 +185,7 @@ export const AUDITORIA = {
   CANCELACION_PRESENCIAL: "Cancelación presencial por personal autorizado",
   REGISTRO_ADJUNTO_CONSULTA: "Registro de adjunto de consulta",
   MARCAR_AVISOS_LEIDOS: "Marcado masivo de avisos como leídos",
+  INVENTARIO_COMPRA: "Entrada de inventario por compra",
+  INVENTARIO_AJUSTE: "Ajuste de inventario",
+  INVENTARIO_ALTA_LOTE: "Alta de lote de vacuna",
 } as const;
