@@ -109,10 +109,6 @@ export function VistaInventarioReporte({ resultado }: Props) {
           >
             Existencias actuales
           </h2>
-          <p className="sigsam-muted" style={{ fontSize: "14px", margin: 0 }}>
-            Stock físico por vacuna y lote. No se muestran comprometidos ni
-            disponibles (fuera del alcance del Sprint 3).
-          </p>
         </div>
 
         <div
@@ -206,9 +202,6 @@ export function VistaInventarioReporte({ resultado }: Props) {
               }}
             >
               {vacunasBajoUmbral}
-            </div>
-            <div className="sigsam-muted" style={{ fontSize: "12px" }}>
-              Indicador visual; las alertas son US-SIG-027
             </div>
           </div>
         </div>
@@ -476,13 +469,6 @@ export function VistaInventarioReporte({ resultado }: Props) {
             )}
           </>
         )}
-
-        <p
-          className="sigsam-muted"
-          style={{ fontSize: "13px", margin: "16px 0 0" }}
-        >
-          La exportación a PDF/Excel se incorpora en US-SIG-038.
-        </p>
       </section>
 
       {/* 2. Evolución del período (CA2 y CA3 ajustados) */}
@@ -683,14 +669,6 @@ export function VistaInventarioReporte({ resultado }: Props) {
             </table>
           </div>
         )}
-
-        <p
-          className="sigsam-muted"
-          style={{ fontSize: "13px", margin: "16px 0 0" }}
-        >
-          Las aplicaciones no se muestran como columna por el recorte de
-          US-SIG-025. Si existieran, están incluidas en el saldo final.
-        </p>
       </section>
 
       {/* 3. Detalle de movimientos (CA2 ajustado) */}
