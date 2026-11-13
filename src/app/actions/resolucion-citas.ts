@@ -106,6 +106,12 @@ const SELECCION_CITA = {
   estado: true,
   resultado: true,
   pacienteId: true,
+  // US-028 CA5: la reprogramación conserva la modalidad y la copia de cobertura.
+  modalidad: true,
+  obraSocialId: true,
+  coberturaNombreSnapshot: true,
+  coberturaPlanSnapshot: true,
+  afiliadoSnapshot: true,
   paciente: {
     select: {
       dni: true,
@@ -609,7 +615,11 @@ export async function reprogramarCitaAfectada(input: {
           hora: horaNuevaDate,
           duracionMin: medicoDestino.duracionTurnoMin,
           arancel: medicoDestino.arancelActual,
-          modalidad: "PARTICULAR",
+          modalidad: cita.modalidad,
+          obraSocialId: cita.obraSocialId,
+          coberturaNombreSnapshot: cita.coberturaNombreSnapshot,
+          coberturaPlanSnapshot: cita.coberturaPlanSnapshot,
+          afiliadoSnapshot: cita.afiliadoSnapshot,
           estado: "CONFIRMADO",
           reprogramadoDesdeId: turnoId,
         },

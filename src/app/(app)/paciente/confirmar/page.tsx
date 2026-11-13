@@ -388,6 +388,10 @@ function ConfirmarContenido({ searchParams }: PageProps) {
             onClose={volverASeleccion}
             turnoId={turnoId}
             onConfirmado={manejarConfirmado}
+            cobertura={
+              pacientes.find((p) => p.personaId === pacienteId)?.cobertura ??
+              null
+            }
           />
         )}
 

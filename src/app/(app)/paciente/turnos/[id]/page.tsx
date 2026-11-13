@@ -65,8 +65,6 @@ export default async function FichaCitaPage(props: {
       : cita.situacionCobro === "SIN_COBRAR"
         ? "Sin cobrar"
         : "Sin cobro al paciente";
-  const cobertura =
-    cobro === "Sin cobro al paciente" ? "Con cobertura" : "Particular";
 
   return (
     <div>
@@ -106,7 +104,7 @@ export default async function FichaCitaPage(props: {
           <strong>Profesional:</strong> {cita.profesional}
         </p>
         <p>
-          <strong>Cobertura:</strong> {cobertura}
+          <strong>Cobertura:</strong> {cita.coberturaEtiqueta}
         </p>
         <p>
           <strong>Estado:</strong>{" "}

@@ -181,6 +181,7 @@ export function ReservarCitaPresencialPanel({ hoy }: { hoy: string }) {
           {paciente.habilitado ? (
             <ReservarSeccion
               pacienteId={paciente.id}
+              cobertura={paciente.cobertura}
               hoy={hoy}
               onAviso={setAviso}
               onReservado={() => setVersion((v) => v + 1)}
@@ -212,11 +213,13 @@ export function ReservarCitaPresencialPanel({ hoy }: { hoy: string }) {
 
 function ReservarSeccion({
   pacienteId,
+  cobertura,
   hoy,
   onAviso,
   onReservado,
 }: {
   pacienteId: string;
+  cobertura: PacienteEncontrado["cobertura"];
   hoy: string;
   onAviso: (a: Aviso) => void;
   onReservado: () => void;
@@ -227,6 +230,7 @@ function ReservarSeccion({
   const [fecha, setFecha] = useState("");
   const [jornada, setJornada] = useState<JornadaEncontrada | null>(null);
   const [hora, setHora] = useState("");
+  const [modalidad, setModalidad] = useState("PARTICULAR");
   const [error, setError] = useState<string | null>(null);
   const [cargandoCatalogo, startCargaCatalogo] = useTransition();
   const [buscandoJornada, startBusquedaJornada] = useTransition();
@@ -281,6 +285,7 @@ function ReservarSeccion({
         pacienteId,
         disponibilidadId: jornada.disponibilidadId,
         hora,
+        modalidad,
       });
       if ("error" in res) {
         setError(res.error);
@@ -396,6 +401,27 @@ function ReservarSeccion({
             ))}
         </>
       )}
+
+      {/* US-028 CA3: Particular o Con cobertura registrada. */}
+      <div className="sigsam-field" style={{ marginTop: "12px" }}>
+        <label htmlFor="reserva-modalidad">Modalidad</label>
+        <select
+          id="reserva-modalidad"
+          value={modalidad}
+          onChange={(e) => setModalidad(e.target.value)}
+          disabled={pendiente}
+        >
+          <option value="PARTICULAR">Particular</option>
+          <option
+            value="CON_COBERTURA"
+            disabled={!cobertura || !cobertura.activa}
+          >
+            {cobertura
+              ? `Con cobertura registrada: ${cobertura.nombre} · Plan ${cobertura.plan} · Afiliado ${cobertura.numeroAfiliado}${cobertura.activa ? "" : " (obra social inactiva)"}`
+              : "Con cobertura registrada (sin cobertura cargada)"}
+          </option>
+        </select>
+      </div>
 
       <ErrorInline texto={error} />
 

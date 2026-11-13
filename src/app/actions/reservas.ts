@@ -11,6 +11,7 @@ import {
 } from "@/lib/agenda/reservas";
 import { crearAvisoConfirmacion } from "@/lib/notificaciones/avisos";
 import { notificarPorEmail } from "@/lib/notificaciones/email-turno";
+import { datosModalidad } from "@/lib/pacientes/cobertura";
 
 export type ResultadoReserva =
   { exito: true; turnoId: string; retenidoHasta: Date } | { error: string };
@@ -208,6 +209,7 @@ export async function reservarTurnoTemporal(
  */
 export async function confirmarReservaDefinitiva(
   turnoId: string,
+  modalidad: string = "PARTICULAR", // US-028 CA3
 ): Promise<ResultadoConfirmacion> {
   const sesion = await requireRole("PACIENTE");
   const usuarioId = BigInt(sesion.usuarioId);
@@ -261,6 +263,12 @@ export async function confirmarReservaDefinitiva(
     return { error: motivo! };
   }
 
+  // US-028 CA3/CA4: modalidad elegida y copia de la cobertura vigente.
+  const cobertura = await datosModalidad(prisma, turno.pacienteId, modalidad);
+  if ("error" in cobertura) {
+    return { error: cobertura.error };
+  }
+
   // 3. Confirmar: estado → CONFIRMADO, limpiar retenido_hasta
   try {
     await prisma.$transaction(async (tx) => {
@@ -275,6 +283,7 @@ export async function confirmarReservaDefinitiva(
         data: {
           estado: "CONFIRMADO",
           retenidoHasta: null,
+          ...cobertura,
         },
       });
       if (count === 0) {
@@ -303,7 +312,10 @@ export async function confirmarReservaDefinitiva(
           accion: AUDITORIA.CONFIRMACION_TURNO,
           entidad: "turno",
           referenciaId: turnoIdBig,
-          detalle: JSON.stringify({ accion: "confirmacion_definitiva" }),
+          detalle: JSON.stringify({
+            accion: "confirmacion_definitiva",
+            modalidad: cobertura.modalidad,
+          }),
         },
       });
     });
