@@ -6,7 +6,7 @@
  * Cobros US-037) serán incorporados en este catálogo por sus respectivos responsables.
  */
 
-export type TipoReporte = "asistencia_recordatorios";
+export type TipoReporte = "asistencia_recordatorios" | "turnos_ocupacion";
 
 export interface DefinicionReporte {
   id: TipoReporte;
@@ -21,6 +21,13 @@ export const CATALOGO_REPORTES: readonly DefinicionReporte[] = [
     titulo: "Asistencia, ausencias y recordatorios",
     descripcion:
       "Evalúa los resultados de atención (asistencia, ausentismo y citas sin registrar) y audita descriptivamente los recordatorios enviados.",
+    rolesPermitidos: ["ADMIN", "MEDICO"],
+  },
+  {
+    id: "turnos_ocupacion",
+    titulo: "Turnos asignados y ocupación de agenda",
+    descripcion:
+      "Distribución de reservas y ocupación de cupos por médico y especialidad (US-SIG-034).",
     rolesPermitidos: ["ADMIN", "MEDICO"],
   },
   // Ejemplo de cómo se agregarían otros reportes en el futuro:

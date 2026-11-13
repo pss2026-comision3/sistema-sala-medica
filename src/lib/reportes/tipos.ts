@@ -66,3 +66,52 @@ export interface MedicoOpcion {
   especialidadId: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// US-SIG-034 — Turnos asignados y ocupación de agenda
+// ---------------------------------------------------------------------------
+
+export type EstadoFiltroOcupacion = "todos" | "CONFIRMADO" | "CANCELADO";
+export type ModalidadFiltroOcupacion = "todos" | "PARTICULAR" | "CON_COBERTURA";
+
+export interface FiltrosReporteOcupacion {
+  desde: string; // YYYY-MM-DD (fecha de la cita, CA1)
+  hasta: string; // YYYY-MM-DD
+  medicoId?: string;
+  especialidadId?: string;
+  estado?: EstadoFiltroOcupacion; // solo afecta el conteo de reservas
+  modalidad?: ModalidadFiltroOcupacion; // solo afecta el conteo de reservas
+}
+
+/** CA3 y CA4: ocupación calculada sobre cupos (posiciones horarias), no sobre turnos. */
+export interface MetricasOcupacion {
+  cuposPublicados: number;
+  cuposBloqueados: number; // jornadas suspendidas: se informan aparte (CA4)
+  cuposUtilizables: number; // publicados - bloqueados
+  cuposOcupados: number; // utilizables con al menos una cita CONFIRMADA
+  porcentajeOcupacion: string; // "75.0%" o "No aplica"
+}
+
+/** CA2: reservas definitivas. Los resultados son un desglose de las confirmadas. */
+export interface MetricasReservas {
+  confirmadas: number;
+  canceladas: number;
+  atendidos: number;
+  ausentes: number;
+  sinRegistrar: number;
+}
+
+export interface FilaReporteOcupacion {
+  id: string;
+  nombre: string;
+  especialidad?: string; // solo en las filas por médico
+  ocupacion: MetricasOcupacion;
+  reservas: MetricasReservas;
+}
+
+export interface ResultadoReporteOcupacion {
+  ocupacion: MetricasOcupacion;
+  reservas: MetricasReservas;
+  porMedico: FilaReporteOcupacion[];
+  porEspecialidad: FilaReporteOcupacion[];
+  periodo: { desde: string; hasta: string };
+}

@@ -3,12 +3,19 @@
 import { useState, useTransition } from "react";
 import { CATALOGO_REPORTES, type TipoReporte } from "@/lib/reportes/registry";
 import type {
+  EstadoFiltroOcupacion,
   MedicoOpcion,
+  ModalidadFiltroOcupacion,
   OpcionSelector,
   ResultadoReporteAsistencia,
+  ResultadoReporteOcupacion,
 } from "@/lib/reportes/tipos";
-import { obtenerReporteAsistenciaAction } from "@/app/actions/reportes";
+import {
+  obtenerReporteAsistenciaAction,
+  obtenerReporteOcupacionAction,
+} from "@/app/actions/reportes";
 import { VistaAsistenciaReporte } from "./vista-asistencia";
+import { VistaOcupacionReporte } from "./vista-ocupacion";
 
 interface Props {
   medicos: MedicoOpcion[];
@@ -16,6 +23,7 @@ interface Props {
   fechaHoy: string;
   fechaDesdeDefecto: string;
   reporteInicial: ResultadoReporteAsistencia;
+  modoMedico?: boolean; // true en /medico/reportes: oculta filtros de médico y especialidad
 }
 
 /*
@@ -29,6 +37,7 @@ export function ReportesView({
   fechaHoy,
   fechaDesdeDefecto,
   reporteInicial,
+  modoMedico = false,
 }: Props) {
   const [tipoReporte, setTipoReporte] = useState<TipoReporte>(
     "asistencia_recordatorios",
@@ -37,7 +46,10 @@ export function ReportesView({
   const [hasta, setHasta] = useState(fechaHoy);
   const [medicoId, setMedicoId] = useState("todos");
   const [especialidadId, setEspecialidadId] = useState("todos");
-
+  const [estado, setEstado] = useState<EstadoFiltroOcupacion>("todos");
+  const [modalidad, setModalidad] = useState<ModalidadFiltroOcupacion>("todos");
+  const [resultadoOcupacion, setResultadoOcupacion] =
+    useState<ResultadoReporteOcupacion | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoReporteAsistencia | null>(
@@ -78,14 +90,30 @@ export function ReportesView({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    startTransition(async () => {
-      const res = await obtenerReporteAsistenciaAction({
-        desde,
-        hasta,
-        medicoId: medicoId !== "todos" ? medicoId : undefined,
-        especialidadId: especialidadId !== "todos" ? especialidadId : undefined,
-      });
+    const filtrosComunes = {
+      desde,
+      hasta,
+      medicoId: medicoId !== "todos" ? medicoId : undefined,
+      especialidadId: especialidadId !== "todos" ? especialidadId : undefined,
+    };
 
+    startTransition(async () => {
+      if (tipoReporte === "turnos_ocupacion") {
+        const res = await obtenerReporteOcupacionAction({
+          ...filtrosComunes,
+          estado,
+          modalidad,
+        });
+        if (!res.exito) {
+          setError(res.error);
+          setResultadoOcupacion(null);
+        } else {
+          setResultadoOcupacion(res.datos);
+        }
+        return;
+      }
+
+      const res = await obtenerReporteAsistenciaAction(filtrosComunes);
       if (!res.exito) {
         setError(res.error);
         setResultado(null);
@@ -139,7 +167,9 @@ export function ReportesView({
                 value={tipoReporte}
                 onChange={(e) => setTipoReporte(e.target.value as TipoReporte)}
               >
-                {CATALOGO_REPORTES.map((rep) => (
+                {CATALOGO_REPORTES.filter((rep) =>
+                  rep.rolesPermitidos.includes(modoMedico ? "MEDICO" : "ADMIN"),
+                ).map((rep) => (
                   <option key={rep.id} value={rep.id}>
                     {rep.titulo}
                   </option>
@@ -173,7 +203,8 @@ export function ReportesView({
           </div>
 
           {/* Fila 2: Filtros dinámicos específicos de Asistencia */}
-          {tipoReporte === "asistencia_recordatorios" && (
+          {(tipoReporte === "asistencia_recordatorios" ||
+            tipoReporte === "turnos_ocupacion") && (
             <div
               style={{
                 display: "grid",
@@ -183,64 +214,114 @@ export function ReportesView({
                 alignItems: "start",
               }}
             >
-              <div className="sigsam-field" style={{ minWidth: 0 }}>
-                <label htmlFor="medicoId">Médico</label>
-                <select
-                  id="medicoId"
-                  value={medicoId}
-                  onChange={(e) => handleMedicoChange(e.target.value)}
-                >
-                  <option value="todos">
-                    {especialidadId === "todos"
-                      ? "Todos los médicos"
-                      : "Todos los médicos de esta especialidad"}
-                  </option>
-                  {medicosFiltrados.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!modoMedico && (
+                <>
+                  <div className="sigsam-field" style={{ minWidth: 0 }}>
+                    <label htmlFor="medicoId">Médico</label>
+                    <select
+                      id="medicoId"
+                      value={medicoId}
+                      onChange={(e) => handleMedicoChange(e.target.value)}
+                    >
+                      <option value="todos">
+                        {especialidadId === "todos"
+                          ? "Todos los médicos"
+                          : "Todos los médicos de esta especialidad"}
+                      </option>
+                      {medicosFiltrados.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Filtro Especialidad */}
-              <div className="sigsam-field" style={{ minWidth: 0 }}>
-                <label htmlFor="especialidadId">
-                  Especialidad {especialidadBloqueada && "(fijada por médico)"}
-                </label>
-                <select
-                  id="especialidadId"
-                  value={especialidadId}
-                  disabled={especialidadBloqueada}
-                  onChange={(e) => handleEspecialidadChange(e.target.value)}
-                  title={
-                    especialidadBloqueada
-                      ? "Fijada automáticamente según el médico seleccionado"
-                      : undefined
-                  }
+                  {/* Filtro Especialidad */}
+                  <div className="sigsam-field" style={{ minWidth: 0 }}>
+                    <label htmlFor="especialidadId">
+                      Especialidad{" "}
+                      {especialidadBloqueada && "(fijada por médico)"}
+                    </label>
+                    <select
+                      id="especialidadId"
+                      value={especialidadId}
+                      disabled={especialidadBloqueada}
+                      onChange={(e) => handleEspecialidadChange(e.target.value)}
+                      title={
+                        especialidadBloqueada
+                          ? "Fijada automáticamente según el médico seleccionado"
+                          : undefined
+                      }
+                    >
+                      <option value="todos">Todas las especialidades</option>
+                      {especialidades.map((esp) => (
+                        <option key={esp.id} value={esp.id}>
+                          {esp.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    {especialidadBloqueada && (
+                      <span
+                        className="sigsam-muted"
+                        style={{
+                          display: "block",
+                          fontSize: "12px",
+                          marginTop: "6px",
+                          lineHeight: "1.3",
+                        }}
+                      >
+                        Especialidad fijada por el médico. Seleccioná
+                        &quot;Todos los médicos&quot; para cambiarla.
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {modoMedico && (
+                <p
+                  className="sigsam-muted"
+                  style={{ gridColumn: "1 / -1", margin: 0, fontSize: "14px" }}
                 >
-                  <option value="todos">Todas las especialidades</option>
-                  {especialidades.map((esp) => (
-                    <option key={esp.id} value={esp.id}>
-                      {esp.nombre}
-                    </option>
-                  ))}
-                </select>
-                {especialidadBloqueada && (
-                  <span
-                    className="sigsam-muted"
-                    style={{
-                      display: "block",
-                      fontSize: "12px",
-                      marginTop: "6px",
-                      lineHeight: "1.3",
-                    }}
-                  >
-                    Especialidad fijada por el médico. Seleccioná &quot;Todos
-                    los médicos&quot; para cambiarla.
-                  </span>
-                )}
-              </div>
+                  Estás viendo únicamente tus propios turnos.
+                </p>
+              )}
+
+              {tipoReporte === "turnos_ocupacion" && (
+                <>
+                  <div className="sigsam-field" style={{ minWidth: 0 }}>
+                    <label htmlFor="estado">Estado</label>
+                    <select
+                      id="estado"
+                      value={estado}
+                      onChange={(e) =>
+                        setEstado(e.target.value as EstadoFiltroOcupacion)
+                      }
+                    >
+                      <option value="todos">Todos</option>
+                      <option value="CONFIRMADO">Confirmado</option>
+                      <option value="CANCELADO">Cancelado</option>
+                    </select>
+                  </div>
+
+                  <div className="sigsam-field" style={{ minWidth: 0 }}>
+                    <label htmlFor="modalidad">Modalidad de cobertura</label>
+                    <select
+                      id="modalidad"
+                      value={modalidad}
+                      onChange={(e) =>
+                        setModalidad(e.target.value as ModalidadFiltroOcupacion)
+                      }
+                    >
+                      <option value="todos">Todas</option>
+                      <option value="PARTICULAR">Particular</option>
+                      <option value="CON_COBERTURA">
+                        Con cobertura registrada
+                      </option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -273,6 +354,19 @@ export function ReportesView({
           key={`${resultado.periodo.desde}-${resultado.periodo.hasta}-${medicoId}-${especialidadId}`}
           resultado={resultado}
         />
+      )}
+
+      {tipoReporte === "turnos_ocupacion" && resultadoOcupacion && (
+        <VistaOcupacionReporte resultado={resultadoOcupacion} />
+      )}
+
+      {tipoReporte === "turnos_ocupacion" && !resultadoOcupacion && !error && (
+        <div className="sigsam-empty" style={{ marginTop: "24px" }}>
+          <p>
+            Elegí el período y tocá &quot;Aplicar filtros&quot; para generar el
+            reporte.
+          </p>
+        </div>
       )}
     </div>
   );
