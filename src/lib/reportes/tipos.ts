@@ -1,5 +1,5 @@
 /**
- * Contratos de datos y tipos para el módulo de reportes (US-SIG-035).
+ * Contratos de datos y tipos para el módulo de reportes (US-SIG-035 y US-SIG-036).
  */
 
 export interface FiltrosReporteAsistencia {
@@ -114,4 +114,84 @@ export interface ResultadoReporteOcupacion {
   porMedico: FilaReporteOcupacion[];
   porEspecialidad: FilaReporteOcupacion[];
   periodo: { desde: string; hasta: string };
+}
+
+// US-SIG-036 — Reporte de inventario actual y evolución
+// ---------------------------------------------------------------------------
+
+export type TipoMovimientoReporte = "COMPRA" | "APLICACION" | "AJUSTE";
+
+export interface FiltrosReporteInventario {
+  desde: string; // Formato YYYY-MM-DD
+  hasta: string; // Formato YYYY-MM-DD
+  vacunaId?: string;
+  loteId?: string;
+  /** Solo afecta al detalle de movimientos, no al resumen del período. */
+  tipo?: TipoMovimientoReporte;
+}
+
+export interface LoteStockReporte {
+  id: string;
+  codigo: string;
+  fechaVencimiento: string; // YYYY-MM-DD
+  fisico: number;
+}
+
+export interface VacunaStockReporte {
+  id: string;
+  nombre: string;
+  activa: boolean;
+  umbralMinimo: number;
+  fisico: number;
+  bajoUmbral: boolean;
+  lotes: LoteStockReporte[];
+}
+
+export interface ResumenInventarioReporte {
+  vacunaId: string;
+  vacuna: string;
+  loteId: string;
+  lote: string;
+  saldoInicial: number;
+  entradas: number;
+  ajustes: number;
+  saldoFinal: number;
+}
+
+export interface MovimientoInventarioReporte {
+  id: string;
+  fecha: string; // ISO
+  vacuna: string;
+  lote: string;
+  tipo: TipoMovimientoReporte;
+  cantidad: number; // firmada
+  motivo: string | null;
+  operador: string;
+}
+
+export interface ResultadoReporteInventario {
+  stockActual: VacunaStockReporte[];
+  resumen: ResumenInventarioReporte[];
+  movimientos: MovimientoInventarioReporte[];
+  totalMovimientos: number;
+  periodo: {
+    desde: string;
+    hasta: string;
+  };
+  filtrosAplicados: {
+    vacunaId: string | null;
+    loteId: string | null;
+    tipo: TipoMovimientoReporte | null;
+  };
+}
+
+export interface OpcionLoteInventario {
+  id: string;
+  codigo: string;
+}
+
+export interface OpcionVacunaInventario {
+  id: string;
+  nombre: string;
+  lotes: OpcionLoteInventario[];
 }

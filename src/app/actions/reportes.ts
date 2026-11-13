@@ -2,20 +2,23 @@
 
 import { unstable_rethrow } from "next/navigation";
 
-import { requireAlgunRol } from "@/lib/auth/guards";
+import { requireAlgunRol, requireRole } from "@/lib/auth/guards";
 import {
   consultarReporteAsistencia,
   obtenerEspecialidadesParaFiltro,
   obtenerMedicosParaFiltro,
 } from "@/lib/reportes/asistencia-recordatorios";
 import { consultarReporteOcupacion } from "@/lib/reportes/turnos-ocupacion";
+import { consultarReporteInventario } from "@/lib/reportes/inventario";
 import type {
   FiltrosReporteAsistencia,
+  FiltrosReporteInventario,
   MedicoOpcion,
   OpcionSelector,
   ResultadoReporteAsistencia,
   FiltrosReporteOcupacion,
   ResultadoReporteOcupacion,
+  ResultadoReporteInventario,
 } from "@/lib/reportes/tipos";
 
 export type RespuestaReporteAsistencia =
@@ -50,6 +53,39 @@ export async function obtenerReporteAsistenciaAction(
         error instanceof Error
           ? error.message
           : "Ocurrió un error inesperado al generar el reporte.",
+    };
+  }
+}
+
+export type RespuestaReporteInventario =
+  | { exito: true; datos: ResultadoReporteInventario }
+  | { exito: false; error: string };
+
+/**
+ * Server Action para consultar el reporte de inventario (US-SIG-036).
+ *
+ * Solo el Administrador puede acceder. El reporte es de solo lectura: no
+ * modifica inventario ni consulta datos clínicos.
+ */
+export async function obtenerReporteInventarioAction(
+  filtros: FiltrosReporteInventario,
+): Promise<RespuestaReporteInventario> {
+  await requireRole("ADMIN");
+
+  try {
+    const datos = await consultarReporteInventario(filtros);
+    return { exito: true, datos };
+  } catch (error) {
+    console.error(
+      "[obtenerReporteInventarioAction] Error generando reporte:",
+      error,
+    );
+    return {
+      exito: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error inesperado al generar el reporte de inventario.",
     };
   }
 }
