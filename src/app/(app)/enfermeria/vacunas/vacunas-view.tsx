@@ -444,6 +444,12 @@ export function VacunasView({ iniciales }: Props) {
                   scope="col"
                   style={{ padding: "10px 12px", textAlign: "center" }}
                 >
+                  Estado de stock
+                </th>
+                <th
+                  scope="col"
+                  style={{ padding: "10px 12px", textAlign: "center" }}
+                >
                   Lotes
                 </th>
                 <th scope="col" style={{ padding: "10px 12px" }}>
@@ -461,6 +467,7 @@ export function VacunasView({ iniciales }: Props) {
               {visibles.map((vacuna) => {
                 const lotesAbiertosVacuna = lotesAbiertos[vacuna.id] === true;
                 const sinStock = vacuna.dosisDisponibles === 0;
+                const estaBajo = vacuna.dosisDisponibles <= vacuna.umbralMinimo;
                 return (
                   <Fragment key={vacuna.id}>
                     <tr
@@ -478,7 +485,36 @@ export function VacunasView({ iniciales }: Props) {
                         {vacuna.umbralMinimo}
                       </td>
                       <td style={{ padding: "12px" }}>
-                        <strong>{vacuna.dosisDisponibles}</strong>
+                        <strong
+                          style={{
+                            color: estaBajo
+                              ? "var(--color-danger, #b3261e)"
+                              : "inherit",
+                          }}
+                        >
+                          {vacuna.dosisDisponibles}
+                        </strong>
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            minHeight: 28,
+                            padding: "3px 9px",
+                            borderRadius: 999,
+                            backgroundColor: estaBajo
+                              ? "#fdecea"
+                              : "#e9f5ed",
+                            color: estaBajo
+                              ? "#b3261e"
+                              : "#23613a",
+                            fontSize: 13,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {estaBajo ? "Stock bajo" : "OK"}
+                        </span>
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
                         <div
