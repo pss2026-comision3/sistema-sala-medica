@@ -62,8 +62,7 @@ export async function crearAvisosInternosStockBajo(
 ): Promise<void> {
   const resumen =
     `Stock bajo de "${estado.nombre}": ${estado.disponibles} dosis disponibles ` +
-    `(umbral ${estado.umbralMinimo}). Físicas: ${estado.fisico}, ` +
-    `comprometidas: ${estado.compromisos}.`;
+    `(umbral ${estado.umbralMinimo}). Físicas: ${estado.fisico}.`;
 
   await Promise.all(
     destinatarios.map((d) =>
@@ -95,7 +94,6 @@ export function dispararEmailsStockBajo(
   const datos: DatosAlertaStock = {
     vacuna: estado.nombre,
     fisico: estado.fisico,
-    compromisos: estado.compromisos,
     disponibles: estado.disponibles,
     umbral: estado.umbralMinimo,
   };

@@ -14,11 +14,7 @@
 
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import {
-  compromisosVacuna,
-  fisicoVacuna,
-  type Db,
-} from "@/lib/vacunacion/inventario";
+import { fisicoVacuna, type Db } from "@/lib/vacunacion/inventario";
 
 const CLAVE_EVENTO_PREFIX = "ALERTA_STOCK";
 
@@ -26,7 +22,6 @@ export type EstadoStockVacuna = {
   vacunaId: bigint;
   nombre: string;
   fisico: number;
-  compromisos: number;
   disponibles: number;
   umbralMinimo: number;
   activa: boolean;
@@ -41,14 +36,13 @@ function claveEvento(vacunaId: bigint): string {
 /**
  * Evalúa el estado de stock de una vacuna contra su umbral.
  *
- * Disponible = físico - compromisos. Las dosis ya comprometidas (reservas de
- * vacunación sin aplicar) no pueden ofrecerse nuevamente, por eso se restan.
+ * Disponible = físico (sin compromisos, porque el flujo de retenciones y
+ * reservas de vacunas —US-023/US-025— no está implementado en esta versión).
  * Nivel bajo cuando disponible <= umbral, incluido el caso de cero dosis.
  */
 export async function obtenerEstadoStockVacuna(
   vacunaId: bigint,
   db: Db = prisma,
-  ahora: Date = new Date(),
 ): Promise<EstadoStockVacuna | null> {
   const vacuna = await db.vacuna.findUnique({
     where: { id: vacunaId },
@@ -56,18 +50,13 @@ export async function obtenerEstadoStockVacuna(
   });
   if (!vacuna) return null;
 
-  const [fisico, compromisos] = await Promise.all([
-    fisicoVacuna(db, vacunaId),
-    compromisosVacuna(db, vacunaId, ahora),
-  ]);
-
-  const disponibles = fisico - compromisos;
+  const fisico = await fisicoVacuna(db, vacunaId);
+  const disponibles = fisico;
 
   return {
     vacunaId: vacuna.id,
     nombre: vacuna.nombre,
     fisico,
-    compromisos,
     disponibles,
     umbralMinimo: vacuna.umbralMinimo,
     activa: vacuna.activa,

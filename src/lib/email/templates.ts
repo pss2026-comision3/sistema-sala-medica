@@ -99,25 +99,25 @@ export function emailRecordatorio(c: DatosCita): MensajeEmail {
 }
 
 // US-SIG-027: alerta de stock bajo a Enfermería.
+// CA3 (recortado): el aviso muestra físico y disponible, sin cantidad
+// comprometida (esa cifra proviene de US-023, descartada en esta versión).
 // CA5: solo datos de la vacuna y cantidades; no incluye pacientes ni reservas.
 export type DatosAlertaStock = {
   vacuna: string;
   fisico: number;
-  compromisos: number;
   disponibles: number;
   umbral: number;
 };
 
 export function emailAlertaStock(datos: DatosAlertaStock): MensajeEmail {
   const titulo = "Alerta de stock bajo de vacuna";
-  const texto = `Alerta de stock bajo para la vacuna ${datos.vacuna}.\n\nDosis físicas: ${datos.fisico}\nDosis comprometidas: ${datos.compromisos}\nDosis disponibles: ${datos.disponibles}\nUmbral mínimo: ${datos.umbral}\n\nSolicite reposición a tiempo.\n\nEste es un aviso automático del Sistema de Sala Médica.`;
+  const texto = `Alerta de stock bajo para la vacuna ${datos.vacuna}.\n\nDosis físicas: ${datos.fisico}\nDosis disponibles: ${datos.disponibles}\nUmbral mínimo: ${datos.umbral}\n\nSolicite reposición a tiempo.\n\nEste es un aviso automático del Sistema de Sala Médica.`;
   const html = `
 <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#222">
   <h2 style="color:#0b5ed7">${esc(titulo)}</h2>
   <p>Se ha alcanzado el umbral de stock bajo para la vacuna <b>${esc(datos.vacuna)}</b>.</p>
   <ul>
     <li><b>Dosis físicas:</b> ${datos.fisico}</li>
-    <li><b>Dosis comprometidas:</b> ${datos.compromisos}</li>
     <li><b>Dosis disponibles:</b> ${datos.disponibles}</li>
     <li><b>Umbral mínimo:</b> ${datos.umbral}</li>
   </ul>

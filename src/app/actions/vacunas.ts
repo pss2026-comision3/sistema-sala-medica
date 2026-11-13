@@ -13,6 +13,7 @@ import {
   obtenerVacunaConStock,
 } from "@/lib/vacunacion/stock";
 import type { VacunaStock } from "@/lib/vacunacion/tipos";
+import { evaluarYNotificarStockBajo } from "@/lib/vacunacion/notificaciones-stock";
 import {
   esquemaCrearVacuna,
   esquemaEditarVacuna,
@@ -162,6 +163,12 @@ export async function actualizarVacuna(
     });
 
     revalidarCatalogo();
+
+    // CA2 (disparador: cambio de umbral): evalúa el umbral después de editar
+    // la vacuna. Los emails se disparan fire-and-forget post-commit.
+    if (vacunaAnterior.umbralMinimo !== umbralMinimo) {
+      void evaluarYNotificarStockBajo(idBigInt, BigInt(sesion.usuarioId));
+    }
 
     const vacuna = await obtenerVacunaConStock(vacunaActualizada.id);
     if (!vacuna) {
