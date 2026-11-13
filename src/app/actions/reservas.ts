@@ -9,11 +9,37 @@ import {
   puedeConfirmarReserva,
   RETENCION_MINUTOS,
 } from "@/lib/agenda/reservas";
+import { crearAvisoConfirmacion } from "@/lib/notificaciones/avisos";
+import { notificarPorEmail } from "@/lib/notificaciones/email-turno";
+import { datosModalidad } from "@/lib/pacientes/cobertura";
 
 export type ResultadoReserva =
   { exito: true; turnoId: string; retenidoHasta: Date } | { error: string };
 
 export type ResultadoConfirmacion = { exito: true } | { error: string };
+
+const MSG_JORNADA_SUSPENDIDA =
+  "La jornada de este turno fue suspendida y ya no admite reservas.";
+
+class ErrorJornadaSuspendida extends Error {}
+
+/**
+ * US-009 CA2: bloquea la fila de la jornada (`SELECT ... FOR UPDATE`) y
+ * verifica que siga publicada. Como la suspensión también actualiza esa fila,
+ * una reserva o confirmación concurrente espera a que termine y ve el estado
+ * definitivo: nunca se crea ni confirma un turno en una jornada suspendida.
+ */
+async function jornadaSiguePublicada(
+  tx: Prisma.TransactionClient,
+  disponibilidadId: bigint,
+): Promise<boolean> {
+  const filas = await tx.$queryRaw<{ estado: string }[]>`
+    SELECT "estado"::text AS "estado"
+    FROM "disponibilidad"
+    WHERE "id" = ${disponibilidadId}
+    FOR UPDATE`;
+  return filas[0]?.estado === "PUBLICADA";
+}
 
 /**
  * Reserva un cupo por 5 minutos (estado RESERVADO).
@@ -112,6 +138,11 @@ export async function reservarTurnoTemporal(
   try {
     // 7. Transacción: crear turno + auditoría
     const resultado = await prisma.$transaction(async (tx) => {
+      // US-009 CA2: la jornada pudo suspenderse después del chequeo inicial.
+      if (!(await jornadaSiguePublicada(tx, BigInt(disponibilidadId)))) {
+        throw new ErrorJornadaSuspendida(MSG_JORNADA_SUSPENDIDA);
+      }
+
       const turno = await tx.turno.create({
         data: {
           pacienteId: pacienteIdBig,
@@ -151,6 +182,10 @@ export async function reservarTurnoTemporal(
       retenidoHasta,
     };
   } catch (error) {
+    // US-009 CA2: la jornada se suspendió mientras se reservaba.
+    if (error instanceof ErrorJornadaSuspendida) {
+      return { error: error.message };
+    }
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
@@ -174,6 +209,7 @@ export async function reservarTurnoTemporal(
  */
 export async function confirmarReservaDefinitiva(
   turnoId: string,
+  modalidad: string = "PARTICULAR", // US-028 CA3
 ): Promise<ResultadoConfirmacion> {
   const sesion = await requireRole("PACIENTE");
   const usuarioId = BigInt(sesion.usuarioId);
@@ -188,6 +224,19 @@ export async function confirmarReservaDefinitiva(
       estado: true,
       retenidoHasta: true,
       creadoPor: true,
+      disponibilidadId: true, // US-009: para verificar que la jornada siga publicada
+      origenCancelacion: true, // US-009: para explicar una retención liberada
+      hora: true,
+      tipo: true,
+      vacuna: { select: { nombre: true } },
+      disponibilidad: {
+        select: {
+          fecha: true,
+          profesional: {
+            select: { medico: { select: { especialidad: { select: { nombre: true } } } } },
+          },
+        },
+      },
     },
   });
   if (!turno) {
@@ -195,6 +244,14 @@ export async function confirmarReservaDefinitiva(
   }
   if (turno.creadoPor !== usuarioId) {
     return { error: "No tenés permiso para confirmar este turno." };
+  }
+
+  // US-009: la retención fue liberada por la suspensión de la jornada.
+  if (
+    turno.estado === "CANCELADO" &&
+    turno.origenCancelacion === "suspension_jornada"
+  ) {
+    return { error: MSG_JORNADA_SUSPENDIDA };
   }
 
   // 2. Verificar que se pueda confirmar
@@ -206,15 +263,46 @@ export async function confirmarReservaDefinitiva(
     return { error: motivo! };
   }
 
+  // US-028 CA3/CA4: modalidad elegida y copia de la cobertura vigente.
+  const cobertura = await datosModalidad(prisma, turno.pacienteId, modalidad);
+  if ("error" in cobertura) {
+    return { error: cobertura.error };
+  }
+
   // 3. Confirmar: estado → CONFIRMADO, limpiar retenido_hasta
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.turno.update({
-        where: { id: turnoIdBig },
+      // US-009 CA2: no se confirma en una jornada suspendida.
+      if (!(await jornadaSiguePublicada(tx, turno.disponibilidadId))) {
+        throw new ErrorJornadaSuspendida(MSG_JORNADA_SUSPENDIDA);
+      }
+
+      // Si la suspensión liberó la retención, el turno ya no está RESERVADO.
+      const { count } = await tx.turno.updateMany({
+        where: { id: turnoIdBig, estado: "RESERVADO" },
         data: {
           estado: "CONFIRMADO",
           retenidoHasta: null,
+          ...cobertura,
         },
+      });
+      if (count === 0) {
+        throw new ErrorJornadaSuspendida(
+          "La retención ya no está vigente. Volvé a buscar un horario.",
+        );
+      }
+
+      // CA1 (US-031): generar el aviso interno de confirmación.
+      const fechaFormat = turno.disponibilidad.fecha.toISOString().slice(0, 10);
+      const horaFormat = turno.hora.toISOString().slice(11, 16);
+      const prestacion = turno.tipo === "VACUNACION"
+        ? (turno.vacuna?.nombre ?? "Vacunación")
+        : (turno.disponibilidad.profesional.medico?.especialidad?.nombre ?? "Consulta médica");
+
+      await crearAvisoConfirmacion(tx, {
+        turnoId: turno.id,
+        usuarioId: BigInt(sesion.usuarioId),
+        resumen: `Tu turno para ${prestacion} el ${fechaFormat} a las ${horaFormat} hs ha sido confirmado.`,
       });
 
       // Auditar
@@ -224,13 +312,23 @@ export async function confirmarReservaDefinitiva(
           accion: AUDITORIA.CONFIRMACION_TURNO,
           entidad: "turno",
           referenciaId: turnoIdBig,
-          detalle: JSON.stringify({ accion: "confirmacion_definitiva" }),
+          detalle: JSON.stringify({
+            accion: "confirmacion_definitiva",
+            modalidad: cobertura.modalidad,
+          }),
         },
       });
     });
 
+    // Llamada para enviar el email (fire-and-forget)
+    notificarPorEmail("CONFIRMACION", turnoIdBig);
+
     return { exito: true };
   } catch (error) {
+    // US-009 CA2: la jornada se suspendió o la retención se liberó.
+    if (error instanceof ErrorJornadaSuspendida) {
+      return { error: error.message };
+    }
     console.error("Error confirmando turno:", error);
     return { error: "Error interno al confirmar el turno." };
   }

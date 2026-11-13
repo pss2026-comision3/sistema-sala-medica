@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { inicioTurno, puedeCancelarTurno } from "@/lib/agenda/reglas";
 import { ETIQUETA_ESTADO_CITA } from "@/lib/agenda/etiquetas";
+import { etiquetaCobertura } from "@/lib/pacientes/cobertura";
 
 export type FiltrosTurnos = {
   beneficiario: string;
@@ -23,6 +24,8 @@ export type TurnoLista = {
   tipo: "CONSULTA" | "VACUNACION";
   prestacion: string;
   profesional: string;
+  /// CA2 (US-014): beneficiario de la cita que se muestra antes de cancelar.
+  beneficiarioNombre: string;
   especialidadId: string | null;
   vacunaId: string | null;
   estado: "RESERVADO" | "CONFIRMADO" | "CANCELADO";
@@ -35,6 +38,8 @@ export type TurnoLista = {
   reprogramada: boolean;
   reprogramadoDesdeId: string | null;
   situacionCobro: SituacionCobro;
+  /** US-028 CA4: «Particular» o «Cobertura registrada: <obra social>». */
+  coberturaEtiqueta: string;
   facturaDisponible: boolean;
   cancelable: boolean;
   cancelableMotivo: string;
@@ -82,7 +87,9 @@ function serializarTurno(
     estado: "RESERVADO" | "CONFIRMADO" | "CANCELADO";
     resultado: "SIN_REGISTRAR" | "ATENDIDO" | "AUSENTE";
     modalidad: "PARTICULAR" | "CON_COBERTURA";
+    coberturaNombreSnapshot: string | null;
     reprogramadoDesdeId: bigint | null;
+    paciente: { persona: { nombreCompleto: string } };
     disponibilidad: {
       fecha: Date;
       estado: "PUBLICADA" | "SUSPENDIDA";
@@ -106,7 +113,10 @@ function serializarTurno(
   const pendienteDeResolver =
     turno.estado === "CONFIRMADO" &&
     turno.disponibilidad.estado === "SUSPENDIDA";
-  const cancel = puedeCancelarTurno({ estado: turno.estado, inicio }, ahora);
+  const cancel = puedeCancelarTurno(
+    { estado: turno.estado, inicio, resultado: turno.resultado },
+    ahora,
+  );
 
   const situacionCobro: SituacionCobro =
     turno.modalidad === "CON_COBERTURA"
@@ -128,6 +138,7 @@ function serializarTurno(
         ? (turno.vacuna?.nombre ?? "Vacunación")
         : (especialidad?.nombre ?? "Consulta médica"),
     profesional: turno.disponibilidad.profesional.persona.nombreCompleto,
+    beneficiarioNombre: turno.paciente.persona.nombreCompleto,
     estado: turno.estado,
     estadoEtiqueta: ETIQUETA_ESTADO_CITA[turno.estado],
     resultado: turno.resultado,
@@ -145,6 +156,10 @@ function serializarTurno(
     reprogramada: turno.reprogramaciones.length > 0,
     reprogramadoDesdeId: turno.reprogramadoDesdeId?.toString() ?? null,
     situacionCobro,
+    coberturaEtiqueta: etiquetaCobertura(
+      turno.modalidad,
+      turno.coberturaNombreSnapshot,
+    ),
     facturaDisponible: !!comprobante?.archivoPrivado,
     cancelable: cancel.puede,
     cancelableMotivo: cancel.motivo,
@@ -158,6 +173,7 @@ function serializarTurno(
 }
 
 const INCLUDE_TURNO = {
+  paciente: { select: { persona: { select: { nombreCompleto: true } } } },
   disponibilidad: {
     select: {
       fecha: true,

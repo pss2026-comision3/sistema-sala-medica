@@ -8,7 +8,10 @@ import {
   restablecerClavePorAdmin,
   type ResultadoRestablecimiento,
 } from "@/app/actions/auth";
-import { desactivarCuentaPersonal } from "@/app/actions/cuentas";
+import {
+  desactivarCuentaPersonal,
+  reactivarCuentaPersonal, // <- NUEVO: Importamos la acción de reactivar
+} from "@/app/actions/cuentas";
 
 export type CuentaItem = {
   id: string;
@@ -19,21 +22,33 @@ export type CuentaItem = {
   claveTemporal: boolean;
 };
 
+// Motivos de desactivación genericos, no mandaron documentacion
+const MOTIVOS_DESACTIVACION = ["Motivo 1", "Motivo 2", "Motivo 3", "Otro"];
+
 type Props = {
   cuentasIniciales: CuentaItem[];
 };
 
 export function AdminCuentasTable({ cuentasIniciales }: Props) {
   const [busqueda, setBusqueda] = useState("");
+  const [opcionMotivo, setOpcionMotivo] = useState("");
   const [cuentaParaReset, setCuentaParaReset] = useState<CuentaItem | null>(
     null,
   );
 
-  // Estados para el nuevo modal de desactivación
+  // Estados para el modal de desactivación
   const [cuentaParaDesactivar, setCuentaParaDesactivar] =
     useState<CuentaItem | null>(null);
   const [stateDesactivar, actionDesactivar, isPendingDesactivar] =
     useActionState(desactivarCuentaPersonal, { success: false });
+
+  // NUEVO: Estados para el modal de reactivación
+  const [cuentaParaReactivar, setCuentaParaReactivar] =
+    useState<CuentaItem | null>(null);
+  const [stateReactivar, actionReactivar, isPendingReactivar] = useActionState(
+    reactivarCuentaPersonal,
+    { success: false },
+  );
 
   const [resultado, setResultado] =
     useState<ResultadoRestablecimiento["credenciales"]>(undefined);
@@ -85,7 +100,16 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
   // Cerrar el modal de desactivar y recargar si fue exitoso
   function handleCerrarModalDesactivar() {
     setCuentaParaDesactivar(null);
+    setOpcionMotivo("");
     if (stateDesactivar.success) {
+      window.location.reload();
+    }
+  }
+
+  // NUEVO: Cerrar el modal de reactivar y recargar si fue exitoso
+  function handleCerrarModalReactivar() {
+    setCuentaParaReactivar(null);
+    if (stateReactivar.success) {
       window.location.reload();
     }
   }
@@ -316,7 +340,10 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                             {!esUltimoAdmin && (
                               <button
                                 type="button"
-                                onClick={() => setCuentaParaDesactivar(cuenta)}
+                                onClick={() => {
+                                  setCuentaParaDesactivar(cuenta);
+                                  setOpcionMotivo("");
+                                }}
                                 className="sigsam-btn danger small"
                               >
                                 Desactivar
@@ -324,12 +351,21 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                             )}
                           </div>
                         ) : (
-                          <span
-                            className="sigsam-muted"
-                            style={{ fontSize: "13px" }}
+                          // NUEVO: Reemplazamos "Sin acciones" por el botón Reactivar
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "flex-end",
+                            }}
                           >
-                            Sin acciones
-                          </span>
+                            <button
+                              type="button"
+                              onClick={() => setCuentaParaReactivar(cuenta)}
+                              className="sigsam-btn small"
+                            >
+                              Reactivar
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -364,19 +400,276 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
               boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
             }}
           >
-            <div className="sigsam-eyebrow">Baja lógica</div>
-            <h2 style={{ fontSize: "20px" }}>Desactivar cuenta</h2>
+            {stateDesactivar.success ? (
+              <>
+                <div
+                  className="sigsam-eyebrow"
+                  style={{ color: "#1b6338", marginBottom: "8px" }}
+                >
+                  Operación exitosa
+                </div>
+                <h2 style={{ fontSize: "22px", marginBottom: "16px" }}>
+                  Cuenta desactivada
+                </h2>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "16px",
+                    padding: "16px",
+                    backgroundColor: "#edf7f1",
+                    border: "1px solid #bfddcb",
+                    borderRadius: "8px",
+                    marginBottom: "24px",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#1b6338"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ flexShrink: 0, marginTop: "2px" }}
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+
+                  <div>
+                    <strong
+                      style={{
+                        color: "#144929",
+                        fontSize: "15px",
+                        display: "block",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Baja confirmada
+                    </strong>
+                    <p
+                      style={{
+                        color: "#1b6338",
+                        fontSize: "14px",
+                        lineHeight: "1.5",
+                        margin: 0,
+                      }}
+                    >
+                      El acceso de{" "}
+                      <strong>{cuentaParaDesactivar.nombre}</strong> fue
+                      revocado correctamente.
+                    </p>
+                    <p
+                      style={{
+                        color: "#1b6338",
+                        fontSize: "14px",
+                        lineHeight: "1.5",
+                        margin: "4px 0 0 0",
+                      }}
+                    >
+                      Todas sus sesiones activas fueron cerradas por seguridad.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="button"
+                    onClick={handleCerrarModalDesactivar}
+                    className="sigsam-btn"
+                  >
+                    Aceptar y cerrar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="sigsam-eyebrow">Baja lógica</div>
+                <h2 style={{ fontSize: "20px" }}>Desactivar cuenta</h2>
+                <p
+                  className="sigsam-muted"
+                  style={{ marginTop: "8px", marginBottom: "16px" }}
+                >
+                  ¿Desactivar el acceso de{" "}
+                  <strong>{cuentaParaDesactivar.nombre}</strong>? Sus registros
+                  se conservarán.
+                </p>
+
+                {/* Mensaje de error si falla la validación en el backend */}
+                {!stateDesactivar.success &&
+                  stateDesactivar.message &&
+                  stateDesactivar.errors?.usuarioId?.[0] ===
+                    cuentaParaDesactivar.id && (
+                    <div
+                      className="sigsam-notice error"
+                      style={{ marginBottom: "16px" }}
+                    >
+                      <span className="sigsam-notice-symbol" aria-hidden="true">
+                        !
+                      </span>
+                      <div>
+                        <strong>No se puede desactivar</strong>
+                        <p style={{ marginTop: "4px", fontSize: "14px" }}>
+                          {stateDesactivar.message}
+                        </p>
+
+                        {stateDesactivar.errors?.bloqueos && (
+                          <ul
+                            style={{
+                              marginTop: "8px",
+                              paddingLeft: "20px",
+                              fontSize: "14px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            {stateDesactivar.errors.bloqueos.map(
+                              (motivo, i) => (
+                                <li key={i} style={{ lineHeight: "1.4" }}>
+                                  {motivo}
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                <form action={actionDesactivar}>
+                  <input
+                    type="hidden"
+                    name="usuarioId"
+                    value={cuentaParaDesactivar.id}
+                  />
+
+                  <div
+                    className="sigsam-field"
+                    style={{ marginBottom: "20px" }}
+                  >
+                    <label htmlFor="opcionMotivo">
+                      Motivo de la desactivación *
+                    </label>
+
+                    <select
+                      id="opcionMotivo"
+                      value={opcionMotivo}
+                      onChange={(e) => setOpcionMotivo(e.target.value)}
+                      required
+                      name={opcionMotivo !== "Otro" ? "motivo" : undefined}
+                      aria-invalid={!!stateDesactivar.errors?.motivo}
+                    >
+                      <option value="" disabled>
+                        Seleccioná un motivo...
+                      </option>
+                      {MOTIVOS_DESACTIVACION.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+
+                    {opcionMotivo === "Otro" && (
+                      <div style={{ marginTop: "12px" }}>
+                        <input
+                          type="text"
+                          id="motivoCustom"
+                          name="motivo"
+                          required
+                          placeholder="Escribí el motivo específico..."
+                          aria-invalid={!!stateDesactivar.errors?.motivo}
+                        />
+                      </div>
+                    )}
+
+                    {stateDesactivar.errors?.motivo && (
+                      <span
+                        className="sigsam-alert-error"
+                        style={{
+                          color: "#b4393a",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          display: "block",
+                          marginTop: "4px",
+                        }}
+                      >
+                        {stateDesactivar.errors.motivo[0]}
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: "12px",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={handleCerrarModalDesactivar}
+                      className="sigsam-btn-ghost"
+                      disabled={isPendingDesactivar}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="sigsam-btn danger"
+                      disabled={isPendingDesactivar}
+                    >
+                      {isPendingDesactivar
+                        ? "Desactivando…"
+                        : "Confirmar desactivación"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* todo: Mejorar texto cuando se realiza la reactivacion para que quede consistente */}
+      {/* NUEVO: Modal / Diálogo para Reactivar Cuenta */}
+      {cuentaParaReactivar && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(16, 42, 49, 0.6)",
+            display: "grid",
+            placeItems: "center",
+            padding: "16px",
+            zIndex: 50,
+          }}
+        >
+          <div
+            className="sigsam-card"
+            style={{
+              maxWidth: "480px",
+              width: "100%",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div className="sigsam-eyebrow">Restaurar acceso</div>
+            <h2 style={{ fontSize: "20px" }}>Reactivar cuenta</h2>
             <p
               className="sigsam-muted"
               style={{ marginTop: "8px", marginBottom: "16px" }}
             >
-              ¿Desactivar el acceso de{" "}
-              <strong>{cuentaParaDesactivar.nombre}</strong>? Sus registros se
-              conservarán.
+              ¿Estás seguro que querés reactivar el acceso de{" "}
+              <strong>{cuentaParaReactivar.nombre}</strong>? La cuenta volverá a
+              estar operativa en el sistema de forma inmediata.
             </p>
 
-            {/* Mostramos el mensaje de error del Server Action acá mismo */}
-            {!stateDesactivar.success && stateDesactivar.message && (
+            {!stateReactivar.success && stateReactivar.message && (
               <div
                 className="sigsam-notice error"
                 style={{ marginBottom: "16px" }}
@@ -385,13 +678,15 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
                   !
                 </span>
                 <div>
-                  <strong>No se puede desactivar</strong>
-                  <p>{stateDesactivar.message}</p>
+                  <strong>Error al reactivar</strong>
+                  <p style={{ marginTop: "4px", fontSize: "14px" }}>
+                    {stateReactivar.message}
+                  </p>
                 </div>
               </div>
             )}
 
-            {stateDesactivar.success ? (
+            {stateReactivar.success ? (
               <div
                 style={{
                   display: "flex",
@@ -401,69 +696,44 @@ export function AdminCuentasTable({ cuentasIniciales }: Props) {
               >
                 <button
                   type="button"
-                  onClick={handleCerrarModalDesactivar}
+                  onClick={handleCerrarModalReactivar}
                   className="sigsam-btn"
                 >
                   Aceptar y cerrar
                 </button>
               </div>
             ) : (
-              <form action={actionDesactivar}>
+              <form action={actionReactivar}>
                 <input
                   type="hidden"
                   name="usuarioId"
-                  value={cuentaParaDesactivar.id}
+                  value={cuentaParaReactivar.id}
                 />
-
-                <div className="sigsam-field" style={{ marginBottom: "20px" }}>
-                  <label htmlFor="motivo">Motivo de la desactivación *</label>
-                  <input
-                    type="text"
-                    id="motivo"
-                    name="motivo"
-                    required
-                    placeholder="Ej. Fin de contrato, reemplazo, etc."
-                    aria-invalid={!!stateDesactivar.errors?.motivo}
-                  />
-                  {stateDesactivar.errors?.motivo && (
-                    <span
-                      className="sigsam-alert-error"
-                      style={{
-                        color: "#b4393a",
-                        fontSize: "13px",
-                        fontWeight: "700",
-                        display: "block",
-                        marginTop: "4px",
-                      }}
-                    >
-                      {stateDesactivar.errors.motivo[0]}
-                    </span>
-                  )}
-                </div>
 
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "flex-end",
                     gap: "12px",
+                    marginTop: "20px",
                   }}
                 >
                   <button
                     type="button"
-                    onClick={handleCerrarModalDesactivar}
+                    onClick={handleCerrarModalReactivar}
                     className="sigsam-btn-ghost"
-                    disabled={isPendingDesactivar}
+                    disabled={isPendingReactivar}
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="sigsam-btn danger"
-                    disabled={isPendingDesactivar}
+                    className="sigsam-btn"
+                    disabled={isPendingReactivar}
                   >
-                    {isPendingDesactivar
-                      ? "Desactivando…"
-                      : "Confirmar desactivación"}
+                    {isPendingReactivar
+                      ? "Reactivando…"
+                      : "Confirmar reactivación"}
                   </button>
                 </div>
               </form>

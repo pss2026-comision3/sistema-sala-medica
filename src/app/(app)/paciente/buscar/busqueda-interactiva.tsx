@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { FiltrosHorarios } from "@/lib/turnos/buscar-horarios";
+import type {
+  CitaEspecialidadVigente,
+  FiltrosHorarios,
+} from "@/lib/turnos/buscar-horarios";
 import { BuscarForm } from "./buscar-form";
 import type {
   Beneficiarios,
@@ -14,6 +17,7 @@ import { ResultadosSkeleton } from "./resultados-skeleton";
 export function BusquedaInteractiva({
   beneficiarios,
   catalogo,
+  citasVigentes,
   filtros,
   hoy,
   fechaMaxima,
@@ -23,6 +27,7 @@ export function BusquedaInteractiva({
 }: {
   beneficiarios: Beneficiarios;
   catalogo: Catalogo;
+  citasVigentes: CitaEspecialidadVigente[];
   filtros: FiltrosHorarios;
   hoy: string;
   fechaMaxima: string;
@@ -103,6 +108,7 @@ export function BusquedaInteractiva({
           <BuscarForm
             beneficiarios={beneficiarios}
             catalogo={catalogo}
+            citasVigentes={citasVigentes}
             filtros={filtros}
             hoy={hoy}
             fechaMaxima={fechaMaxima}

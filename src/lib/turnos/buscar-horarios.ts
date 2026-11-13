@@ -21,6 +21,12 @@ export type HorarioConsulta = {
   arancel: string;
 };
 
+export type CitaEspecialidadVigente = {
+  beneficiarioId: string;
+  especialidadId: string;
+  fecha: string;
+};
+
 function partesSala(fecha: Date) {
   const partes = new Intl.DateTimeFormat("en-US", {
     timeZone: ZONA_SALA,
@@ -125,6 +131,63 @@ export async function cargarBeneficiarios(
   ];
 }
 
+export async function cargarCitasVigentesEspecialidad(
+  beneficiarioIds: bigint[],
+  ahora = new Date(),
+  especialidadId?: bigint,
+): Promise<CitaEspecialidadVigente[]> {
+  if (!beneficiarioIds.length) return [];
+
+  const turnos = await prisma.turno.findMany({
+    where: {
+      pacienteId: { in: beneficiarioIds },
+      tipo: "CONSULTA",
+      estado: { in: ["RESERVADO", "CONFIRMADO"] },
+      disponibilidad: {
+        fecha: { gte: fechaDb(hoySala(ahora)) },
+        ...(especialidadId !== undefined
+          ? { profesional: { medico: { especialidadId } } }
+          : {}),
+      },
+    },
+    select: {
+      pacienteId: true,
+      estado: true,
+      retenidoHasta: true,
+      disponibilidad: {
+        select: {
+          fecha: true,
+          profesional: {
+            select: { medico: { select: { especialidadId: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  const vigentes = new Map<string, CitaEspecialidadVigente>();
+  for (const turno of turnos) {
+    if (!ocupa(turno.estado, turno.retenidoHasta, ahora)) continue;
+    const idEspecialidad =
+      turno.disponibilidad.profesional.medico?.especialidadId;
+    if (!idEspecialidad) continue;
+    const beneficiarioId = turno.pacienteId.toString();
+    const especialidadIdTurno = idEspecialidad.toString();
+    const fecha = turno.disponibilidad.fecha.toISOString().slice(0, 10);
+    const clave = `${beneficiarioId}:${especialidadIdTurno}`;
+    const anterior = vigentes.get(clave);
+    if (!anterior || fecha < anterior.fecha) {
+      vigentes.set(clave, {
+        beneficiarioId,
+        especialidadId: especialidadIdTurno,
+        fecha,
+      });
+    }
+  }
+
+  return [...vigentes.values()];
+}
+
 export async function cargarCatalogoMedico() {
   const especialidades = await prisma.especialidad.findMany({
     where: { medicos: { some: { usuario: { activo: true, rol: "MEDICO" } } } },
@@ -204,13 +267,9 @@ export async function buscarHorariosEnFechas(
         retenidoHasta: true,
         hora: true,
         duracionMin: true,
-        tipo: true,
         disponibilidad: {
           select: {
             fecha: true,
-            profesional: {
-              select: { medico: { select: { especialidadId: true } } },
-            },
           },
         },
       },
@@ -219,13 +278,6 @@ export async function buscarHorariosEnFechas(
 
   const vigentes = turnosPaciente.filter((t) =>
     ocupa(t.estado, t.retenidoHasta, ahora),
-  );
-  const citaMismaEspecialidad = vigentes.some(
-    (t) =>
-      t.tipo === "CONSULTA" &&
-      `${t.disponibilidad.fecha.toISOString().slice(0, 10)}T${aHora(minutos(t.hora))}:00` >
-        partesSala(ahora) &&
-      t.disponibilidad.profesional.medico?.especialidadId === especialidadId,
   );
   const minimo = partesSala(new Date(ahora.getTime() + DIA_MS));
   const fechas = [
@@ -313,7 +365,6 @@ export async function buscarHorariosEnFechas(
   return {
     fechas,
     horariosPorFecha,
-    citaMismaEspecialidad,
     haySuperposiciones,
   };
 }

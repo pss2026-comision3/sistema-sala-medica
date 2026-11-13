@@ -1,5 +1,6 @@
 import {
   buscarHorariosEnFechas,
+  cargarCitasVigentesEspecialidad,
   fechaIsoValida,
   hoySala,
   sumarDias,
@@ -41,10 +42,22 @@ export async function consultarBusqueda(
   const beneficiario = beneficiarios.find((b) => b.id === filtros.beneficiario);
   const especialidad = catalogo.find((e) => e.id === filtros.especialidad);
   const medico = especialidad?.medicos.find((m) => m.id === filtros.medico);
+  const citaExistente =
+    beneficiario && especialidad
+      ? (
+          await cargarCitasVigentesEspecialidad(
+            [BigInt(beneficiario.id)],
+            ahora,
+            BigInt(especialidad.id),
+          )
+        )[0]
+      : undefined;
   let error = "";
 
   if (!beneficiario) error = "Seleccioná un beneficiario válido para buscar.";
   else if (!especialidad) error = "Seleccioná una especialidad válida.";
+  else if (citaExistente)
+    error = `${beneficiario.nombre} ya tiene un turno de ${especialidad.nombre} el ${fechaLegible(citaExistente.fecha)}. Podés volver a elegir esta especialidad cuando pase ese día o si cancelás el turno.`;
   else if (!medico)
     error = filtros.medico
       ? "El profesional no pertenece a la especialidad elegida."

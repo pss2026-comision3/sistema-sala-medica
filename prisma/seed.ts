@@ -2,7 +2,10 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-import { PrismaClient } from "../src/generated/prisma/client";
+import {
+  PrismaClient,
+  TipoMovimiento,
+} from "../src/generated/prisma/client";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -162,26 +165,120 @@ async function main(): Promise<void> {
       umbralMinimo: 8,
       arancelActual: 2500.0,
     },
+    {
+      nombre: "Varicela",
+      descripcion:
+        "Vacuna contra el virus varicela-zóster para personas susceptibles.",
+      umbralMinimo: 5,
+      arancelActual: 0.0,
+    },
   ];
 
+  const vacunasMap: Record<string, bigint> = {};
+
   for (const v of vacunasBase) {
-    const vacunaExistente = await prisma.vacuna.findUnique({
+    const vacuna = await prisma.vacuna.upsert({
       where: { nombre: v.nombre },
+      update: {},
+      create: {
+        nombre: v.nombre,
+        descripcion: v.descripcion,
+        umbralMinimo: v.umbralMinimo,
+        arancelActual: v.arancelActual,
+        activa: true,
+      },
     });
-    if (!vacunaExistente) {
-      await prisma.vacuna.create({
-        data: {
-          nombre: v.nombre,
-          descripcion: v.descripcion,
-          umbralMinimo: v.umbralMinimo,
-          arancelActual: v.arancelActual,
-          activa: true,
-        },
-      });
-      console.log(
-        `[seed] Vacuna '${v.nombre}' creada (arancel: $${v.arancelActual.toFixed(2)})`,
+    vacunasMap[v.nombre] = vacuna.id;
+    console.log(
+      `[seed] Vacuna '${vacuna.nombre}' verificada (id: ${vacuna.id})`,
+    );
+  }
+
+  // 4. Stock de demostración por lote
+  const usuarioEnfermeria = await prisma.usuario.findUnique({
+    where: { email: "enfermeria@sigsam.local" },
+  });
+  if (!usuarioEnfermeria) {
+    throw new Error(
+      "[seed] No se encontró el usuario de Enfermería para registrar el stock demo.",
+    );
+  }
+
+  const motivoCargaInicial = "Carga inicial de demo";
+  const lotesDemo = [
+    {
+      vacuna: "Antigripal",
+      codigo: "ANT-2026-A",
+      fechaVencimiento: "2027-06-30",
+      cantidad: 20,
+    },
+    {
+      vacuna: "Hepatitis B",
+      codigo: "HEP-2026-A",
+      fechaVencimiento: "2027-08-31",
+      cantidad: 15,
+    },
+    {
+      vacuna: "Fiebre Amarilla",
+      codigo: "FAM-2026-A",
+      fechaVencimiento: "2027-03-31",
+      cantidad: 3,
+    },
+    {
+      vacuna: "Neumococo 23",
+      codigo: "NEU-2026-A",
+      fechaVencimiento: "2027-12-31",
+      cantidad: 6,
+    },
+  ];
+
+  for (const loteDemo of lotesDemo) {
+    const vacunaId = vacunasMap[loteDemo.vacuna];
+    if (!vacunaId) {
+      throw new Error(
+        `[seed] No se encontró la vacuna '${loteDemo.vacuna}' para el lote ${loteDemo.codigo}.`,
       );
     }
+
+    const lote = await prisma.loteVacuna.upsert({
+      where: { codigo: loteDemo.codigo },
+      update: {},
+      create: {
+        vacunaId,
+        codigo: loteDemo.codigo,
+        fechaVencimiento: new Date(
+          `${loteDemo.fechaVencimiento}T00:00:00.000Z`,
+        ),
+        utilizable: true,
+      },
+    });
+
+    const movimientoExistente = await prisma.movimientoStock.findFirst({
+      where: {
+        loteId: lote.id,
+        motivo: motivoCargaInicial,
+      },
+    });
+
+    if (movimientoExistente) {
+      console.log(
+        `[seed] Stock del lote '${loteDemo.codigo}' ya cargado (${loteDemo.cantidad} dosis).`,
+      );
+      continue;
+    }
+
+    await prisma.movimientoStock.create({
+      data: {
+        loteId: lote.id,
+        registradoPor: usuarioEnfermeria.id,
+        tipo: TipoMovimiento.AJUSTE,
+        cantidad: loteDemo.cantidad,
+        motivo: motivoCargaInicial,
+      },
+    });
+    console.log(
+      `[seed] Stock del lote '${loteDemo.codigo}' cargado (${loteDemo.cantidad} dosis).`,
+    );
   }
 
   console.log(

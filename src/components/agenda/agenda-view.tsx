@@ -87,20 +87,6 @@ export function AgendaMedicaView({
 
   return (
     <>
-      {/* [MOCK-US010] Aviso temporal: quitar al reemplazar el mock por datos reales. */}
-      <div className="sigsam-notice warning" style={{ marginBottom: "20px" }}>
-        <span className="sigsam-notice-symbol" aria-hidden="true">
-          !
-        </span>
-        <div>
-          <strong>Datos de demostración</strong>
-          <p style={{ margin: 0, fontSize: "14px" }}>
-            Las jornadas y los turnos todavía no vienen de la base de datos. Se
-            reemplazan al implementar US-009, US-012, US-016 y US-017.
-          </p>
-        </div>
-      </div>
-
       <div className="sigsam-section-head">
         <nav
           aria-label="Vista de agenda"

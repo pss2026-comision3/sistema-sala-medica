@@ -18,6 +18,14 @@ export async function requireRole(rol: Rol): Promise<SesionActual> {
   return sesion;
 }
 
+/** Igual que `requireRole`, pero admite más de un rol (p. ej. Médico y Enfermería). */
+export async function requireAlgunRol(...roles: Rol[]): Promise<SesionActual> {
+  const sesion = await requireSession();
+  if (sesion.claveTemporal) redirect("/cambiar-clave");
+  if (!roles.includes(sesion.rol)) redirect("/sin-permiso");
+  return sesion;
+}
+
 export function destinoPostLogin(sesion: SesionActual): string {
   return sesion.claveTemporal ? "/cambiar-clave" : INICIO_POR_ROL[sesion.rol];
 }

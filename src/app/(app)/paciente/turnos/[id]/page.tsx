@@ -5,12 +5,31 @@ import { etiquetaFecha } from "@/lib/agenda/reglas";
 import { requireRole } from "@/lib/auth/guards";
 import { cargarBeneficiarios } from "@/lib/turnos/buscar-horarios";
 import { obtenerCitaPaciente } from "@/lib/turnos/consulta-turnos";
+import { obtenerAdjuntosConsultaPaciente } from "@/lib/turnos/adjuntos-clinicos";
 import {
   ETIQUETA_ESTADO_CITA,
   ETIQUETA_RESULTADO_ATENCION,
 } from "@/lib/agenda/etiquetas";
 import type { EstadoTurnoAgenda, ResultadoAgenda } from "@/lib/agenda/tipos";
-import { CancelarCitaButton } from "./cancelar-cita-button";
+import { AccionesCancelacion } from "@/components/paciente/CancelarCitaDialog";
+
+function formatearTamano(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatearFecha(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat("es-AR", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "America/Argentina/Buenos_Aires",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
 
 export default async function FichaCitaPage(props: {
   params: Promise<{ id: string }>;
@@ -19,134 +38,26 @@ export default async function FichaCitaPage(props: {
   const { id } = await props.params;
   const beneficiarios = await cargarBeneficiarios(BigInt(sesion.usuarioId));
 
-  if (beneficiarios.length === 0) {
-    notFound();
-  }
-  const primera = beneficiarios[0].id;
-  const cita = await obtenerCitaPaciente(id, primera);
-  // También intentamos buscar entre todos si la cita corresponde a otro de sus beneficiarios
-  if (!cita) {
-    for (const b of beneficiarios) {
-      const c = await obtenerCitaPaciente(id, b.id);
-      if (c) {
-        const nueva = c;
-        const cobro =
-          nueva.situacionCobro === "COBRADA"
-            ? "Cobrada"
-            : nueva.situacionCobro === "SIN_COBRAR"
-              ? "Sin cobrar"
-              : "Sin cobro al paciente";
-        const cobertura =
-          cobro === "Sin cobro al paciente" ? "Con cobertura" : "Particular";
-        return (
-          <div>
-            <div className="sigsam-page-head">
-              <div>
-                <div className="sigsam-eyebrow">SIGSAM</div>
-                <h1>Ficha de la cita</h1>
-                <p>
-                  {etiquetaFecha(nueva.fecha)} · {nueva.hora} hs
-                </p>
-              </div>
-            </div>
-            <p>
-              <Link href="/paciente/turnos" className="sigsam-link">
-                ← Volver a Mis turnos
-              </Link>
-            </p>
-            <section className="sigsam-card">
-              <h2>Datos de la cita</h2>
-              <p>
-                <strong>Prestación:</strong> {nueva.prestacion}
-              </p>
-              <p>
-                <strong>Tipo:</strong>{" "}
-                {nueva.tipo === "CONSULTA" ? "Consulta" : "Vacunación"}
-              </p>
-              <p>
-                <strong>Fecha:</strong> {etiquetaFecha(nueva.fecha)}
-              </p>
-              <p>
-                <strong>Horario:</strong> {nueva.hora} hs
-              </p>
-              <p>
-                <strong>Profesional:</strong> {nueva.profesional}
-              </p>
-              <p>
-                <strong>Cobertura:</strong> {cobertura}
-              </p>
-              <p>
-                <strong>Estado:</strong>{" "}
-                <span className="sigsam-pill">
-                  {ETIQUETA_ESTADO_CITA[nueva.estado as EstadoTurnoAgenda]}
-                </span>
-              </p>
-              <p>
-                <strong>Resultado:</strong>{" "}
-                {nueva.resultadoVisible ? (
-                  <span className="sigsam-pill">
-                    {
-                      ETIQUETA_RESULTADO_ATENCION[
-                        nueva.resultado as ResultadoAgenda
-                      ]
-                    }
-                  </span>
-                ) : (
-                  "Sin resultado"
-                )}
-              </p>
-            </section>
-            {nueva.pendienteDeResolver && (
-              <section className="sigsam-card" style={{ marginTop: 12 }}>
-                <h2>Estado de la jornada</h2>
-                <div className="sigsam-notice info">
-                  <span className="sigsam-notice-symbol">i</span>
-                  <p style={{ margin: 0 }}>
-                    Esta cita requiere resolución: la jornada está suspendida.
-                  </p>
-                </div>
-                {nueva.motivoSuspension && (
-                  <p style={{ marginTop: 8 }}>
-                    <strong>Motivo:</strong> {nueva.motivoSuspension}
-                  </p>
-                )}
-              </section>
-            )}
-            <section className="sigsam-card" style={{ marginTop: 12 }}>
-              <h2>Cobro</h2>
-              <p>
-                <strong>Situación:</strong> {cobro}
-              </p>
-              {nueva.facturaDisponible && (
-                <Link
-                  href={`/api/paciente/turnos/${nueva.id}/comprobante`}
-                  download
-                  className="sigsam-btn secondary"
-                >
-                  Descargar factura
-                </Link>
-              )}
-              {!nueva.facturaDisponible && (
-                <p>Esta cita no tiene factura disponible.</p>
-              )}
-            </section>
-            <section className="sigsam-card" style={{ marginTop: 12 }}>
-              <h2>Acciones</h2>
-              {nueva.cancelable ? (
-                <CancelarCitaButton turnoId={nueva.id} />
-              ) : (
-                <div className="sigsam-notice info">
-                  <span className="sigsam-notice-symbol">i</span>
-                  <p style={{ margin: 0 }}>{nueva.cancelableMotivo}</p>
-                </div>
-              )}
-            </section>
-          </div>
-        );
-      }
+  // CA5 (US-013): la cita solo existe si pertenece a un beneficiario autorizado
+  // (el titular o un menor con vínculo de tutor vigente).
+  let cita = null;
+  let beneficiarioId: string | null = null;
+  for (const beneficiario of beneficiarios) {
+    cita = await obtenerCitaPaciente(id, beneficiario.id);
+    if (cita) {
+      beneficiarioId = beneficiario.id;
+      break;
     }
-    notFound();
   }
+  if (!cita) notFound();
+
+  const adjuntos =
+    beneficiarioId !== null
+      ? await obtenerAdjuntosConsultaPaciente({
+          turnoId: id,
+          pacientePersonaId: beneficiarioId,
+        })
+      : [];
 
   const cobro =
     cita.situacionCobro === "COBRADA"
@@ -154,8 +65,7 @@ export default async function FichaCitaPage(props: {
       : cita.situacionCobro === "SIN_COBRAR"
         ? "Sin cobrar"
         : "Sin cobro al paciente";
-  const cobertura =
-    cobro === "Sin cobro al paciente" ? "Con cobertura" : "Particular";
+
   return (
     <div>
       <div className="sigsam-page-head">
@@ -163,7 +73,7 @@ export default async function FichaCitaPage(props: {
           <div className="sigsam-eyebrow">SIGSAM</div>
           <h1>Ficha de la cita</h1>
           <p>
-            {etiquetaFecha(cita.fecha)} · {cita.hora} hs
+            {etiquetaFecha(cita.fecha)} — {cita.hora} hs
           </p>
         </div>
       </div>
@@ -174,6 +84,9 @@ export default async function FichaCitaPage(props: {
       </p>
       <section className="sigsam-card">
         <h2>Datos de la cita</h2>
+        <p>
+          <strong>Beneficiario:</strong> {cita.beneficiarioNombre}
+        </p>
         <p>
           <strong>Prestación:</strong> {cita.prestacion}
         </p>
@@ -191,7 +104,7 @@ export default async function FichaCitaPage(props: {
           <strong>Profesional:</strong> {cita.profesional}
         </p>
         <p>
-          <strong>Cobertura:</strong> {cobertura}
+          <strong>Cobertura:</strong> {cita.coberturaEtiqueta}
         </p>
         <p>
           <strong>Estado:</strong>{" "}
@@ -260,15 +173,77 @@ export default async function FichaCitaPage(props: {
         )}
       </section>
       <section className="sigsam-card" style={{ marginTop: 12 }}>
-        <h2>Acciones</h2>
-        {cita.cancelable ? (
-          <CancelarCitaButton turnoId={cita.id} />
+        <h2>Documentación adjunta</h2>
+        {adjuntos.length === 0 ? (
+          <p>Esta consulta no tiene documentos adjuntos.</p>
         ) : (
-          <div className="sigsam-notice info">
-            <span className="sigsam-notice-symbol">i</span>
-            <p style={{ margin: 0 }}>{cita.cancelableMotivo}</p>
-          </div>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {adjuntos.map((adjunto) => {
+              const url = `/api/paciente/turnos/${cita.id}/adjuntos/${adjunto.id}/archivo`;
+              return (
+                <li
+                  key={adjunto.id}
+                  style={{
+                    borderBottom: "1px solid var(--color-line, #d7e2e4)",
+                    padding: "10px 0",
+                  }}
+                >
+                  <p style={{ margin: "0 0 4px" }}>
+                    <strong>{adjunto.nombre}</strong>
+                  </p>
+                  <p
+                    className="sigsam-muted"
+                    style={{ margin: "0 0 8px", fontSize: "12px" }}
+                  >
+                    {formatearTamano(adjunto.tamanoBytes)} · Adjuntado el{" "}
+                    {formatearFecha(adjunto.creadoEn)}
+                  </p>
+                  {adjunto.mimeType.startsWith("image/") && (
+                    <div style={{ marginBottom: "8px" }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={adjunto.nombre}
+                        style={{
+                          maxWidth: "100%",
+                          maxHeight: "240px",
+                          borderRadius: "6px",
+                          border: "1px solid var(--color-line, #d7e2e4)",
+                        }}
+                      />
+                    </div>
+                  )}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="sigsam-link"
+                  >
+                    Ver archivo
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
         )}
+      </section>
+
+      <section className="sigsam-card" style={{ marginTop: 12 }}>
+        <h2>Acciones</h2>
+        <AccionesCancelacion
+          cita={{
+            id: cita.id,
+            beneficiarioNombre: cita.beneficiarioNombre,
+            prestacion: cita.prestacion,
+            fecha: cita.fecha,
+            hora: cita.hora,
+            profesional: cita.profesional,
+            pendienteDeResolver: cita.pendienteDeResolver,
+            motivoSuspension: cita.motivoSuspension,
+          }}
+          cancelable={cita.cancelable}
+          cancelableMotivo={cita.cancelableMotivo}
+        />
       </section>
     </div>
   );

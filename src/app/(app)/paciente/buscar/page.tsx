@@ -2,6 +2,7 @@ import { requireRole } from "@/lib/auth/guards";
 import {
   cargarBeneficiarios,
   cargarCatalogoMedico,
+  cargarCitasVigentesEspecialidad,
   hoySala,
   sumarDias,
   type FiltrosHorarios,
@@ -27,6 +28,10 @@ export default async function PacienteBuscarPage({
     cargarBeneficiarios(BigInt(sesion.usuarioId), ahora),
     cargarCatalogoMedico(),
   ]);
+  const citasVigentes = await cargarCitasVigentesEspecialidad(
+    beneficiarios.map((beneficiario) => BigInt(beneficiario.id)),
+    ahora,
+  );
   const filtros: FiltrosHorarios = {
     beneficiario: leer(params, "beneficiario"),
     especialidad: leer(params, "especialidad"),
@@ -34,9 +39,15 @@ export default async function PacienteBuscarPage({
     fecha: leer(params, "fecha") || hoy,
   };
   const busco = leer(params, "buscar") === "1";
-  const datosIniciales = busco
-    ? await consultarBusqueda(filtros, beneficiarios, catalogo, ahora)
-    : null;
+  const citaYaInformada = citasVigentes.some(
+    (cita) =>
+      cita.beneficiarioId === filtros.beneficiario &&
+      cita.especialidadId === filtros.especialidad,
+  );
+  const datosIniciales =
+    busco && !citaYaInformada
+      ? await consultarBusqueda(filtros, beneficiarios, catalogo, ahora)
+      : null;
 
   return (
     <div className="max-w-[900px] [&_h2]:text-xl">
@@ -64,6 +75,7 @@ export default async function PacienteBuscarPage({
       <BusquedaInteractiva
         beneficiarios={beneficiarios}
         catalogo={catalogo}
+        citasVigentes={citasVigentes}
         filtros={filtros}
         hoy={hoy}
         fechaMaxima={fechaMaxima}

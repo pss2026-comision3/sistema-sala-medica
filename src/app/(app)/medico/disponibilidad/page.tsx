@@ -1,3 +1,5 @@
+import { SuspenderJornadaPanel } from "@/components/agenda/suspender-jornada-panel";
+
 import { MedicoDisponibilidadView } from "./medico-disponibilidad-view";
 
 export default function MedicoDisponibilidadPage() {
@@ -10,8 +12,11 @@ export default function MedicoDisponibilidadPage() {
           <p>Días y horarios que publicás para tus turnos.</p>
         </div>
       </div>
-      
+
       <MedicoDisponibilidadView />
+
+      {/* US-009: suspender una jornada propia ante un imprevisto. */}
+      <SuspenderJornadaPanel modo="medico" />
     </>
   );
 }

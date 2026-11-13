@@ -1,7 +1,11 @@
 /**
- * Utilidades puras para la gestión de retenciones de turno (US-012).
+ * Utilidades puras para la gestión de retenciones de turno (US-012) y para la
+ * reserva/cancelación presencial por personal autorizado (US-SIG-015).
  * Sin dependencias de Prisma, Next.js ni I/O: solo lógica de negocio testable.
  */
+
+import { MSG } from "@/lib/auth/constants";
+import type { EstadoTurnoAgenda, ResultadoAgenda } from "./tipos";
 
 export const RETENCION_MINUTOS = 5;
 
@@ -102,4 +106,31 @@ export function estaDisponibilidadLibre(
   return !turnosDeEsaDisponibilidad.some(
     (t) => t.estado === "RESERVADO" || t.estado === "CONFIRMADO",
   );
+}
+
+/**
+ * US-SIG-015 CA2: el personal autorizado (Médico, Enfermería, Administración)
+ * puede cancelar una cita confirmada "hasta antes del inicio" — sin la
+ * espera de 24 hs que tiene el autoservicio del paciente (`puedeCancelarTurno`
+ * en `agenda/reglas.ts`). Tampoco se tocan citas ya atendidas o marcadas
+ * ausentes.
+ */
+export function puedeCancelarPresencial(
+  turno: {
+    estado: EstadoTurnoAgenda;
+    inicio: string; // ISO
+    resultado: ResultadoAgenda;
+  },
+  ahora: Date = new Date(),
+): { puede: boolean; motivo: string } {
+  if (turno.estado !== "CONFIRMADO") {
+    return { puede: false, motivo: MSG.CANCELACION_ESTADO };
+  }
+  if (turno.resultado !== "SIN_REGISTRAR") {
+    return { puede: false, motivo: MSG.CANCELACION_RESULTADO };
+  }
+  if (new Date(turno.inicio) <= ahora) {
+    return { puede: false, motivo: MSG.CANCELACION_INICIADA };
+  }
+  return { puede: true, motivo: "" };
 }

@@ -278,6 +278,28 @@ Estados: `Aceptada` · `Reemplazada` · `Propuesta`.
   - Toda actualización genera registro de auditoría (`Configuración de duración y arancel médico` o `Configuración de arancel de vacuna`).
   - No se tocan filas históricas en la tabla `turno`.
 
+## D-21 — Registro inmutable de consulta médica y transición con resultado de atención
+
+- **Estado:** Aceptada (2026-10-15)
+- **Decisión:** La documentación clínica de una consulta médica (US-SIG-017) se implementa de forma estrictamente inmutable sobre la tabla `consulta`, exigiendo diagnóstico no vacío y permitiendo campos complementarios opcionales (síntomas, indicaciones, medicación, estudios solicitados, observaciones, certificado). La acción se restringe al médico titular de la cita confirmada y en horario de inicio transcurrido. Al confirmarse el guardado, se actualiza atómicamente el turno a `resultado = ATENDIDO` y se sella `atendido_en = now()`, auditando la operación sin persistir datos sensibles en la bitácora. La ausencia de US-SIG-016 en este estadio se resuelve desacoplando la validación de estados (`SIN_REGISTRAR`, `ATENDIDO`, `AUSENTE`) mediante helpers de transición, garantizando compatibilidad directa cuando se integre el módulo de ausencias.
+- **Motivo:** Cumplimiento de CA1 a CA5 de US-SIG-017, preservación del secreto médico y consistencia relacional.
+- **Consecuencias:**
+  - El formulario se deshabilita y se reemplaza por la visualización de solo lectura tras guardar la consulta (CA4).
+  - La clave primaria de `consulta` es `turno_id`, garantizando que una consulta inicial no se duplica (CA3).
+  - Solo el médico titular tiene acceso clínico (`notFound()` ante accesos no autorizados y 403 para `ADMIN`, CA5).
+
+## D-22 — Adjuntos de consulta en filesystem privado e inmutables
+
+- **Estado:** Aceptada (2026-10-19)
+- **Decisión:** Los adjuntos de consulta (US-SIG-019) se almacenan en el **filesystem privado del servidor** (`storage/adjuntos/consulta/<turnoId>/<uuid>.<ext>`), fuera de `public/`, con la ruta relativa en `adjunto.ruta_privada`. El nombre descriptivo del usuario se persiste en `adjunto.nombre` y no participa del path. Se admiten únicamente PDF/JPG/PNG de hasta 10 MB, validados por MIME, extensión y firma mágica antes de persistir. La carga es exclusiva del médico autor de la consulta; el archivo se sirve mediante Route Handlers con autorización (descarga para el autor, visualización en línea para paciente/tutor vigente, sin descarga clínica). Los adjuntos no se editan ni eliminan; los errores se aclaran con correcciones y archivos adicionales. El modelo `Adjunto` existente no requiere migración.
+- **Motivo:** Cumplimiento de CA1 a CA5 de US-SIG-019, D-02 (sin Supabase Storage) y preservación del secreto clínico.
+
+## D-23 — Bandeja de avisos internos unificada por usuario (US-SIG-033)
+
+- **Estado:** Propuesta
+- **Decisión:** La bandeja de avisos es una vista Server Component que lee `AvisoInterno` filtrada por `usuarioId`. El marcado como leído usa Server Actions con el mismo filtro. Los avisos son inmutables (solo `leido` cambia). El `AppShell` muestra un badge con el conteo calculado en SSR. No hay paginación en v1. La verificación del enlace a la cita reutiliza `destinatarioDeTurno()` de `email-turno.ts` (ya implementado en US-031) para garantizar CA2 y CA3. La garantía CA5 (email fallido no elimina aviso) proviene de la arquitectura de US-031 y no requiere código adicional.
+- **Motivo:** Cumplimiento de CA1 a CA5. La reutilización de `destinatarioDeTurno()` evita duplicar la lógica de resolución tutor/paciente activo.
+
 ---
 
 ## Cómo agregar una decisión

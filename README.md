@@ -47,7 +47,7 @@ filas ni resetea claves). Crea estas cuentas de demostración:
 
 | Email                     | Contraseña        | Rol          | Clave temporal |
 | ------------------------- | ----------------- | ------------ | -------------- |
-| `admin@sigsam.local`      | `Admin@1234`      | `ADMIN`      | sí             |
+| `admin@sigsam.local`      | `12345678`      | `ADMIN`      | sí             |
 | `medico@sigsam.local`     | `Medico@1234`     | `MEDICO`     | no             |
 | `enfermeria@sigsam.local` | `Enfermeria@1234` | `ENFERMERIA` | no             |
 | `paciente@sigsam.local`   | `Paciente@1234`   | `PACIENTE`   | sí             |

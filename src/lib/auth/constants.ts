@@ -1,25 +1,25 @@
 import { Rol } from "@/generated/prisma/client";
-
+ 
 export const COOKIE_SESION = "sigsam_sesion";
-
+ 
 export const INACTIVIDAD_MS = 15 * 60 * 1000;
 export const TOQUE_MS = 60 * 1000;
 export const COOKIE_MAX_AGE_SEG = 12 * 60 * 60;
-
+ 
 export const INICIO_POR_ROL: Record<Rol, string> = {
   ADMIN: "/admin",
   MEDICO: "/medico",
   ENFERMERIA: "/enfermeria",
   PACIENTE: "/paciente",
 };
-
+ 
 export const ETIQUETA_ROL: Record<Rol, string> = {
   ADMIN: "Administrador",
   MEDICO: "Médico",
   ENFERMERIA: "Enfermería",
   PACIENTE: "Paciente",
 };
-
+ 
 export const MSG = {
   EMAIL_REQUERIDO: "Ingresá tu correo.",
   PASSWORD_REQUERIDO: "Ingresá tu contraseña.",
@@ -58,6 +58,18 @@ export const MSG = {
   MEDICO_NO_ENCONTRADO:
     "El profesional médico no fue encontrado o no está activo.",
   VACUNA_NO_ENCONTRADA: "El tipo de vacuna solicitado no fue encontrado.",
+  VACUNA_NOMBRE_REQUERIDO: "Ingresá el nombre de la vacuna.",
+  VACUNA_NOMBRE_LARGO: "El nombre de la vacuna admite hasta 120 caracteres.",
+  VACUNA_NOMBRE_DUPLICADO: "Ya existe una vacuna con ese nombre.",
+  VACUNA_DESCRIPCION_LARGA: "La descripción admite hasta 1000 caracteres.",
+  VACUNA_UMBRAL_INVALIDO:
+    "El umbral debe ser un número entero mayor o igual a 0.",
+  VACUNA_CREADA: "Vacuna creada con éxito.",
+  VACUNA_ACTUALIZADA: "Vacuna actualizada con éxito.",
+  VACUNA_ESTADO_ACTUALIZADO: "Estado de la vacuna actualizado con éxito.",
+  VACUNA_CON_STOCK:
+    "No se puede desactivar una vacuna con dosis disponibles.",
+  VACUNA_YA_ACTIVA: "La vacuna ya se encuentra activa.",
   ALTA_CAMPOS_REQUERIDOS:
     "Completá nombre, apellido, DNI, fecha de nacimiento, teléfono y correo.",
   ALTA_NOMBRE_LARGO:
@@ -88,15 +100,69 @@ export const MSG = {
     "Ese registro corresponde a una persona menor de 18 años y no puede tener cuenta propia.",
   ALTA_CONFLICTO:
     "No se pudo completar la alta: el correo ya está en uso y el registro elegido ya tiene una cuenta.",
+  OBRA_SOCIAL_NOMBRE_REQUERIDO: "Ingresá el nombre de la obra social.",
+  OBRA_SOCIAL_NOMBRE_LARGO: "El nombre admite hasta 255 caracteres.",
+  OBRA_SOCIAL_NOMBRE_DUPLICADO: "Ya existe una obra social con ese nombre.",
+  OBRA_SOCIAL_NO_ENCONTRADA: "La obra social solicitada no existe.",
+  OBRA_SOCIAL_CREADA: "Obra social creada con éxito.",
+  OBRA_SOCIAL_NOMBRE_ACTUALIZADO: "Nombre actualizado con éxito.",
+  OBRA_SOCIAL_ESTADO_ACTUALIZADO: "Estado actualizado con éxito.",
   CANCELACION_PLAZO:
-    "Este turno no se puede cancelar: faltan menos de 24 horas para el inicio.",
+    "Faltan menos de 24 horas para el inicio. Contactá a la sala para gestionarla presencialmente.",
+  CANCELACION_INICIADA: "Esta cita ya empezó: no se puede cancelar.",
   CANCELACION_NO_ENCONTRADO:
     "El turno solicitado no existe o ya no está disponible para cancelar.",
   CANCELACION_ESTADO: "Solo se pueden cancelar citas confirmadas.",
+  CANCELACION_RESULTADO:
+    "La cita ya tiene un resultado de atención registrado y no puede cancelarse.",
   CANCELACION_EXITO: "Turno cancelado con éxito.",
   CITA_SIN_ACCESO: "No tenés acceso a esta cita.",
+  CONSULTA_DIAGNOSTICO_REQUERIDO:
+    "El diagnóstico es obligatorio para registrar la consulta médica.",
+  CONSULTA_REGISTRADA_EXITO: "Consulta médica registrada con éxito.",
+  CONSULTA_CITA_NO_DISPONIBLE:
+    "La cita médica no existe o no tenés autorización para acceder a ella.",
+  CONSULTA_NO_CONFIRMADA: "Solo se pueden atender citas en estado confirmada.",
+  CONSULTA_JORNADA_SUSPENDIDA:
+    "No se puede iniciar la atención: la jornada se encuentra suspendida.",
+  CONSULTA_HORARIO_NO_ALCANZADO:
+    "Todavía no llegó el horario de inicio de la cita.",
+  CONSULTA_YA_ATENDIDA:
+    "Esta cita ya cuenta con una consulta médica registrada.",
+  CONSULTA_MARCADA_AUSENTE:
+    "No se puede registrar la consulta: la cita fue marcada como ausente.",
+  CONSULTA_SIN_PERMISO:
+    "Tu rol no tiene permiso para documentar consultas médicas.",
+  ADJUNTO_NOMBRE_REQUERIDO: "El nombre descriptivo del archivo es obligatorio.",
+  ADJUNTO_NOMBRE_LARGO: "El nombre descriptivo admite hasta 255 caracteres.",
+  ADJUNTO_ARCHIVO_REQUERIDO: "Seleccioná un archivo para adjuntar.",
+  ADJUNTO_TIPO_INVALIDO: "Solo se permiten archivos PDF, JPG o PNG.",
+  ADJUNTO_TAMANO_EXCEDIDO: "El archivo supera los 10 MB permitidos.",
+  ADJUNTO_ARCHIVO_CORRUPTO: "El archivo no coincide con el formato declarado.",
+  ADJUNTO_CONSULTA_NO_DISPONIBLE:
+    "La consulta no existe o no tenés autorización para adjuntar archivos.",
+  ADJUNTO_EXITO: "Documento adjuntado con éxito.",
+  ADJUNTO_ERROR_GUARDADO: "No se pudo guardar el archivo. Intentá nuevamente.",
+  ADJUNTO_SIN_PERMISO:
+    "Tu rol no tiene permiso para adjuntar documentos a consultas.",
+  AVISOS_MARCADO_LEIDO: "Aviso marcado como leído.",
+  AVISOS_YA_LEIDO: "Este aviso ya estaba marcado como leído.",
+  AVISOS_TODOS_LEIDOS: "Todos los avisos fueron marcados como leídos.",
+  AVISOS_SIN_PENDIENTES: "No hay avisos sin leer.",
+  AVISOS_NO_ENCONTRADO: "El aviso no existe o no tenés acceso.",
+  AVISOS_ERROR_ACTUALIZAR:
+    "No se pudo actualizar el aviso. Intentá nuevamente.",
+  AVISOS_SIN_PERMISO: "Tu rol no tiene permiso para ver esta bandeja.",
+  COBERTURA_ACTUALIZADA: "Cobertura registrada con éxito.",
+  COBERTURA_RETIRADA: "Cobertura retirada: el paciente queda como particular.",
+  COBERTURA_NO_PERMITIDA: "No podés modificar la cobertura de este paciente.",
+  MODALIDAD_INVALIDA: "Elegí la modalidad Particular o Con cobertura registrada.",
+  MODALIDAD_SIN_AFILIACION:
+    "El paciente no tiene una cobertura registrada completa. Elegí Particular o registrá la cobertura.",
+  MODALIDAD_OS_INACTIVA:
+    "La obra social registrada está inactiva y no admite nuevas reservas con cobertura.",
 } as const;
-
+ 
 export const AUDITORIA = {
   INICIO: "Inicio de sesión",
   CIERRE: "Cierre de sesión",
@@ -106,8 +172,29 @@ export const AUDITORIA = {
   CONFIGURACION_MEDICO: "Configuración de duración y arancel médico",
   CONFIGURACION_VACUNA: "Configuración de arancel de vacuna",
   ALTA_PACIENTE: "Alta de paciente adulto",
+  ALTA_OBRA_SOCIAL: "Alta de obra social",
+  EDICION_OBRA_SOCIAL: "Edición de obra social",
+  ESTADO_OBRA_SOCIAL: "Cambio de estado de obra social",
+  ALTA_VACUNA: "Alta de vacuna",
+  EDICION_VACUNA: "Edición de vacuna",
+  ESTADO_VACUNA: "Cambio de estado de vacuna",
   RESERVA_TURNO: "Reserva de turno",
   CONFIRMACION_TURNO: "Confirmación de turno",
   CANCELACION_EXPIRACION: "Cancelación por expiración de retención",
   CANCELACION_TURNO_PACIENTE: "Cancelación de turno por paciente",
+  RESULTADO_AUSENCIA_MEDICA: "Registro de ausencia médica",
+  RESULTADO_AUSENCIA_VACUNACION: "Registro de ausencia en vacunatorio",
+  REGISTRO_CONSULTA_MEDICA: "Registro de consulta médica",
+  RESOLUCION_CANCELACION_SUSPENSION:
+    "Cancelación administrativa de cita afectada por suspensión",
+  RESOLUCION_REPROGRAMACION_SUSPENSION:
+    "Reprogramación administrativa de cita afectada por suspensión",
+  RESERVA_PRESENCIAL: "Reserva presencial por personal autorizado",
+  CANCELACION_PRESENCIAL: "Cancelación presencial por personal autorizado",
+  REGISTRO_ADJUNTO_CONSULTA: "Registro de adjunto de consulta",
+  MARCAR_AVISOS_LEIDOS: "Marcado masivo de avisos como leídos",
+  INVENTARIO_COMPRA: "Entrada de inventario por compra",
+  INVENTARIO_AJUSTE: "Ajuste de inventario",
+  INVENTARIO_ALTA_LOTE: "Alta de lote de vacuna",
+  COBERTURA_PACIENTE: "Actualización de cobertura de paciente",
 } as const;

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
+import { coberturaDe, SELECCION_COBERTURA } from "@/lib/pacientes/cobertura";
+import { CoberturaForm } from "@/components/paciente/CoberturaForm";
 import { AltaPacienteForm, type ObraSocialItem } from "./alta-paciente-form";
 
 export default async function AdminPacientesPage() {
@@ -25,6 +27,7 @@ export default async function AdminPacientesPage() {
       include: {
         persona: { include: { usuario: { select: { email: true } } } },
         tutor: { include: { persona: true } },
+        obraSocial: SELECCION_COBERTURA.obraSocial,
       },
       orderBy: { persona: { nombreCompleto: "asc" } },
     }),
@@ -93,6 +96,15 @@ export default async function AdminPacientesPage() {
                     ? ` · ${p.persona.usuario.email}`
                     : " · Sin cuenta"}
                 </span>
+                {/* US-028 CA2: el Admin edita la cobertura por solicitud presencial. */}
+                <details style={{ marginTop: 6 }}>
+                  <summary className="sigsam-link">Editar cobertura</summary>
+                  <CoberturaForm
+                    pacienteId={p.personaId.toString()}
+                    obrasSociales={obrasSociales}
+                    cobertura={coberturaDe(p)}
+                  />
+                </details>
               </li>
             ))}
           </ul>

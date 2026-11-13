@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useEffect, useState, useActionState } from "react";
 import { crearCuentaPersonal, type FormState } from "@/app/actions/cuentas";
 
 /*
  * Este componente renderiza un formulario para crear una nueva cuenta de personal. Se utiliza en la página de administración.
  */
 
-// TODO: Mejorar UX: Al saltar un error en creacion de cuenta se borran los datos del formulario. Mejorar para que se mantengan los datos ingresados y solo se muestren los errores.
+// Si la acción devuelve un error, también devuelve `valores` y se usan como
+// defaultValue: así el formulario no se vacía y solo se marcan los errores.
 
 type Especialidad = { id: string; nombre: string };
-type Campo = "nombreCompleto" | "email" | "rol" | "especialidadId";
+type Campo = "nombre" | "apellido" | "email" | "rol" | "especialidadId";
 
 function renderError(errors: FormState["errors"], campo: Campo) {
   const mensaje = errors?.[campo]?.[0];
@@ -83,20 +84,30 @@ function renderTextField({
   label,
   type = "text",
   errors,
+  defaultValue = "",
+  anchoCompleto = false,
 }: {
-  id: "nombreCompleto" | "email";
+  id: "nombre" | "apellido" | "email";
   label: string;
   type?: "text" | "email";
   errors: FormState["errors"];
+  defaultValue?: string;
+  anchoCompleto?: boolean;
 }) {
   return (
-    <div className="sigsam-field">
+    <div
+      className="sigsam-field"
+      style={anchoCompleto ? { gridColumn: "1 / -1" } : undefined}
+    >
       <label htmlFor={id}>{label} *</label>
       <input
         type={type}
         id={id}
         name={id}
         required
+        maxLength={id === "email" ? 255 : 120}
+        autoComplete="off"
+        defaultValue={defaultValue}
         aria-invalid={!!errors?.[id]}
       />
       {renderError(errors, id)}
@@ -133,6 +144,8 @@ function renderSpecialtyField(
   rol: string,
   especialidades: Especialidad[],
   errors: FormState["errors"],
+  especialidadId: string,
+  onChange: (especialidadId: string) => void,
 ) {
   const esMedico = rol === "MEDICO";
 
@@ -150,6 +163,8 @@ function renderSpecialtyField(
         name="especialidadId"
         disabled={!esMedico}
         required={esMedico}
+        value={especialidadId}
+        onChange={(event) => onChange(event.target.value)}
         aria-invalid={!!errors?.especialidadId}
         style={{
           cursor: esMedico ? "default" : "not-allowed",
@@ -178,6 +193,15 @@ export default function NuevaCuentaForm({
   });
 
   const [rol, setRol] = useState("ADMIN");
+  const [especialidadId, setEspecialidadId] = useState("");
+  const valores = state.success ? undefined : state.valores;
+
+  // Los dos select son controlados: tras un error se restauran desde `valores`.
+  useEffect(() => {
+    if (state.success || !state.valores) return;
+    if (state.valores.rol) setRol(state.valores.rol);
+    setEspecialidadId(state.valores.especialidadId);
+  }, [state]);
 
   return (
     <>
@@ -196,8 +220,15 @@ export default function NuevaCuentaForm({
           }}
         >
           {renderTextField({
-            id: "nombreCompleto",
-            label: "Nombre y apellido",
+            id: "nombre",
+            defaultValue: valores?.nombre,
+            label: "Nombre/s",
+            errors: state.errors,
+          })}
+          {renderTextField({
+            id: "apellido",
+            defaultValue: valores?.apellido,
+            label: "Apellido/s",
             errors: state.errors,
           })}
           {renderTextField({
@@ -205,9 +236,17 @@ export default function NuevaCuentaForm({
             label: "Correo electrónico",
             type: "email",
             errors: state.errors,
+            defaultValue: valores?.email,
+            anchoCompleto: true,
           })}
           {renderRoleField(rol, setRol, state.errors)}
-          {renderSpecialtyField(rol, especialidades, state.errors)}
+          {renderSpecialtyField(
+            rol,
+            especialidades,
+            state.errors,
+            especialidadId,
+            setEspecialidadId,
+          )}
         </div>
 
         <div className="sigsam-form-actions">
