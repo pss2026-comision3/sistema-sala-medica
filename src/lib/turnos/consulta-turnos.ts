@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { inicioTurno, puedeCancelarTurno } from "@/lib/agenda/reglas";
 import { ETIQUETA_ESTADO_CITA } from "@/lib/agenda/etiquetas";
+import { etiquetaCobertura } from "@/lib/pacientes/cobertura";
 
 export type FiltrosTurnos = {
   beneficiario: string;
@@ -37,6 +38,8 @@ export type TurnoLista = {
   reprogramada: boolean;
   reprogramadoDesdeId: string | null;
   situacionCobro: SituacionCobro;
+  /** US-028 CA4: «Particular» o «Cobertura registrada: <obra social>». */
+  coberturaEtiqueta: string;
   facturaDisponible: boolean;
   cancelable: boolean;
   cancelableMotivo: string;
@@ -84,6 +87,7 @@ function serializarTurno(
     estado: "RESERVADO" | "CONFIRMADO" | "CANCELADO";
     resultado: "SIN_REGISTRAR" | "ATENDIDO" | "AUSENTE";
     modalidad: "PARTICULAR" | "CON_COBERTURA";
+    coberturaNombreSnapshot: string | null;
     reprogramadoDesdeId: bigint | null;
     paciente: { persona: { nombreCompleto: string } };
     disponibilidad: {
@@ -152,6 +156,10 @@ function serializarTurno(
     reprogramada: turno.reprogramaciones.length > 0,
     reprogramadoDesdeId: turno.reprogramadoDesdeId?.toString() ?? null,
     situacionCobro,
+    coberturaEtiqueta: etiquetaCobertura(
+      turno.modalidad,
+      turno.coberturaNombreSnapshot,
+    ),
     facturaDisponible: !!comprobante?.archivoPrivado,
     cancelable: cancel.puede,
     cancelableMotivo: cancel.motivo,

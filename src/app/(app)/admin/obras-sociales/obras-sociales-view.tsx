@@ -499,7 +499,7 @@ export function ObrasSocialesView({ iniciales }: Props) {
                 <p style={{ margin: "4px 0 0", fontSize: "13px", lineHeight: "1.4" }}>
                   Dejará de ofrecerse para nuevas selecciones de cobertura y nuevas
                   reservas. Las afiliaciones existentes y turnos históricos se
-                  conservarán sin cambios (CA4).
+                  conservarán sin cambios.
                 </p>
               </div>
             </div>

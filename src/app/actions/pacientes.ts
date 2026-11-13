@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { AUDITORIA, MSG } from "@/lib/auth/constants";
 import { requireRole } from "@/lib/auth/guards";
+import { validarAfiliacion } from "@/lib/pacientes/cobertura";
 import {
   generarClaveTemporal,
   hashearPassword,
@@ -157,29 +158,12 @@ export async function altaPacienteAdulto(
   if (emailEnUso) return conError(MSG.ALTA_EMAIL_EN_USO);
 
   // CA4 — Cobertura opcional: obra social activa del catálogo + plan y número.
-  let obraSocialId: bigint | null = null;
-  if (campos.obraSocialId) {
-    let idElegido: bigint;
-    try {
-      idElegido = BigInt(campos.obraSocialId);
-    } catch {
-      return conError(MSG.ALTA_OBRA_SOCIAL_INVALIDA);
-    }
-    const obraSocial = await prisma.obraSocial.findUnique({
-      where: { id: idElegido },
-      select: { activa: true },
-    });
-    if (!obraSocial || !obraSocial.activa) {
-      return conError(MSG.ALTA_OBRA_SOCIAL_INVALIDA);
-    }
-    if (!plan || !numeroAfiliado) {
-      return conError(MSG.ALTA_AFILIACION_INCOMPLETA);
-    }
-    if (plan.length > 120 || numeroAfiliado.length > 80) {
-      return conError(MSG.ALTA_AFILIACION_LARGA);
-    }
-    obraSocialId = idElegido;
-  }
+  const afiliacion = await validarAfiliacion(prisma, {
+    obraSocialId: campos.obraSocialId ?? "",
+    plan,
+    numeroAfiliado,
+  });
+  if ("error" in afiliacion) return conError(afiliacion.error);
 
   // CA3 — Coincidencia de DNI: se muestran los registros solo al Admin, que
   // usa uno tras verificar identidad o confirma otro con motivo.
@@ -248,9 +232,7 @@ export async function altaPacienteAdulto(
             dni,
             fechaNacimiento: new Date(`${fechaNacimiento}T00:00:00.000Z`),
             telefono,
-            obraSocialId,
-            plan: obraSocialId === null ? null : plan,
-            numeroAfiliado: obraSocialId === null ? null : numeroAfiliado,
+            ...afiliacion,
           },
         });
         personaId = persona.id;

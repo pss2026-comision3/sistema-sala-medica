@@ -153,6 +153,14 @@ export const MSG = {
   AVISOS_ERROR_ACTUALIZAR:
     "No se pudo actualizar el aviso. Intentá nuevamente.",
   AVISOS_SIN_PERMISO: "Tu rol no tiene permiso para ver esta bandeja.",
+  COBERTURA_ACTUALIZADA: "Cobertura registrada con éxito.",
+  COBERTURA_RETIRADA: "Cobertura retirada: el paciente queda como particular.",
+  COBERTURA_NO_PERMITIDA: "No podés modificar la cobertura de este paciente.",
+  MODALIDAD_INVALIDA: "Elegí la modalidad Particular o Con cobertura registrada.",
+  MODALIDAD_SIN_AFILIACION:
+    "El paciente no tiene una cobertura registrada completa. Elegí Particular o registrá la cobertura.",
+  MODALIDAD_OS_INACTIVA:
+    "La obra social registrada está inactiva y no admite nuevas reservas con cobertura.",
 } as const;
  
 export const AUDITORIA = {
@@ -188,4 +196,5 @@ export const AUDITORIA = {
   INVENTARIO_COMPRA: "Entrada de inventario por compra",
   INVENTARIO_AJUSTE: "Ajuste de inventario",
   INVENTARIO_ALTA_LOTE: "Alta de lote de vacuna",
+  COBERTURA_PACIENTE: "Actualización de cobertura de paciente",
 } as const;

@@ -60,6 +60,19 @@ export default async function PacienteInicioPage() {
         </div>
 
         <div className="sigsam-card">
+          <h2 style={{ marginTop: 0 }}>Mi cobertura</h2>
+          <p className="sigsam-muted" style={{ fontSize: "14px" }}>
+            Registrá o actualizá la obra social, el plan y el número de afiliado
+            tuyos y de las personas menores que representás.
+          </p>
+          <div style={{ marginTop: "16px" }}>
+            <Link href="/paciente/cobertura" className="sigsam-btn secondary">
+              Ver cobertura
+            </Link>
+          </div>
+        </div>
+
+        <div className="sigsam-card">
           <h2 style={{ marginTop: 0 }}>Bandeja de avisos</h2>
           <p className="sigsam-muted" style={{ fontSize: "14px" }}>
             Revisá las notificaciones del sistema sobre confirmaciones de citas,

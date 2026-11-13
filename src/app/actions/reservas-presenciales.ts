@@ -29,6 +29,12 @@ import {
 } from "@/lib/notificaciones/email-turno";
 import { cargarCatalogoMedico } from "@/lib/turnos/buscar-horarios";
 import {
+  coberturaDe,
+  datosModalidad,
+  SELECCION_COBERTURA,
+  type CoberturaPaciente,
+} from "@/lib/pacientes/cobertura";
+import {
   SELECCION_HABILITACION,
   buscarCitaVigenteEspecialidad,
   cargarOcupadosJornada,
@@ -100,6 +106,8 @@ export type PacienteEncontrado = {
   dni: string;
   habilitado: boolean;
   motivoNoHabilitado: string | null;
+  /** US-028 CA3: habilita «Con cobertura registrada» al reservar. */
+  cobertura: CoberturaPaciente;
 };
 
 /**
@@ -123,7 +131,12 @@ export async function buscarPacientesPresencial(
         },
       ],
     },
-    select: { personaId: true, dni: true, ...SELECCION_HABILITACION },
+    select: {
+      personaId: true,
+      dni: true,
+      ...SELECCION_HABILITACION,
+      ...SELECCION_COBERTURA,
+    },
     orderBy: { persona: { nombreCompleto: "asc" } },
     take: 20,
   });
@@ -137,6 +150,7 @@ export async function buscarPacientesPresencial(
       dni: p.dni,
       habilitado: habilitacion.habilitado,
       motivoNoHabilitado: habilitacion.habilitado ? null : habilitacion.motivo,
+      cobertura: coberturaDe(p),
     };
   });
 }
@@ -237,6 +251,7 @@ export async function reservarCitaPresencial(input: {
   pacienteId: string;
   disponibilidadId: string;
   hora: string;
+  modalidad: string; // US-028 CA3
 }): Promise<Resultado<{ mensaje: string }>> {
   const sesion = await requireOperadorPresencial();
   const operadorId = BigInt(sesion.usuarioId);
@@ -353,6 +368,12 @@ export async function reservarCitaPresencial(input: {
       });
       if ("error" in regla) throw new ErrorReservaPresencial(regla.error);
 
+      // US-028 CA3/CA4: modalidad elegida y copia de la cobertura vigente.
+      const cobertura = await datosModalidad(tx, pacienteId, input.modalidad);
+      if ("error" in cobertura) {
+        throw new ErrorReservaPresencial(cobertura.error);
+      }
+
       const nuevo = await tx.turno.create({
         data: {
           pacienteId,
@@ -362,7 +383,7 @@ export async function reservarCitaPresencial(input: {
           hora: horaDate,
           duracionMin: medico.duracionTurnoMin,
           arancel: medico.arancelActual,
-          modalidad: "PARTICULAR",
+          ...cobertura,
           estado: "CONFIRMADO",
         },
       });
