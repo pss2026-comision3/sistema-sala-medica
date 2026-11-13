@@ -15,7 +15,7 @@ import {
  * validación reciben el cliente a usar para correr dentro de la transacción.
  */
  
-type Db = Prisma.TransactionClient | typeof prisma;
+export type Db = Prisma.TransactionClient | typeof prisma;
  
 // ---------------------------------------------------------------------------
 // Saldos y compromisos (CA3)

@@ -119,8 +119,8 @@ export async function cerrarEpisodio(
 /**
  * Abre un episodio de alerta creando un EventoEmail si no hay uno abierto.
  *
- * Devuelve true si se creó un nuevo episodio; false si ya estaba abierto (el
- * aviso no debe repetirse mientras persista el episodio).
+ * Devuelve `{ creado, eventoId }`. `creado` es false si ya había un episodio
+ * abierto (el aviso no debe repetirse mientras persista el episodio).
  *
  * @param disparadorId usuario que dispara la evaluación (queda como
  *   destinatario del evento cerrojo).
@@ -133,11 +133,22 @@ export async function abrirEpisodio(
     asunto: string;
     cuerpo: string;
   },
-): Promise<boolean> {
+): Promise<{ creado: boolean; eventoId: bigint | null }> {
   const yaAbierto = await episodioAbierto(tx, vacunaId);
-  if (yaAbierto) return false;
+  if (yaAbierto) {
+    const existente = await tx.eventoEmail.findFirst({
+      where: {
+        vacunaId,
+        tipoEvento: "ALERTA_STOCK",
+        claveEvento: claveEvento(vacunaId),
+        canceladoEn: null,
+      },
+      select: { id: true },
+    });
+    return { creado: false, eventoId: existente?.id ?? null };
+  }
 
-  await tx.eventoEmail.create({
+  const evento = await tx.eventoEmail.create({
     data: {
       destinatarioId: datos.disparadorId,
       vacunaId,
@@ -148,6 +159,7 @@ export async function abrirEpisodio(
       cuerpo: datos.cuerpo,
       programadoEn: new Date(),
     },
+    select: { id: true },
   });
-  return true;
+  return { creado: true, eventoId: evento.id };
 }
