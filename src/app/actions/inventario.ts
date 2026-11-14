@@ -19,6 +19,7 @@ import {
   componerMotivoCorreccion,
   evaluarMovimientoStock,
 } from "@/lib/vacunacion/inventario-reglas";
+import { evaluarYNotificarStockBajo } from "@/lib/vacunacion/notificaciones-stock";
 import { esquemaMovimientoInventario } from "@/lib/validations/inventario";
  
 /*
@@ -215,7 +216,12 @@ export async function registrarMovimientoInventario(
  
     revalidatePath("/enfermeria/inventario");
     revalidatePath("/enfermeria/vacunas");
- 
+
+    // CA2 (disparador: movimiento de inventario 026): evalúa el umbral después
+    // del movimiento. Los emails se disparan fire-and-forget post-commit, así
+    // que un fallo de mail no revierte el movimiento ya confirmado.
+    void evaluarYNotificarStockBajo(vacunaId, operadorId);
+
     return {
       exito: true,
       movimientoId: resultado.movimientoId.toString(),
