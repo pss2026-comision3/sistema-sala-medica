@@ -123,20 +123,40 @@ export async function abrirEpisodio(
     cuerpo: string;
   },
 ): Promise<{ creado: boolean; eventoId: bigint | null }> {
-  const yaAbierto = await episodioAbierto(tx, vacunaId);
-  if (yaAbierto) {
-    const existente = await tx.eventoEmail.findFirst({
-      where: {
-        vacunaId,
-        tipoEvento: "ALERTA_STOCK",
-        claveEvento: claveEvento(vacunaId),
+  // clave_evento es @unique en el esquema, así que no podemos crear un nuevo
+  // evento con la misma clave si ya existe uno cerrado. En su lugar, reactivamos
+  // el existente seteando canceladoEn = null (nuevo episodio).
+  const existente = await tx.eventoEmail.findFirst({
+    where: {
+      vacunaId,
+      tipoEvento: "ALERTA_STOCK",
+      claveEvento: claveEvento(vacunaId),
+    },
+    select: { id: true, canceladoEn: true },
+    orderBy: { creadoEn: "desc" },
+  });
+
+  if (existente && !existente.canceladoEn) {
+    // Ya hay un episodio abierto: no se duplica (CA4).
+    return { creado: false, eventoId: existente.id };
+  }
+
+  if (existente && existente.canceladoEn) {
+    // Reactivamos el episodio cerrado.
+    const actualizado = await tx.eventoEmail.update({
+      where: { id: existente.id },
+      data: {
         canceladoEn: null,
+        asunto: datos.asunto,
+        cuerpo: datos.cuerpo,
+        programadoEn: new Date(),
       },
       select: { id: true },
     });
-    return { creado: false, eventoId: existente?.id ?? null };
+    return { creado: true, eventoId: actualizado.id };
   }
 
+  // No existe ningún evento previo: creamos uno nuevo.
   const evento = await tx.eventoEmail.create({
     data: {
       destinatarioId: datos.disparadorId,
