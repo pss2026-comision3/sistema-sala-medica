@@ -7,13 +7,14 @@ import {
   obtenerMedicosParaFiltro,
 } from "@/lib/reportes/asistencia-recordatorios";
 import { consultarReporteInventario } from "@/lib/reportes/inventario";
+import { obtenerObrasSocialesParaFiltro } from "@/lib/reportes/cobros-cobertura";
 import { obtenerOpcionesFiltroInventario } from "@/lib/vacunacion/inventario";
 import { ReportesView } from "./reportes-view";
 
 export const metadata: Metadata = {
   title: "Reportes | SIGSAM",
   description:
-    "Reportes administrativos de asistencia, ausentismo, recordatorios e inventario de vacunas.",
+    "Reportes administrativos de asistencia, ausentismo, recordatorios, inventario de vacunas y prestaciones con cobertura.",
 };
 
 /*
@@ -32,6 +33,7 @@ export default async function AdminReportesPage() {
     reporteInicial,
     opcionesInventario,
     reporteInventarioInicial,
+    obrasSociales,
   ] = await Promise.all([
     obtenerMedicosParaFiltro(),
     obtenerEspecialidadesParaFiltro(),
@@ -41,6 +43,7 @@ export default async function AdminReportesPage() {
     ),
     obtenerOpcionesFiltroInventario(),
     consultarReporteInventario({ desde: hace30Dias, hasta: hoy }),
+    obtenerObrasSocialesParaFiltro(),
   ]);
 
   return (
@@ -53,6 +56,7 @@ export default async function AdminReportesPage() {
         reporteInicial={reporteInicial}
         opcionesInventario={opcionesInventario}
         reporteInventarioInicial={reporteInventarioInicial}
+        obrasSociales={obrasSociales}
       />
     </main>
   );

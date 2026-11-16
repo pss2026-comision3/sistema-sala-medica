@@ -1,5 +1,5 @@
 /**
- * Contratos de datos y tipos para el módulo de reportes (US-SIG-035 y US-SIG-036).
+ * Contratos de datos y tipos para el módulo de reportes (US-SIG-034, 035, 036 y 037).
  */
 
 export interface FiltrosReporteAsistencia {
@@ -194,4 +194,71 @@ export interface OpcionVacunaInventario {
   id: string;
   nombre: string;
   lotes: OpcionLoteInventario[];
+}
+
+// ---------------------------------------------------------------------------
+// US-SIG-037 — Cobros y prestaciones con cobertura
+// (alcance recortado: solo sección de prestaciones; ver docs/PLAN-US-037.md)
+// ---------------------------------------------------------------------------
+
+/** CA3 (recortado): sin US-029 no existe "cobrada / sin cobrar". */
+export type CategoriaPrestacion = "PARTICULAR" | "GRATUITA" | "CON_COBERTURA";
+
+export interface FiltrosReporteCobertura {
+  desde: string; // YYYY-MM-DD (fecha de la cita, CA3)
+  hasta: string; // YYYY-MM-DD
+  obraSocialId?: string; // CA4: entidad de cobertura
+  medicoId?: string; // CA4
+  especialidadId?: string; // CA4
+  categoria?: CategoriaPrestacion | "todas";
+}
+
+export interface ConteoCategoriasPrestacion {
+  total: number;
+  particular: number;
+  gratuita: number;
+  conCobertura: number;
+}
+
+export interface FilaMedicoPrestaciones {
+  id: string;
+  nombre: string;
+  especialidad: string;
+  conteo: ConteoCategoriasPrestacion;
+}
+
+export interface FilaEntidadCobertura {
+  id: string;
+  nombre: string;
+  prestaciones: number;
+}
+
+export interface PrestacionReporte {
+  id: string;
+  fecha: string; // YYYY-MM-DD
+  hora: string; // HH:mm
+  paciente: string;
+  dni: string;
+  profesional: string;
+  especialidad: string;
+  prestacion: string;
+  categoria: CategoriaPrestacion;
+  cobertura: string | null; // nombre de la entidad (snapshot al reservar)
+  plan: string | null;
+  /** Arancel del turno. Solo referencia: NO es un ingreso ni un pago (CA4). */
+  arancelReferencia: number;
+}
+
+export interface ResultadoReporteCobertura {
+  totales: ConteoCategoriasPrestacion;
+  porMedico: FilaMedicoPrestaciones[];
+  porEntidad: FilaEntidadCobertura[];
+  prestaciones: PrestacionReporte[];
+  periodo: { desde: string; hasta: string };
+}
+
+export interface OpcionObraSocial {
+  id: string;
+  nombre: string;
+  activa: boolean;
 }

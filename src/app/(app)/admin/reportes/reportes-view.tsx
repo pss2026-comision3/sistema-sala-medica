@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 import { CATALOGO_REPORTES, type TipoReporte } from "@/lib/reportes/registry";
 import type {
+  CategoriaPrestacion,
   EstadoFiltroOcupacion,
+  OpcionObraSocial,
+  ResultadoReporteCobertura,
   MedicoOpcion,
   ModalidadFiltroOcupacion,
   OpcionSelector,
@@ -17,10 +20,12 @@ import {
   obtenerReporteAsistenciaAction,
   obtenerReporteOcupacionAction,
   obtenerReporteInventarioAction,
+  obtenerReporteCoberturaAction,
 } from "@/app/actions/reportes";
 import { VistaAsistenciaReporte } from "./vista-asistencia";
 import { VistaOcupacionReporte } from "./vista-ocupacion";
 import { VistaInventarioReporte } from "./vista-inventario";
+import { VistaCoberturaReporte } from "./vista-cobertura";
 
 interface Props {
   medicos: MedicoOpcion[];
@@ -31,6 +36,7 @@ interface Props {
   modoMedico?: boolean; // true en /medico/reportes: oculta filtros de médico y especialidad
   opcionesInventario?: OpcionVacunaInventario[];
   reporteInventarioInicial?: ResultadoReporteInventario;
+  obrasSociales?: OpcionObraSocial[];
 }
 
 const TIPOS_MOVIMIENTO_FILTRO: {
@@ -56,6 +62,7 @@ export function ReportesView({
   modoMedico = false,
   opcionesInventario = [],
   reporteInventarioInicial,
+  obrasSociales = [],
 }: Props) {
   const [tipoReporte, setTipoReporte] = useState<TipoReporte>(
     "asistencia_recordatorios",
@@ -71,6 +78,13 @@ export function ReportesView({
   const [vacunaId, setVacunaId] = useState("todas");
   const [loteId, setLoteId] = useState("todos");
   const [tipoMovimiento, setTipoMovimiento] = useState("todos");
+  // US-SIG-037
+  const [obraSocialId, setObraSocialId] = useState("todas");
+  const [categoria, setCategoria] = useState<CategoriaPrestacion | "todas">(
+    "todas",
+  );
+  const [resultadoCobertura, setResultadoCobertura] =
+    useState<ResultadoReporteCobertura | null>(null);
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +181,21 @@ export function ReportesView({
     };
 
     startTransition(async () => {
+      if (tipoReporte === "cobros_cobertura") {
+        const res = await obtenerReporteCoberturaAction({
+          ...filtrosComunes,
+          obraSocialId: obraSocialId !== "todas" ? obraSocialId : undefined,
+          categoria,
+        });
+        if (!res.exito) {
+          setError(res.error);
+          setResultadoCobertura(null);
+        } else {
+          setResultadoCobertura(res.datos);
+        }
+        return;
+      }
+
       if (tipoReporte === "inventario") {
         const res = await obtenerReporteInventarioAction({
           desde,
@@ -297,7 +326,8 @@ export function ReportesView({
 
           {/* Fila 2: Filtros dinámicos específicos de Asistencia */}
           {(tipoReporte === "asistencia_recordatorios" ||
-            tipoReporte === "turnos_ocupacion") && (
+            tipoReporte === "turnos_ocupacion" ||
+            tipoReporte === "cobros_cobertura") && (
             <div
               style={{
                 display: "grid",
@@ -418,6 +448,56 @@ export function ReportesView({
             </div>
           )}
 
+          {/* Fila 3: Filtros específicos de Prestaciones con cobertura (US-SIG-037) */}
+          {tipoReporte === "cobros_cobertura" && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: "20px",
+                marginBottom: "20px",
+                alignItems: "start",
+              }}
+            >
+              <div className="sigsam-field" style={{ minWidth: 0 }}>
+                <label htmlFor="obraSocialId">Entidad de cobertura</label>
+                <select
+                  id="obraSocialId"
+                  value={obraSocialId}
+                  onChange={(e) => {
+                    setObraSocialId(e.target.value);
+                    // Elegir una entidad solo tiene sentido con cobertura registrada
+                    if (e.target.value !== "todas") setCategoria("todas");
+                  }}
+                >
+                  <option value="todas">Todas las entidades</option>
+                  {obrasSociales.map((os) => (
+                    <option key={os.id} value={os.id}>
+                      {os.activa ? os.nombre : `${os.nombre} (inactiva)`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sigsam-field" style={{ minWidth: 0 }}>
+                <label htmlFor="categoria">Categoría</label>
+                <select
+                  id="categoria"
+                  value={categoria}
+                  disabled={obraSocialId !== "todas"}
+                  onChange={(e) =>
+                    setCategoria(e.target.value as CategoriaPrestacion | "todas")
+                  }
+                >
+                  <option value="todas">Todas</option>
+                  <option value="PARTICULAR">Particular</option>
+                  <option value="GRATUITA">Gratuita</option>
+                  <option value="CON_COBERTURA">Con cobertura registrada</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Fila 2: Filtros dinámicos específicos de Inventario */}
           {tipoReporte === "inventario" && (
             <div
@@ -519,6 +599,23 @@ export function ReportesView({
       )}
 
       {tipoReporte === "turnos_ocupacion" && !resultadoOcupacion && !error && (
+        <div className="sigsam-empty" style={{ marginTop: "24px" }}>
+          <p>
+            Elegí el período y tocá &quot;Aplicar filtros&quot; para generar el
+            reporte.
+          </p>
+        </div>
+      )}
+
+      {/* Resultados de US-037 */}
+      {tipoReporte === "cobros_cobertura" && resultadoCobertura && (
+        <VistaCoberturaReporte
+          key={`${resultadoCobertura.periodo.desde}-${resultadoCobertura.periodo.hasta}-${obraSocialId}-${categoria}-${medicoId}-${especialidadId}`}
+          resultado={resultadoCobertura}
+        />
+      )}
+
+      {tipoReporte === "cobros_cobertura" && !resultadoCobertura && !error && (
         <div className="sigsam-empty" style={{ marginTop: "24px" }}>
           <p>
             Elegí el período y tocá &quot;Aplicar filtros&quot; para generar el

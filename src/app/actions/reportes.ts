@@ -10,6 +10,7 @@ import {
 } from "@/lib/reportes/asistencia-recordatorios";
 import { consultarReporteOcupacion } from "@/lib/reportes/turnos-ocupacion";
 import { consultarReporteInventario } from "@/lib/reportes/inventario";
+import { consultarReporteCobertura } from "@/lib/reportes/cobros-cobertura";
 import type {
   FiltrosReporteAsistencia,
   FiltrosReporteInventario,
@@ -19,6 +20,8 @@ import type {
   FiltrosReporteOcupacion,
   ResultadoReporteOcupacion,
   ResultadoReporteInventario,
+  FiltrosReporteCobertura,
+  ResultadoReporteCobertura,
 } from "@/lib/reportes/tipos";
 
 export type RespuestaReporteAsistencia =
@@ -141,6 +144,34 @@ export async function obtenerReporteOcupacionAction(
         error instanceof Error
           ? error.message
           : "Ocurrió un error inesperado al generar el reporte.",
+    };
+  }
+}
+
+export type RespuestaReporteCobertura =
+  | { exito: true; datos: ResultadoReporteCobertura }
+  | { exito: false; error: string };
+
+/**
+ * Server Action del reporte de prestaciones con cobertura (US-SIG-037).
+ * CA5: solo el Administrador consulta el reporte agregado de toda la sala.
+ */
+export async function obtenerReporteCoberturaAction(
+  filtros: FiltrosReporteCobertura,
+): Promise<RespuestaReporteCobertura> {
+  try {
+    await requireRole("ADMIN");
+    const datos = await consultarReporteCobertura(filtros);
+    return { exito: true, datos };
+  } catch (error) {
+    unstable_rethrow(error); // deja pasar redirect() (sesión vencida → /login)
+    console.error("[obtenerReporteCoberturaAction] Error generando reporte:", error);
+    return {
+      exito: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error inesperado al generar el reporte de prestaciones.",
     };
   }
 }

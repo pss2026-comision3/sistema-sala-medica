@@ -2,14 +2,14 @@
  * Catálogo central de reportes del sistema SIGSAM.
  *
  * Registra los reportes de Asistencia (US-SIG-035), Ocupación (US-SIG-034) e
- * Inventario de vacunas (US-SIG-036). Los demás reportes planificados para el
- * Sprint 3 (Cobros US-037) serán incorporados por sus responsables.
+ * Inventario de vacunas (US-SIG-036) y Prestaciones con cobertura (US-SIG-037).
  */
 
 export type TipoReporte =
   | "asistencia_recordatorios"
   | "turnos_ocupacion"
-  | "inventario";
+  | "inventario"
+  | "cobros_cobertura";
 
 export interface DefinicionReporte {
   id: TipoReporte;
@@ -38,6 +38,15 @@ export const CATALOGO_REPORTES: readonly DefinicionReporte[] = [
     titulo: "Inventario de vacunas y su evolución",
     descripcion:
       "Consulta existencias físicas por vacuna y lote, y reconstruye la evolución del stock en un período.",
+    rolesPermitidos: ["ADMIN"],
+  },
+  {
+    // US-SIG-037 CA5: solo el Administrador consulta el reporte agregado.
+    // Alcance recortado (sin US-029/030): solo la sección de prestaciones.
+    id: "cobros_cobertura",
+    titulo: "Prestaciones con cobertura",
+    descripcion:
+      "Clasifica las prestaciones atendidas en Particular, Gratuita o Con cobertura registrada, por entidad, médico y especialidad.",
     rolesPermitidos: ["ADMIN"],
   },
   // Ejemplo de cómo se agregarían otros reportes en el futuro:
