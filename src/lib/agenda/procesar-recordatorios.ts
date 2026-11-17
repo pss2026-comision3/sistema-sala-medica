@@ -1,27 +1,25 @@
 import { prisma } from "@/lib/db/prisma";
-import { crearAvisoRecordatorio } from "@/lib/notificaciones/avisos";
+import { crearAvisoRecordatorio, EVENTO_RECORDATORIO } from "@/lib/notificaciones/avisos";
 import { notificarPorEmail, destinatarioDeTurno } from "@/lib/notificaciones/email-turno";
+import { hoySala } from "@/lib/agenda/reglas";
 
 export async function procesarRecordatorios() {
-  const ahora = new Date();
-  
-// 24 horas (regla de negocio) - 3 horas de desfasaje de Argentina (UTC-3) = 21 horas reales.
-  // Busca turnos guardados entre 21 y 22 horas de distancia absoluta.
-  const ventanaInicio = new Date(ahora.getTime() + 21 * 60 * 60 * 1000); 
-  const ventanaFin = new Date(ventanaInicio.getTime() + 60 * 60 * 1000);
+  // shortcut: el plan Hobby de Vercel solo permite crons diarios (vercel.json, 09:00 AR),
+  // así que se recuerdan los turnos del día siguiente; con plan Pro se puede volver a una ventana de 24 hs exactas.
+  const manana = new Date(`${hoySala()}T00:00:00Z`);
+  manana.setUTCDate(manana.getUTCDate() + 1);
 
   // 1. Buscar los turnos elegibles cumpliendo las reglas de negocio (US-SIG-032)
   const turnosCandidatos = await prisma.turno.findMany({
     where: {
-      estado: "CONFIRMADO", 
-      resultado: "SIN_REGISTRAR", 
-      hora: {
-        gte: ventanaInicio,
-        lt: ventanaFin
-      },
+      estado: "CONFIRMADO",
+      resultado: "SIN_REGISTRAR",
       disponibilidad: {
-        estado: "PUBLICADA" 
-      }
+        estado: "PUBLICADA",
+        fecha: manana
+      },
+      // Evita recordar dos veces el mismo turno si el cron se dispara más de una vez.
+      avisoInternos: { none: { evento: EVENTO_RECORDATORIO } }
     },
     include: {
       vacuna: { select: { nombre: true } },
@@ -36,7 +34,7 @@ export async function procesarRecordatorios() {
     }
   });
 
-  console.log(`[CRON Recordatorios] Procesando ${turnosCandidatos.length} turnos para la ventana de 24hs.`);
+  console.log(`[CRON Recordatorios] Procesando ${turnosCandidatos.length} turnos del ${manana.toISOString().slice(0, 10)}.`);
 
   for (const turno of turnosCandidatos) {
     const destino = await destinatarioDeTurno(prisma, turno.id);
