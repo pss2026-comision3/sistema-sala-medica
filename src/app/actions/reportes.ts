@@ -1,6 +1,7 @@
 "use server";
 
 import { unstable_rethrow } from "next/navigation";
+import { huellaReporte } from "@/lib/reportes/exportacion/huella";
 
 import { requireAlgunRol, requireRole } from "@/lib/auth/guards";
 import {
@@ -25,7 +26,7 @@ import type {
 } from "@/lib/reportes/tipos";
 
 export type RespuestaReporteAsistencia =
-  | { exito: true; datos: ResultadoReporteAsistencia }
+  | { exito: true; datos: ResultadoReporteAsistencia; huella: string }
   | { exito: false; error: string };
 
 /**
@@ -46,10 +47,13 @@ export async function obtenerReporteAsistenciaAction(
       rol: sesion.rol as "ADMIN" | "MEDICO",
     });
 
-    return { exito: true, datos };
+    return { exito: true, datos, huella: huellaReporte(datos) };
   } catch (error) {
     unstable_rethrow(error); // deja pasar redirect() (sesión vencida → /login)
-    console.error("[obtenerReporteAsistenciaAction] Error generando reporte:", error);
+    console.error(
+      "[obtenerReporteAsistenciaAction] Error generando reporte:",
+      error,
+    );
     return {
       exito: false,
       error:
@@ -61,7 +65,7 @@ export async function obtenerReporteAsistenciaAction(
 }
 
 export type RespuestaReporteInventario =
-  | { exito: true; datos: ResultadoReporteInventario }
+  | { exito: true; datos: ResultadoReporteInventario; huella: string }
   | { exito: false; error: string };
 
 /**
@@ -77,7 +81,7 @@ export async function obtenerReporteInventarioAction(
 
   try {
     const datos = await consultarReporteInventario(filtros);
-    return { exito: true, datos };
+    return { exito: true, datos, huella: huellaReporte(datos) };
   } catch (error) {
     console.error(
       "[obtenerReporteInventarioAction] Error generando reporte:",
@@ -108,7 +112,9 @@ export async function obtenerMedicosFiltroAction(): Promise<MedicoOpcion[]> {
 /**
  * Server Action para obtener las especialidades para el filtro.
  */
-export async function obtenerEspecialidadesFiltroAction(): Promise<OpcionSelector[]> {
+export async function obtenerEspecialidadesFiltroAction(): Promise<
+  OpcionSelector[]
+> {
   try {
     await requireAlgunRol("ADMIN", "MEDICO");
     return await obtenerEspecialidadesParaFiltro();
@@ -118,7 +124,7 @@ export async function obtenerEspecialidadesFiltroAction(): Promise<OpcionSelecto
 }
 
 export type RespuestaReporteOcupacion =
-  | { exito: true; datos: ResultadoReporteOcupacion }
+  | { exito: true; datos: ResultadoReporteOcupacion; huella: string }
   | { exito: false; error: string };
 
 /**
@@ -134,10 +140,13 @@ export async function obtenerReporteOcupacionAction(
       usuarioId: sesion.usuarioId,
       rol: sesion.rol as "ADMIN" | "MEDICO",
     });
-    return { exito: true, datos };
+    return { exito: true, datos, huella: huellaReporte(datos) };
   } catch (error) {
     unstable_rethrow(error); // deja pasar redirect() (sesión vencida → /login)
-    console.error("[obtenerReporteOcupacionAction] Error generando reporte:", error);
+    console.error(
+      "[obtenerReporteOcupacionAction] Error generando reporte:",
+      error,
+    );
     return {
       exito: false,
       error:
@@ -149,7 +158,7 @@ export async function obtenerReporteOcupacionAction(
 }
 
 export type RespuestaReporteCobertura =
-  | { exito: true; datos: ResultadoReporteCobertura }
+  | { exito: true; datos: ResultadoReporteCobertura; huella: string }
   | { exito: false; error: string };
 
 /**
@@ -162,10 +171,13 @@ export async function obtenerReporteCoberturaAction(
   try {
     await requireRole("ADMIN");
     const datos = await consultarReporteCobertura(filtros);
-    return { exito: true, datos };
+    return { exito: true, datos, huella: huellaReporte(datos) };
   } catch (error) {
     unstable_rethrow(error); // deja pasar redirect() (sesión vencida → /login)
-    console.error("[obtenerReporteCoberturaAction] Error generando reporte:", error);
+    console.error(
+      "[obtenerReporteCoberturaAction] Error generando reporte:",
+      error,
+    );
     return {
       exito: false,
       error:

@@ -33,9 +33,11 @@ interface Props {
   fechaHoy: string;
   fechaDesdeDefecto: string;
   reporteInicial: ResultadoReporteAsistencia;
+  huellaInicial: string;
   modoMedico?: boolean; // true en /medico/reportes: oculta filtros de médico y especialidad
   opcionesInventario?: OpcionVacunaInventario[];
   reporteInventarioInicial?: ResultadoReporteInventario;
+  huellaInventarioInicial?: string;
   obrasSociales?: OpcionObraSocial[];
 }
 
@@ -59,9 +61,11 @@ export function ReportesView({
   fechaHoy,
   fechaDesdeDefecto,
   reporteInicial,
+  huellaInicial,
   modoMedico = false,
   opcionesInventario = [],
   reporteInventarioInicial,
+  huellaInventarioInicial,
   obrasSociales = [],
 }: Props) {
   const [tipoReporte, setTipoReporte] = useState<TipoReporte>(
@@ -88,6 +92,28 @@ export function ReportesView({
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [descargando, setDescargando] = useState<"pdf" | "xlsx" | null>(null);
+  const [aplicadas, setAplicadas] = useState<
+    Partial<
+      Record<
+        TipoReporte,
+        { filtros: Record<string, string | undefined>; huella: string }
+      >
+    >
+  >({
+    asistencia_recordatorios: {
+      filtros: { desde: fechaDesdeDefecto, hasta: fechaHoy },
+      huella: huellaInicial,
+    },
+    ...(reporteInventarioInicial && huellaInventarioInicial
+      ? {
+          inventario: {
+            filtros: { desde: fechaDesdeDefecto, hasta: fechaHoy },
+            huella: huellaInventarioInicial,
+          },
+        }
+      : {}),
+  });
   const [resultado, setResultado] = useState<ResultadoReporteAsistencia | null>(
     reporteInicial,
   );
@@ -157,8 +183,7 @@ export function ReportesView({
     if (nuevaVacunaId === "todas" || loteId === "todos") return;
 
     const vacuna = opcionesInventario.find((v) => v.id === nuevaVacunaId);
-    const pertenece =
-      vacuna?.lotes.some((lote) => lote.id === loteId) ?? false;
+    const pertenece = vacuna?.lotes.some((lote) => lote.id === loteId) ?? false;
 
     if (!pertenece) {
       setLoteId("todos");
@@ -182,22 +207,27 @@ export function ReportesView({
 
     startTransition(async () => {
       if (tipoReporte === "cobros_cobertura") {
-        const res = await obtenerReporteCoberturaAction({
+        const filtros = {
           ...filtrosComunes,
           obraSocialId: obraSocialId !== "todas" ? obraSocialId : undefined,
           categoria,
-        });
+        };
+        const res = await obtenerReporteCoberturaAction(filtros);
         if (!res.exito) {
           setError(res.error);
           setResultadoCobertura(null);
         } else {
           setResultadoCobertura(res.datos);
+          setAplicadas((prev) => ({
+            ...prev,
+            cobros_cobertura: { filtros, huella: res.huella },
+          }));
         }
         return;
       }
 
       if (tipoReporte === "inventario") {
-        const res = await obtenerReporteInventarioAction({
+        const filtros = {
           desde,
           hasta,
           vacunaId: vacunaId !== "todas" ? vacunaId : undefined,
@@ -206,29 +236,39 @@ export function ReportesView({
             tipoMovimiento !== "todos"
               ? (tipoMovimiento as TipoMovimientoReporte)
               : undefined,
-        });
+        };
+        const res = await obtenerReporteInventarioAction(filtros);
 
         if (!res.exito) {
           setError(res.error);
           setResultadoInventario(null);
         } else {
           setResultadoInventario(res.datos);
+          setAplicadas((prev) => ({
+            ...prev,
+            inventario: { filtros, huella: res.huella },
+          }));
         }
 
         return;
       }
 
       if (tipoReporte === "turnos_ocupacion") {
-        const res = await obtenerReporteOcupacionAction({
+        const filtros = {
           ...filtrosComunes,
           estado,
           modalidad,
-        });
+        };
+        const res = await obtenerReporteOcupacionAction(filtros);
         if (!res.exito) {
           setError(res.error);
           setResultadoOcupacion(null);
         } else {
           setResultadoOcupacion(res.datos);
+          setAplicadas((prev) => ({
+            ...prev,
+            turnos_ocupacion: { filtros, huella: res.huella },
+          }));
         }
         return;
       }
@@ -239,8 +279,52 @@ export function ReportesView({
         setResultado(null);
       } else {
         setResultado(res.datos);
+        setAplicadas((prev) => ({
+          ...prev,
+          asistencia_recordatorios: {
+            filtros: filtrosComunes,
+            huella: res.huella,
+          },
+        }));
       }
     });
+  };
+
+  const descargar = async (formato: "pdf" | "xlsx") => {
+    const aplicada = aplicadas[tipoReporte];
+    if (!aplicada || descargando) return;
+    setDescargando(formato);
+    setError(null);
+    try {
+      const respuesta = await fetch("/api/reportes/exportar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipoReporte, formato, ...aplicada }),
+      });
+      if (!respuesta.ok) {
+        const cuerpo = await respuesta.json().catch(() => null);
+        throw new Error(cuerpo?.error ?? "No se pudo descargar el reporte.");
+      }
+      const blob = await respuesta.blob();
+      const nombre =
+        respuesta.headers
+          .get("Content-Disposition")
+          ?.match(/filename="([^"]+)"/)?.[1] ?? `reporte.${formato}`;
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = nombre;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo descargar el reporte.",
+      );
+    } finally {
+      setDescargando(null);
+    }
   };
 
   return (
@@ -254,10 +338,7 @@ export function ReportesView({
           >
             Reportes
           </h1>
-          <p>
-            Analizá la actividad de la sala y descargá un extracto de
-            demostración.
-          </p>
+          <p>Analizá la actividad de la sala y descargá el reporte filtrado.</p>
         </div>
       </div>
 
@@ -486,13 +567,17 @@ export function ReportesView({
                   value={categoria}
                   disabled={obraSocialId !== "todas"}
                   onChange={(e) =>
-                    setCategoria(e.target.value as CategoriaPrestacion | "todas")
+                    setCategoria(
+                      e.target.value as CategoriaPrestacion | "todas",
+                    )
                   }
                 >
                   <option value="todas">Todas</option>
                   <option value="PARTICULAR">Particular</option>
                   <option value="GRATUITA">Gratuita</option>
-                  <option value="CON_COBERTURA">Con cobertura registrada</option>
+                  <option value="CON_COBERTURA">
+                    Con cobertura registrada
+                  </option>
                 </select>
               </div>
             </div>
@@ -544,9 +629,7 @@ export function ReportesView({
               </div>
 
               <div className="sigsam-field" style={{ minWidth: 0 }}>
-                <label htmlFor="tipoMovimiento">
-                  Tipo (aplica al detalle)
-                </label>
+                <label htmlFor="tipoMovimiento">Tipo (aplica al detalle)</label>
                 <select
                   id="tipoMovimiento"
                   value={tipoMovimiento}
@@ -585,6 +668,43 @@ export function ReportesView({
           </p>
         </div>
       )}
+
+      {aplicadas[tipoReporte] &&
+        ((tipoReporte === "asistencia_recordatorios" && resultado) ||
+          (tipoReporte === "turnos_ocupacion" && resultadoOcupacion) ||
+          (tipoReporte === "inventario" && resultadoInventario) ||
+          (tipoReporte === "cobros_cobertura" && resultadoCobertura)) && (
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              marginTop: "20px",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              className="sigsam-btn"
+              disabled={isPending || !!descargando}
+              onClick={() => descargar("pdf")}
+            >
+              {descargando === "pdf" ? "Generando PDF..." : "Descargar PDF"}
+            </button>
+            <button
+              type="button"
+              className="sigsam-btn"
+              disabled={isPending || !!descargando}
+              onClick={() => descargar("xlsx")}
+            >
+              {descargando === "xlsx"
+                ? "Generando Excel..."
+                : "Descargar Excel"}
+            </button>
+            <span className="sigsam-muted" style={{ alignSelf: "center" }}>
+              Se descargan los filtros aplicados al resultado mostrado.
+            </span>
+          </div>
+        )}
 
       {/* Resultados de US-035 con reinicio de paginación por cambio de búsqueda */}
       {tipoReporte === "asistencia_recordatorios" && resultado && (
