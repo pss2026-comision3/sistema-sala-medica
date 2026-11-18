@@ -105,3 +105,19 @@ export async function obtenerReporteInventarioAction(
        );
      }
      ```
+
+---
+
+### Paso 5: Habilitar la exportación (US-SIG-038)
+
+1. Definí una proyección explícita del resultado en
+   `src/lib/reportes/exportacion/modelo.ts`: título, filtros, totales y todas
+   las filas de cada sección. Usá únicamente columnas que el rol ya puede
+   consultar; no serialices modelos Prisma completos.
+2. Incorporá el tipo de reporte y su esquema de filtros en
+   `src/app/api/reportes/exportar/route.ts`. El handler comprueba el rol,
+   vuelve a consultar los datos y compara la huella del resultado mostrado
+   antes de generar PDF o XLSX.
+3. Guardá en `reportes-view.tsx` los filtros aplicados y la huella recibida
+   de la Server Action. La descarga debe usar esa copia, no los controles
+   editados después de aplicar filtros.

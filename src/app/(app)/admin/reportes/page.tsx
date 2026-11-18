@@ -10,6 +10,7 @@ import { consultarReporteInventario } from "@/lib/reportes/inventario";
 import { obtenerObrasSocialesParaFiltro } from "@/lib/reportes/cobros-cobertura";
 import { obtenerOpcionesFiltroInventario } from "@/lib/vacunacion/inventario";
 import { ReportesView } from "./reportes-view";
+import { huellaReporte } from "@/lib/reportes/exportacion/huella";
 
 export const metadata: Metadata = {
   title: "Reportes | SIGSAM",
@@ -54,8 +55,10 @@ export default async function AdminReportesPage() {
         fechaHoy={hoy}
         fechaDesdeDefecto={hace30Dias}
         reporteInicial={reporteInicial}
+        huellaInicial={huellaReporte(reporteInicial)}
         opcionesInventario={opcionesInventario}
         reporteInventarioInicial={reporteInventarioInicial}
+        huellaInventarioInicial={huellaReporte(reporteInventarioInicial)}
         obrasSociales={obrasSociales}
       />
     </main>

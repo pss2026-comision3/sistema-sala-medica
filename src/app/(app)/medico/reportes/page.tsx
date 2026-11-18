@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { hoySala, sumarDias } from "@/lib/agenda/reglas";
 import { consultarReporteAsistencia } from "@/lib/reportes/asistencia-recordatorios";
 import { ReportesView } from "../../admin/reportes/reportes-view";
+import { huellaReporte } from "@/lib/reportes/exportacion/huella";
 
 export const metadata: Metadata = {
   title: "Mis reportes | SIGSAM",
@@ -32,6 +33,7 @@ export default async function MedicoReportesPage() {
         fechaHoy={hoy}
         fechaDesdeDefecto={hace30Dias}
         reporteInicial={reporteInicial}
+        huellaInicial={huellaReporte(reporteInicial)}
         modoMedico
       />
     </main>
