@@ -1,19 +1,33 @@
 import { NextResponse } from "next/server";
+
 import { procesarRecordatorios } from "@/lib/agenda/procesar-recordatorios";
 
 export async function GET(request: Request) {
-  // 1. Validar que la petición venga de Vercel usando la variable de entorno secreta
-  //const authHeader = request.headers.get("authorization");
- // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-   // return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  //}
+  const secreto = process.env.CRON_SECRET;
+  if (!secreto) {
+    console.error("[CRON Recordatorios] Falta CRON_SECRET en el entorno.");
+    return NextResponse.json(
+      { error: "Configuración incompleta" },
+      { status: 500 },
+    );
+  }
 
-  // 2. Si la clave secreta es correcta, procesar los turnos
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${secreto}`) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   try {
     await procesarRecordatorios();
-    return NextResponse.json({ exito: true, mensaje: "Recordatorios procesados" });
+    return NextResponse.json({
+      exito: true,
+      mensaje: "Recordatorios procesados",
+    });
   } catch (error) {
     console.error("Fallo cron recordatorios:", error);
-    return NextResponse.json({ error: "Error procesando recordatorios" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error procesando recordatorios" },
+      { status: 500 },
+    );
   }
 }
