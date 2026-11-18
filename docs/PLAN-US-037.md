@@ -23,10 +23,10 @@ _Guía para agregar nuevos reportes_.
 
 ### Reglas de negocio
 
-- **Qué se cuenta:** turnos `CONFIRMADO` con resultado `ATENDIDO` (CA3).
+- **Qué se cuenta:** turnos médicos (`tipo = CONSULTA`) `CONFIRMADO` con resultado `ATENDIDO` (CA3). Por el cambio de alcance no hay turnos de vacunación, igual que en US-034 y US-035.
 - **Fecha del período:** la fecha de la cita (`disponibilidad.fecha`) (CA3).
 - **Clasificación (CA3, recortada):**
-  - Arancel `$0` → **Gratuita** (sin importar la modalidad).
+  - Arancel `$0` → **Gratuita** (sin importar la modalidad; el arancel del médico admite $0).
   - Modalidad `CON_COBERTURA` → **Con cobertura registrada**.
   - Resto → **Particular** (sin estado de cobro; ver recortes).
 - **Entidad de cobertura:** se muestra el nombre guardado en el turno al
@@ -45,7 +45,7 @@ _Guía para agregar nuevos reportes_.
 | CA1 | ❌ Recortado | Toda la sección de cobros (intentos, importe, operador, prestación y factura) depende de US-029 y US-030, descartadas. |
 | CA2 | ❌ Recortado | Total de ingresos simulados y separación aprobados/rechazados/cancelados: sin US-029 no hay intentos de pago. |
 | CA3 | ⚠️ Parcial | Se filtra por fecha de cita y se muestran las atendidas como **Particular**, **Gratuita** o **Con cobertura registrada**. No se distingue "Particular cobrada / sin cobrar" (depende de US-029). |
-| CA4 | ⚠️ Parcial | Filtros por entidad de cobertura, médico y especialidad. La cobertura no se contabiliza como pago. **No** hay filtro por vacuna (depende de US-023). |
+| CA4 | ⚠️ Parcial | Filtros por entidad de cobertura, médico, especialidad y categoría. La cobertura no se contabiliza como pago. Solo turnos médicos. **No** hay filtro por vacuna (depende de US-023). |
 | CA5 | ⚠️ Parcial | Solo el Administrador consulta el reporte agregado; el Paciente no tiene acceso. La consulta de comprobantes del Paciente depende de US-030. La exportación la agrega US-038. |
 
 ## CA no cumplidos por el recorte del Sprint 3
