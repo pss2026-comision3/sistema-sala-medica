@@ -13,6 +13,8 @@
  * - CA4: filtros por entidad de cobertura, médico y especialidad. Una cobertura
  *   registrada NO es un pago recibido: por eso el reporte no suma importes como
  *   ingresos; el arancel se muestra solo como valor de referencia.
+ * - Cambio de alcance: solo turnos médicos (consultas), igual que US-034/035.
+ *   Al quedar fuera US-022/023/024/025 no existen turnos de vacunación.
  */
 
 import { prisma } from "@/lib/db/prisma";
@@ -59,7 +61,7 @@ function aIdOpcional(valor?: string): bigint | undefined {
 
 /**
  * CA3: clasifica una prestación atendida.
- * - Arancel $0 → Gratuita (p. ej. vacunas del calendario oficial), sin importar la modalidad.
+ * - Arancel $0 → Gratuita (el arancel del médico admite $0), sin importar la modalidad.
  * - Modalidad CON_COBERTURA → Con cobertura registrada.
  * - Resto → Particular (sin estado de cobro, porque US-029 quedó fuera).
  */
@@ -100,6 +102,8 @@ export async function consultarReporteCobertura(
 
   const turnos = await prisma.turno.findMany({
     where: {
+      // Cambio de alcance: solo turnos médicos (consultas)
+      tipo: "CONSULTA",
       // CA3: solo prestaciones atendidas de citas definitivas
       estado: "CONFIRMADO",
       resultado: "ATENDIDO",
@@ -121,7 +125,6 @@ export async function consultarReporteCobertura(
     },
     select: {
       id: true,
-      tipo: true,
       hora: true,
       arancel: true,
       modalidad: true,
@@ -129,7 +132,6 @@ export async function consultarReporteCobertura(
       coberturaNombreSnapshot: true,
       coberturaPlanSnapshot: true,
       obraSocial: { select: { nombre: true } },
-      vacuna: { select: { nombre: true } },
       paciente: {
         select: { dni: true, persona: { select: { nombreCompleto: true } } },
       },
@@ -165,8 +167,7 @@ export async function consultarReporteCobertura(
 
     const profesional = t.disponibilidad.profesional;
     const especialidad =
-      profesional.medico?.especialidad?.nombre ??
-      (t.tipo === "VACUNACION" ? "Vacunatorio" : "Sin especialidad");
+      profesional.medico?.especialidad?.nombre ?? "Sin especialidad";
     const entidad =
       t.modalidad === "CON_COBERTURA"
         ? (t.coberturaNombreSnapshot ?? t.obraSocial?.nombre ?? "Sin datos")
@@ -203,10 +204,7 @@ export async function consultarReporteCobertura(
       dni: t.paciente.dni,
       profesional: profesional.persona.nombreCompleto,
       especialidad,
-      prestacion:
-        t.tipo === "VACUNACION"
-          ? `Vacunación${t.vacuna ? ` · ${t.vacuna.nombre}` : ""}`
-          : "Consulta médica",
+      prestacion: "Consulta médica",
       categoria: cat,
       cobertura: entidad,
       plan: t.modalidad === "CON_COBERTURA" ? t.coberturaPlanSnapshot : null,
