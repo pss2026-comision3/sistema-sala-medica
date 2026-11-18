@@ -26,6 +26,14 @@ if (!connectionString) {
   throw new Error("Falta DATABASE_URL en el entorno (.env).");
 }
 
+function hostDeBase(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "host no reconocido";
+  }
+}
+
 const prisma = new PrismaClient({
   adapter: new PrismaPg(connectionString),
 });
@@ -486,6 +494,8 @@ async function main() {
   const minutoAhora = horaActual * 60 + minutoActual;
 
   console.log(`[demo] Fecha/hora de sala: ${hoy} ${minutosAHora(minutoAhora)}`);
+  console.log(`[demo] Base destino: ${hostDeBase(connectionString!)}`);
+  console.log("[demo] Se eliminarán únicamente registros del namespace S3.");
   console.log("[demo] Limpiando únicamente registros del namespace S3...");
   await limpiarDemo();
 

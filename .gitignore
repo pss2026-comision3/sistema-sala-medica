@@ -57,6 +57,9 @@ docs/Requerimientos Sprint 3 - USs y Tareas.md
 docs/*
 !docs/PLAN-US-038.md
 !docs/REPORTE-US-038.md
+!docs/Sprint 3/
+docs/Sprint 3/*
+!docs/Sprint 3/Guia-plan-de-demo.md
 
 # Suite E2E de la demo Sprint 3 (no se ejecuta en CI)
 /e2e/demo-sprint3/
