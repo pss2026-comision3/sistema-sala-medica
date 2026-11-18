@@ -958,18 +958,31 @@ async function main() {
     arancel: 5000,
   });
 
-  const hace4 = sumarDias(hoy, -4);
-  const bloque4 = await crearBloque(medico1.usuario.id, hace4, "09:00", "12:00");
+  const carlosMinuto = Math.min(
+    MAX_MINUTO,
+    Math.ceil((minutoAhora + 180) / 20) * 20,
+  );
+  const carlosSlot = desplazarMinutos(
+    ahora,
+    Math.max(10, carlosMinuto - minutoAhora),
+  );
+  const bloqueCarlos = await crearBloque(
+    medico1.usuario.id,
+    carlosSlot.fecha,
+    carlosSlot.hora,
+    minutosAHora(Math.min(carlosSlot.minuto + 20, 23 * 60 + 59)),
+  );
   await crearTurno({
     pacienteId: carlos.personaId,
-    disponibilidadId: bloque4.id,
-    hora: "10:00",
+    disponibilidadId: bloqueCarlos.id,
+    hora: carlosSlot.hora,
     creadoPor: admin.usuario.id,
     estado: "CANCELADO",
-    canceladoEn: new Date(`${hace4}T12:00:00.000Z`),
+    canceladoEn: new Date(`${sumarDias(hoy, -1)}T18:00:00.000Z`),
     canceladoPor: admin.usuario.id,
     motivoCancelacion: "El paciente no puede asistir (S3).",
     origenCancelacion: "demo",
+    creadoEn: new Date(`${sumarDias(hoy, -2)}T13:00:00.000Z`),
     arancel: 5000,
   });
 
@@ -1075,7 +1088,7 @@ async function main() {
   await cargar(loteAntB.id, 5, 18);
   await cargar(loteHep.id, 15, 20);
   await cargar(loteFam.id, 3, 19);
-  await cargar(loteNeu.id, 6, 17);
+  await cargar(loteNeu.id, 9, 17);
   await cargar(loteVar.id, 5, 16);
   await cargar(loteVar.id, -5, 15);
 
